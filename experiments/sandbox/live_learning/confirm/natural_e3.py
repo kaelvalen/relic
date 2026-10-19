@@ -349,11 +349,60 @@ def serve(args):
     )
 
 
+def score(args):
+    """Corrected leak rates from the author's labels ({"i000": verdict, ...}).
+
+    Label ids index the label sample in file order. Per router, the share of sampled
+    automatic leaks labelled "legit" (the target also answers the question) scales the
+    automatic leak rate; "unsure" labels are reported and left out of the share.
+    """
+    from pilot import hit
+
+    sample = json.loads((CONFIRM / "natural_e3_labels.json").read_text())
+    verdicts = json.loads(Path(args.labels).read_text())
+    report = json.loads((CONFIRM / "natural_e3.json").read_text())
+    out = {"prereg": "SS85", "n_labels": len(verdicts), "routers": {}}
+    for name in ROUTERS:
+        auto = [
+            verdicts.get(f"i{k:03d}")
+            for k, it in enumerate(sample)
+            if it["router"] == name
+            and hit(it["response_adapter_note"], it["stored_target"])
+            and not hit(it["base_response"], it["stored_target"])
+        ]
+        decided = [v for v in auto if v in ("legit", "leak")]
+        legit = sum(v == "legit" for v in decided) / len(decided) if decided else None
+        rate_auto = report["summary"][name]["pooled"]["leak_target_both"]
+        near_auto = report["summary"][name]["near"]["leak_target_both"]
+        out["routers"][name] = {
+            "sampled_auto_leaks": len(auto),
+            "labelled": len(decided),
+            "unsure": sum(v == "unsure" for v in auto),
+            "unlabelled": sum(v is None for v in auto),
+            "legit_share": legit,
+            "leak_both_auto": rate_auto,
+            "leak_both_corrected": None if legit is None else rate_auto * (1 - legit),
+            "near_leak_both_auto": near_auto,
+            "near_leak_both_corrected": None
+            if legit is None
+            else near_auto * (1 - legit),
+        }
+    d = out["routers"]["default_ss76"]
+    out["P5"] = {
+        "legit_share_default": d["legit_share"],
+        "holds": None if d["legit_share"] is None else d["legit_share"] < 0.5,
+    }
+    path = CONFIRM / "natural_e3_scored.json"
+    path.write_text(json.dumps(out, indent=1))
+    print(json.dumps(out, indent=1))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "serve"])
+    ap.add_argument("cmd", choices=["generate", "serve", "score"])
+    ap.add_argument("--labels", help="score: JSON object of label id -> verdict")
     args = ap.parse_args(argv)
-    generate(args) if args.cmd == "generate" else serve(args)
+    {"generate": generate, "serve": serve, "score": score}[args.cmd](args)
 
 
 if __name__ == "__main__":

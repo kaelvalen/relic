@@ -2103,3 +2103,40 @@ wrong-route retention >= ref16 - 0.03. Otherwise the stored recipe stays (int8 s
 SS86). The reported N=1000 store results are not recomputed here.
 Predictions. P1 r2_lp int8 passes the rule. P2 its adapter-alone paraphrase is within
 0.03 of ref16's. P3 adapter facts are 15% to 25% of the 2000 drawn facts.
+
+## 88. SS85 results, automatic rule (2026-10-20)
+
+Run as pinned with the deviation of 2026-10-19 (natural_e3.py; natural_e3_queries.json,
+natural_e3.json, label sample natural_e3_labels.json drawn before the rates were
+computed). SmolLM3-3B wrote 1000 questions; 7 do not contain the subject and were
+dropped (993 kept: 500 near-neighbour, 493 uniform).
+
+| router (theta) | routed: all / near / uniform | leak, adapter + note: all / near / uniform | leak, tiered: all |
+| :-- | :-- | :-- | :-- |
+| default, SS76 encoder (0.7501) | 0.157 / 0.310 / 0.002 | 0.146 / 0.288 / 0.002 | 0.106 |
+| SS74 default, MiniLM (0.757) | 0.119 / 0.230 / 0.006 | 0.107 / 0.206 / 0.006 | 0.083 |
+| frozen mpnet (0.6694) | 0.125 / 0.244 / 0.004 | 0.117 / 0.228 / 0.004 | 0.085 |
+
+Leak is the automatic rule (the response contains the queried fact's target and the base
+response does not); the SS71 any-answer rule gives the same figures within 0.003.
+Default minus frozen mpnet routed: +0.032 (95% CI 0.006 to 0.058).
+Default router, near-neighbour queries by relation pair (n, routed, leak): P495/P740 64,
+0.53, 0.53; P176/P178 60, 0, 0; P103/P37 51, 0.27, 0.27; P103/P1412 49, 0.18, 0.16;
+P364/P407 45, 0.71, 0.69; P1412/P37 45, 0.22, 0.22; P17/P30 43, 0.40, 0.30; P131/P30 41,
+0.51, 0.39; P20/P937 28, 0, 0; P19/P937 22, 0, 0; P131/P276 21, 0.81, 0.81; P131/P17 16,
+0.06, 0.06; P19/P20 15, 0, 0. The frozen mpnet errs on other pairs (P176/P178 0.35,
+P17/P30 0.63) and rarely on P364/P407 (0.04) or P131/P30 (0).
+Predictions: P1 holds (0.157 >= 0.07); P2 holds (+0.032, CI excludes 0); P3 holds (near
+minus uniform +0.308); P4 holds (0.146 >= 0.043). P5 waits for the labels.
+Readings. Natural questions about another relation of the subject are almost never routed
+when that relation is unrelated (0.2% to 0.6%), and often routed when it is a near
+neighbour (23% to 31%). The template E3 figure of 4.3% is therefore a property of
+CounterFact templates, which pair relations uniformly; for questions about neighbouring
+relations the default router routes and answers with the stored target about every third
+time. Several of the most-routed pairs are near synonyms for the subjects involved (the
+original language of a film and the language of the work; location and administrative
+location), where the stored target can also be a correct answer; the automatic rule counts
+those as leaks, which is what the labels estimate.
+Decision (SS85 rule). P1 holds: the paper reports the default configuration's locality
+on natural queries next to the template figure and states that 4.3% holds for
+CounterFact templates. Corrected rates follow when the 120 labels exist.

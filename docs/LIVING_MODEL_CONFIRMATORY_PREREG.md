@@ -1854,3 +1854,75 @@ paper reports it with the SS79 group B figures. P3 holds: the paper states that 
 trained encoder's threshold keeps its dev FPR only within the template space it was
 calibrated on, more so than a frozen encoder. The old split (relenc_split.json) is
 relabelled as a relation split only. SS80 can now be pinned.
+
+## 83. SS81 results: adapter size (2026-10-19)
+
+Run as pinned (adapter_size.py; adapter_size_precision.json, adapter_size_sweep.json).
+
+A. Storage precision, first 200 CounterFact N=1000 adapters (baseline recipe), each
+served by its own adapter; the LoRA slot is fp32, so every format is cast back to fp32.
+
+| format | size | identical outputs | efficacy | paraphrase | para. + note | held-out D mean / max | above kappa | max abs D change |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| fp32 | 8.7 MB | 1.000 | 1.000 | 0.835 | 0.985 | 0.371 / 1.448 | 4 | 0 |
+| bf16 | 4.4 MB | 0.985 | 0.995 | 0.845 | 0.985 | 0.372 / 1.414 | 4 | 0.058 |
+| fp16 | 4.4 MB | 0.978 | 0.995 | 0.835 | 0.980 | 0.371 / 1.452 | 4 | 0.054 |
+| int8 | 2.3 MB | 0.978 | 0.995 | 0.845 | 0.985 | 0.371 / 1.436 | 5 | 0.041 |
+
+Predictions: bf16 and fp16 identical outputs >= 97% holds (98.5%, 97.8%); hit rates
+within 0.01 of fp32 holds; |delta D| < 0.01 per adapter fails (up to 0.058). int8
+identical >= 90% holds (97.8%); hit rates within 0.02 holds; no adapter crossing kappa
+fails (one adapter crosses that fp32 keeps below; 4 of 200 fp32 adapters are above kappa
+already). Reading: int8 storage is lossless at the level of answers (the 13 of 600 changed
+outputs do not change any hit rate by more than 0.01) and quarters the size; D moves by
+up to 0.06, so an adapter near kappa must be checked in the stored format.
+
+B. Update form, SS44 set (N=50), per-fact LoRA+ recipe, seed 81. Held-out D on the 40
+SS69 canaries, kappa 0.968; in-sample D on the 2 training canaries.
+
+| variant | size (bf16) | efficacy | paraphrase | para. + note | held-out D mean / max | above kappa | in-sample D max | pass |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| r16_qv_all | 4.36 MB | 1.00 | 0.90 | 0.94 | 1.248 / 3.829 | 0.70 | 0.049 | no (D) |
+| r4_qv_all | 1.09 MB | 1.00 | 0.78 | 0.98 | 0.588 / 1.129 | 0.06 | 0.063 | no |
+| r2_qv_all | 545 KB | 0.98 | 0.88 | 1.00 | 0.447 / 0.923 | 0 | 0.077 | yes |
+| r1_qv_all | 272 KB | 0.98 | 0.72 | 1.00 | 0.266 / 0.657 | 0 | 0.092 | no (para.) |
+| r4_v_all | 401 KB | 1.00 | 0.84 | 1.00 | 0.557 / 0.960 | 0 | 0.113 | no (para.) |
+| r1_v_all | 100 KB | 0.94 | 0.62 | 1.00 | 0.186 / 0.414 | 0 | 0.078 | no |
+| r4_qv_mid | 311 KB | 0.76 | 0.10 | 0.94 | 0.591 / 1.387 | 0.16 | 0.097 | no |
+| r1_qv_mid | 78 KB | 0.24 | 0.04 | 0.90 | 0.292 / 0.722 | 0 | 0.075 | no |
+| fa_r4_qv_all | 401 KB | 0.92 | 0.58 | 1.00 | 0.353 / 0.851 | 0 | 0.078 | no |
+| fa_r1_qv_all | 100 KB | 0.34 | 0.12 | 0.94 | 0.058 / 0.144 | 0 | 0.055 | no |
+
+The fa variants used the same A for every fact (checked). One fact is 0.02 of a rate.
+Predictions: r16_qv_all reproduces SS46 on efficacy and paraphrase (1.00 / 0.90) holds;
+r4_qv_all passes fails (paraphrase 0.78, D max 1.13); r1_qv_all efficacy >= 0.98 holds,
+its paraphrase 0.80 to 0.90 fails (0.72); v-only loses paraphrase against q+v at equal
+rank holds at r1 (0.62 / 0.72) and fails at r4 (0.84 / 0.78); mid-layer variants keep
+efficacy fails (0.76, 0.24); fa variants keep efficacy >= 0.96 fails (0.92, 0.34); no
+variant crosses kappa fails (r16 0.70, r4 0.06, r4_mid 0.16); smallest passing variant at
+most 300 KB fails (545 KB).
+Readings.
+1. LoRA+ at rank 16 fails the held-out check: 70% of its adapters lie above kappa
+   (held-out D mean 1.25), while its in-sample D is the lowest of all variants. SS46
+   adopted LoRA+ on the in-sample D, the reading that SS69 showed to understate an
+   adapter's effect; under the held-out check LoRA+ at rank 16 is not a free win but a
+   rejected recipe. The stored N=1000 adapters use the baseline recipe (held-out D mean
+   0.37 in A), so no reported store result changes; Table delta_recipes reports in-sample
+   KL and must say so.
+2. Held-out D falls with rank (q+v, all layers: 1.25, 0.59, 0.45, 0.27 for r = 16, 4, 2,
+   1). A smaller update is also a safer one.
+3. Restricting layers or freezing A costs efficacy within the 16-pass budget; these
+   forms would need more steps, which SS81 does not tune.
+4. Paraphrase alone is not monotonic in rank (r4 0.78, r2 0.88); with N=50 a difference
+   of 0.10 is about two standard errors.
+5. Served with the note (the default mode), paraphrase is 0.94 to 1.00 for 9 of 10
+   variants, including the 100 KB r1_v_all. On this set the note alone answers many of
+   these facts, so this does not show that a 100 KB adapter is enough for the facts that
+   need one (the tiered store's adapter facts); it is not an SS81 criterion.
+Decision (SS81 rule). r2_qv_all is the candidate recipe (545 KB in bf16, 16x smaller
+than the stored 8.7 MB; about 280 KB if int8 storage holds for it as it does for rank
+16). It does not replace the stored recipe before an N=1000 confirmation, to be pinned
+next. That confirmation should also separate the recipe from the rank (rank 2 with the
+baseline recipe against rank 2 with LoRA+) and read efficacy and paraphrase with the note
+on the facts whose note fails alone. The per-fact adoption of LoRA+ (SS46) is withdrawn:
+until the confirmation, per-fact adapters keep the baseline recipe.

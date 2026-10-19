@@ -2018,3 +2018,7 @@ Decision rule. P1 holds: the paper reports the default configuration's locality 
 natural queries next to the template figure and states that 4.3% holds for CounterFact
 templates. P1 fails: the paper states that the template E3 figure carries over to natural
 queries written by another model family.
+
+Deviation (2026-10-19, before any SS85 run). The pinned description rule cuts P20's
+description inside "(e.g. city ...)", giving "most specific known (e.g". A '. ' that ends
+"e.g." or "i.e." no longer cuts; this changes only P20 among the 34 relations.

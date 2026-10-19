@@ -818,10 +818,35 @@ Table~\ref{tab:relsplit} shows where the gain comes from. On relations seen in t
 \xParaSeenRoutePct\% of the paraphrases are routed to their fact, and leakage falls from
 \xEthreeSeenDefPct\% to \xEthreeSeenLeakPct\%. On held-out relations, paraphrase routing
 still improves, from \xParaHeldDefRoutePct\% to \xParaHeldRoutePct\%, but leakage does
-not fall. The encoder has largely learned the inventory of relation templates in
-CounterFact. The result therefore applies to a deployment whose relations are known in
-advance, such as a store that follows a fixed schema. For new relations, the encoder
-transfers part of the recall and none of the locality.
+not fall. The encoder separates the CounterFact relations it was trained on, but not new
+relations from their neighbors. The result therefore applies to a deployment whose
+relations are known in advance, such as a store that follows a fixed schema. For new
+relations, the encoder transfers part of the recall and none of the locality.
+
+\emph{Unseen phrasings.} Table~\ref{tab:relsplit} splits by relation, not by phrasing.
+CounterFact has 218 edit templates, and every seen-relation key of the test store occurs
+verbatim in the training triplets, so the seen-relation figures are in-sample for the
+phrasings. We therefore repeated the training on a split of the relation texts
+themselves, registered before the run. The 2767 subject-masked relation texts of
+CounterFact edit prompts and paraphrases, without the 46 that occur under more than one
+relation, were divided into the texts of the 11 held-out relations and two random halves
+of the others, one for training and calibration and one for testing only. For each of
+three seeds, an encoder was trained and calibrated on the first half and evaluated on a
+new store of 1200 facts: 400 whose key, paraphrase and other-relation prompt are texts of
+the training half, 400 with texts of the test half, and 400 of held-out relations.
+Averaged over the seeds, the encoder routes \tsParaATrainedPct\% of the paraphrases with
+training texts, \tsParaBTrainedPct\% of those with unseen texts of seen relations and
+\tsParaCTrainedPct\% of those of held-out relations, against \tsParaAFrozenPct\%,
+\tsParaBFrozenPct\% and \tsParaCFrozenPct\% for the untrained all-mpnet-base-v2
+calibrated on the same texts. The gain on unseen phrasings is \tsRatioPct\% of the gain
+on seen ones, so routing does not depend on having seen a phrasing; we had predicted the
+opposite. The threshold does depend on it. Set to route 5\% of other-relation prompts on
+training texts, it routes \tsEthreeBTrainedPct\% of them on unseen texts of seen relations
+and \tsEthreeCTrainedPct\% on held-out relations, while the untrained encoder stays at
+\tsEthreeBFrozenPct\% and \tsEthreeCFrozenPct\% (difference in the excess over the
+development rate on unseen texts \tsInflDiff{} points, 95\% CI \tsInflDiffCI). The false
+positive rate of a trained encoder's threshold holds only within the phrasings it was
+calibrated on, and more strictly so than that of a frozen encoder.
 
 \emph{A broader relation inventory.} To test whether training on more relations transfers
 locality to new ones, we trained two further encoders on templates for the 1785

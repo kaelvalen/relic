@@ -1926,3 +1926,48 @@ next. That confirmation should also separate the recipe from the rank (rank 2 wi
 baseline recipe against rank 2 with LoRA+) and read efficacy and paraphrase with the note
 on the facts whose note fails alone. The per-fact adoption of LoRA+ (SS46) is withdrawn:
 until the confirmation, per-fact adapters keep the baseline recipe.
+
+## 84. Rank-2 adapters on the adapter facts of the N=1000 stores (pinned 2026-10-19, before the run)
+
+Motivation. SS83 left r2_qv_all (545 KB in bf16) as the candidate recipe, measured on 50
+facts, many of which the note answers alone. In the default tiered store only facts whose
+note fails on the edit prompt carry an adapter (SS68 rule, tiers in cf/zsre_n1000_v4_eval):
+162 CounterFact and 206 zsRE facts. These 368 facts are the population on which an
+adapter recipe matters, and on which the comparison is run here.
+
+Arms (per fact, trained from a fresh base on the store's pairs facts.pairs, 16 passes, KL
+anchor on the two training canaries, lora_alpha = 2r, q_proj + v_proj in all layers,
+torch.manual_seed(84) before each adapter):
+  ref     the stored rank-16 baseline adapters (no training; verified checkpoints)
+  r2_base rank 2, baseline recipe (AdamW, lr 3e-4 for A and B)
+  r2_lp   rank 2, LoRA+ recipe (A 3e-4, B 2.4e-3)
+and, eval only, r2_base and r2_lp stored in int8 (SS81 rounding, one fp16 scale per row;
+about 280 KB per fact).
+Readings per arm, each fact served by its own adapter (routing does not read the
+adapter), greedy, up to 64 new tokens: efficacy (edit prompt) and paraphrase with the
+adapter alone ("Answer briefly.") and with adapter and note (the instruct note system,
+the default serving mode); held-out D on the 40 SS69 canaries, share above kappa = 0.968;
+wrong-route retention: the 200 SS69 zsRE dev questions that the base answers correctly
+(canary_eval.json), each served with the adapter of one of the 368 facts drawn with
+seed 84 (the same draw for every arm); for the int8 arms also the share of outputs
+identical to the arm in fp32. Paired bootstrap 95% CIs (10000 resamples) for arm - ref.
+Readings are reported pooled and per dataset.
+
+Decision rule (fixed now). A rank-2 recipe replaces the stored recipe for new adapters if,
+pooled over the 368 facts: (i) efficacy with note >= ref - 0.02 and paraphrase with note
+>= ref - 0.03, with the lower CI bound of paraphrase-with-note (arm - ref) >= -0.06;
+(ii) at most 2% of its adapters above kappa; (iii) wrong-route retention >= ref - 0.03.
+If both rank-2 recipes pass, the one with the higher paraphrase with note is chosen, and
+r2_base on a tie within 0.01. If the chosen recipe's int8 arm has >= 97% identical
+outputs and also passes (i) to (iii), adapters are stored in int8. If neither rank-2
+recipe passes, the stored recipe stays and only int8 storage (SS83 A) is adopted.
+The reported N=1000 store results are not recomputed by this entry; a store rebuilt
+with the chosen recipe is a later entry.
+
+Predictions.
+  P1 r2_base passes the rule.
+  P2 r2_lp has a higher mean held-out D than r2_base.
+  P3 r2_base has a lower mean held-out D than ref.
+  P4 adapter-alone paraphrase is at least as high for r2_lp as for r2_base.
+  P5 both int8 arms have >= 97% identical outputs.
+  P6 wrong-route retention of both rank-2 arms >= ref.

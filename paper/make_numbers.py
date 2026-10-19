@@ -405,6 +405,19 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS85 natural other-relation queries (prefix "nq"), automatic leak rule.
+try:
+    nq = json.load(open(R + "natural_e3.json"))
+    d, fz = nq["summary"]["default_ss76"], nq["summary"]["frozen_mpnet"]
+    out.append(f"\\newcommand{{\\nqN}}{{{nq['n_queries']}}}")
+    emit("nqNearRouted", d["near"]["routed"], fixed=True)
+    emit("nqUniformRouted", d["uniform"]["routed"], fixed=True)
+    emit("nqLeak", d["pooled"]["leak_target_both"], fixed=True)
+    emit("nqNearLeak", d["near"]["leak_target_both"], fixed=True)
+    emit("nqFrozenNearRouted", fz["near"]["routed"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

@@ -1007,7 +1007,9 @@ experiments are exploratory.
 record contains an initialization that set both LoRA factors to zero so that the
 vision-language adapters did not train, a leakage check for grouped adapters that drew
 held-out facts from inside the training group, a grouped run whose result depended on the
-position in the random number stream, and an instability of LoRA+ for grouped adapters.
+position in the random number stream, an instability of LoRA+ for grouped adapters,
+and the choice of LoRA+ for single-fact adapters on the in-sample check, which the
+held-out check later rejected (Table~\ref{tab:recipes}).
 Each problem was documented before and after it was corrected.
 
 % ===========================================================================

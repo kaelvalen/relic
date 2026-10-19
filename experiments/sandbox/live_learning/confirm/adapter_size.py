@@ -194,10 +194,10 @@ def precision(args) -> None:
 
 
 # -- B: update form ---------------------------------------------------------
-def make_variant(base, spec):
+def make_variant(base, spec, seed=SEED):
     from peft import LoraConfig, get_peft_model
 
-    torch.manual_seed(SEED)
+    torch.manual_seed(seed)
     kw = dict(
         r=spec["r"],
         lora_alpha=2 * spec["r"],
@@ -242,12 +242,13 @@ def set_delta(m, delta=None) -> None:
                 p.copy_(delta[key][k].to(p.device, p.dtype))
 
 
-def train_one(store, spec, pairs):
+def train_one(store, spec, pairs, b_mult=8, seed=SEED):
+    """b_mult: B learning rate as a multiple of A's (8 = LoRA+, 1 = baseline)."""
     base = load_model(store.model_name)[1]
-    m = make_variant(base, spec)
+    m = make_variant(base, spec, seed)
     a = [p for n, p in m.named_parameters() if "lora_A" in n and p.requires_grad]
     b = [p for n, p in m.named_parameters() if "lora_B" in n and p.requires_grad]
-    groups = [{"params": b, "lr": 8 * store.lr}]
+    groups = [{"params": b, "lr": b_mult * store.lr}]
     if a:
         groups.insert(0, {"params": a, "lr": store.lr})
     opt = torch.optim.AdamW(groups)

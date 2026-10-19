@@ -64,9 +64,9 @@ threshold trade-off that training anchors, notes, general-purpose encoders and t
 relevance tests do not escape. A relation encoder trained
 offline on disjoint data does: at a threshold that routes 5\% of other-relation questions
 on development data, CounterFact paraphrase accuracy is \xCfParaBothPct\% at
-\xCfEthreeLeakBothPct\% leakage, and zsRE paraphrase accuracy is \xZsParaBothPct\%. Most
-of the gain is on relations seen in training; on held-out relations leakage is not
-reduced, even when training covers 1785 Wikidata relations. Only \vCfTierFracPct\% of CounterFact facts need an adapter, and the divergence check must
+\xCfEthreeLeakBothPct\% leakage on CounterFact templates, and zsRE paraphrase accuracy is
+\xZsParaBothPct\%. Leakage into neighboring relations remains: \nqNearLeakPct\% of natural
+questions about them, written by another model, contain the stored answer. Only \vCfTierFracPct\% of CounterFact facts need an adapter, and the divergence check must
 use held-out prompts.
 \end{abstract}
 
@@ -881,6 +881,23 @@ neighboring relation that a query actually confuses; some even restate the store
 question. Since the routes differed from the trained encoder's only through the threshold,
 we did not run the end-to-end evaluation that we had registered.
 
+\emph{Questions written by another model.} The other-relation prompts above are CounterFact
+templates, which pair the stored relation with a uniformly drawn other one. We therefore
+had SmolLM3-3B, a model of another family, write one natural question per stored
+CounterFact fact that asks for another relation of its subject: for half of the facts a
+near neighbor of the stored relation (the pairs listed above), for the other half a
+relation drawn uniformly from the rest (registered before the run; \nqN{} questions
+contain the subject). The default router routes \nqUniformRoutedPct\% of the questions
+about unrelated relations but \nqNearRoutedPct\% of those about neighboring relations, and
+with adapter and note \nqNearLeakPct\% of the latter contain the stored answer
+(\nqLeakPct\% of all questions, against \xCfEthreeLeakBothPct\% for the templates). The
+frozen all-mpnet-base-v2 routes \nqFrozenNearRoutedPct\% of the neighbor questions, on
+other pairs. The leakage figure for templates therefore reflects how CounterFact pairs
+relations; for questions about neighboring relations the default router serves the stored
+answer about every third time. Some of these outputs may be correct, because neighboring
+relations can coincide for the subjects involved, such as the original language of a film
+and the language of the work, and our automatic rule counts them as leakage.
+
 \subsection{Comparison with Editing Methods}
 
 \input{tables/baselines}
@@ -1028,9 +1045,10 @@ be a property of the router's relation comparison rather than of the adapters or
 serving mode. With general-purpose encoders a single threshold sets
 the balance between paraphrase accuracy and leakage. A relation encoder trained offline on
 disjoint data shifts this balance for known relations, to \xCfParaBothPct\% paraphrase
-accuracy at \xCfEthreeLeakBothPct\% leakage on CounterFact. Separating relations that the
-router has not seen in training, in particular near neighbors of known relations, is the
-main open problem.
+accuracy at \xCfEthreeLeakBothPct\% leakage on CounterFact templates. Separating near
+neighbors of known relations, which receive the stored answer for \nqNearLeakPct\% of
+natural questions about them, and relations that the router has not seen in training is
+the main open problem.
 
 % ===========================================================================
 \appendices

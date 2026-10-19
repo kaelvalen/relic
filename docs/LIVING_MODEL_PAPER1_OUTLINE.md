@@ -73,7 +73,8 @@ measure every guarantee at N=1000.
 - Capacity: one delta carries 256 facts (eff 1.00, KLD 0.007, genuine leakage
   0.1-0.3 after the slice fix).
 - Router stress: typos/lower/space 1.00, partial 0.80, pronoun abstains.
-- Ablations: LoRA+ per-fact adopted; grouped keeps baseline; OLoRA/DoRA/PiSSA/MLP
+- Ablations: LoRA+ per-fact adopted in SS46 on the in-sample D, withdrawn in SS83
+  (70% of rank-16 LoRA+ adapters above the held-out kappa); baseline everywhere; OLoRA/DoRA/PiSSA/MLP
   rejected (recorded).
 - Honest failures section: LoRA+ grouped instability (SS48), the capacity slice
   bug and its fix (SS60/61), RNG-position sensitivity.

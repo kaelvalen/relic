@@ -115,7 +115,8 @@ jointly-trained delta carries 256 facts at full efficacy (seeded: k=64 0.984 /
 128 1.00 / 256 1.00; KLD <=0.007)**; the summed collapse is an additivity artifact,
 not a capacity limit; leakage 0.30/1.00 recorded with a suspected artifact (not
 base-referenced + language-target collisions) - re-check pinned. LoRA+ adopted
-per-fact only (grouped unstable at 8x B-lr, §48); follow-up pinned: grouped experts
+per-fact only (grouped unstable at 8x B-lr, §48; per-fact adoption withdrawn in §83,
+held-out D rejects 70% of rank-16 LoRA+ adapters); follow-up pinned: grouped experts
 (~256 facts/delta, coarse router) + seeds/CIs. (6) zsRE N=1000 - stopped on request at the 100/1000 checkpoint (resumable with the
 same chunked wrapper).
 

@@ -397,6 +397,14 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS81 adapter size (prefix "as"): LoRA+ at rank 16 under the held-out check.
+try:
+    lp = json.load(open(R + "adapter_size_sweep.json"))["variants"]["r16_qv_all"]
+    emit("asLpAbove", lp["above_kappa"])
+    emit("asLpHeldMean", lp["d_heldout_mean"])
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

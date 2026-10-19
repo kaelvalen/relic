@@ -2072,3 +2072,34 @@ Follow-up (not run): a new entry on facts outside the N=1000 stores, with an
 above-kappa criterion relative to the stored recipe fixed before the run, is needed
 before r2_lp in int8 can replace the stored recipe; SS84 cannot be re-scored with a new
 criterion.
+
+## 87. Rank-2 LoRA+ in int8 on fresh adapter facts (pinned 2026-10-20, before the run)
+
+Motivation. In SS84 rank-2 LoRA+ matched the stored rank-16 adapters on every quality
+reading but failed an above-kappa limit (2%) that the stored adapters also fail (4.6%).
+SS84 is not re-scored. This entry tests the candidate on facts it has not touched, with
+the divergence criterion stated relative to the stored recipe, fixed before the run.
+
+Facts. CounterFact and zsRE facts (external.py adapters) whose subjects are in neither
+N=1000 store nor the SS66 dev split; one fact per subject; drawn with seed 87, 1000 per
+dataset, in that order. Tier check as SS68: a fact is an adapter fact if the base model
+with the instruct note does not produce the target for the edit prompt (greedy, up to 64
+new tokens). All adapter facts of the 2000 are used (expected about 360).
+Arms, trained per fact from a fresh base on facts.pairs, 16 passes, KL anchor on the two
+training canaries, q_proj + v_proj in all layers, lora_alpha = 2r, torch.manual_seed(87)
+before each adapter:
+  ref16  rank 16, baseline recipe (lr 3e-4): the stored recipe
+  r2_lp  rank 2, LoRA+ (A 3e-4, B 2.4e-3), evaluated as stored in int8 (SS81 rounding)
+Readings as SS84 (efficacy and paraphrase alone and with the note, held-out D on the 40
+SS69 canaries, share above kappa = 0.968, wrong-route retention on the 200 SS69 zsRE dev
+questions with adapters drawn with seed 87 from the adapter facts, the same draw for
+both arms), pooled and per dataset; paired bootstrap 95% CIs (10000 resamples).
+
+Decision rule (fixed now). r2_lp in int8 replaces the stored recipe for new adapters if,
+pooled: (i) efficacy with note >= ref16 - 0.02 and paraphrase with note >= ref16 - 0.03,
+with the lower CI bound of paraphrase-with-note (r2_lp - ref16) >= -0.06; (ii) its share
+above kappa <= ref16's share + 0.02 and its mean held-out D <= ref16's + 0.05; (iii)
+wrong-route retention >= ref16 - 0.03. Otherwise the stored recipe stays (int8 storage,
+SS86). The reported N=1000 store results are not recomputed here.
+Predictions. P1 r2_lp int8 passes the rule. P2 its adapter-alone paraphrase is within
+0.03 of ref16's. P3 adapter facts are 15% to 25% of the 2000 drawn facts.

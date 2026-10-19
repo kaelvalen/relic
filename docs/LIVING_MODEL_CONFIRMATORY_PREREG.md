@@ -1754,3 +1754,57 @@ estimates how often the automatic leak counts a legitimate answer; rates are rep
 with and without the correction.
 Encoders and thresholds: chosen after SS79 is reported (at least the SS74 default, the
 SS76 encoder and the frozen mpnet). Predictions are pinned with them.
+
+## 81. Adapter size (pinned 2026-10-19, before the run)
+
+Motivation. A stored adapter is a rank-16 LoRA update of q_proj and v_proj in all 28
+layers, saved in fp32: 2,179,072 parameters, 8.7 MB per fact and 8.8 GB for the N=1000
+store, for a single fact. On Qwen2.5-1.5B a rank-r q/v update costs r x 4864 parameters
+per layer (q 1536 -> 1536, v 1536 -> 256). Two independent levers are measured: the
+precision the adapter is stored in (A, no training) and the form of the update (B).
+
+A. Storage precision (eval only, no training). The first 200 facts of the CounterFact
+N=1000 store (cf_n1000.ckpt, baseline recipe, verified against routed_eval_manifest.json).
+Each stored A and B tensor is rounded to the storage format and cast back to fp32 before
+it is written into the LoRA slot: fp32 (reference), bf16, fp16, int8 (symmetric, one
+absmax scale per row of A and per row of B, scales stored in fp16). Size per fact: 8.7,
+4.4, 4.4 and 2.3 MB. Each fact is served by its own adapter (no router; the router does
+not read the adapter). Readings per format: efficacy (edit prompt), paraphrase (adapter
+alone, "Answer briefly."), paraphrase with adapter and note (the instruct note system of
+the default serving mode), held-out D on the 40 SS69 canaries (kappa = 0.968), and the
+share of greedy outputs (edit prompt, paraphrase, paraphrase with note) identical to the
+fp32 outputs.
+Predictions: bf16 and fp16 give identical outputs for at least 97% of the generations,
+every hit rate within 0.01 of fp32 and |delta D| < 0.01 per adapter; int8 gives identical
+outputs for at least 90%, hit rates within 0.02 of fp32, no adapter crosses kappa.
+
+B. Update form (training). The SS44 set (CounterFact N=50, external_counterfact_n50.json),
+per-fact adapters, the adopted per-fact LoRA+ recipe (A lr 3e-4, B lr 2.4e-3, AdamW),
+16 passes over the two pairs, KL anchor on the two training canaries against the base,
+lora_alpha = 2r, B = 0 at init. torch.manual_seed(81) before each adapter is created, so
+every adapter starts from the same A. Variants:
+  r16_qv_all   rank 16, q+v, all 28 layers (reference)
+  r4_qv_all, r2_qv_all, r1_qv_all
+  r4_v_all, r1_v_all          v_proj only
+  r4_qv_mid, r1_qv_mid        q+v, layers 8 to 15 only
+  fa_r4_qv_all, fa_r1_qv_all  A frozen at its seeded init and shared by all facts (it is
+                              regenerated from the seed and stored once); only B trained
+                              and stored
+Size per fact in bf16 (A + B, or B only for fa): 4.36 MB, 1.09 MB, 545 KB, 272 KB,
+401 KB, 100 KB, 311 KB, 78 KB, 401 KB, 100 KB. No learning rate or step count is tuned
+per variant; a variant that fails is recorded, not retuned.
+Evaluation per variant on a fresh base with that variant's LoRA layout, each fact served
+by its own adapter: efficacy, paraphrase (adapter alone), paraphrase with adapter and
+note, held-out D (40 canaries) mean / max and share above kappa = 0.968, in-sample D (the
+2 training canaries, as SS46), stored size, training seconds.
+Acceptance rule (fixed now): efficacy >= 0.98, paraphrase (adapter alone) >= 0.86 (the
+SS46 baseline), held-out D max <= kappa. The smallest variant that passes is the
+candidate recipe; it replaces the stored recipe only after an N=1000 confirmation pinned
+in a later section (store, router results, tiered store, removal), not on this N=50 run.
+Predictions: r16_qv_all reproduces SS46 LoRA+ (efficacy 1.00, paraphrase 0.86 to 0.94);
+r4_qv_all passes; r1_qv_all keeps efficacy >= 0.98 with paraphrase 0.80 to 0.90
+(borderline); at equal rank, v-only and mid-layer variants keep efficacy but lose
+paraphrase against q+v all layers; fa variants keep efficacy >= 0.96 and lose some
+paraphrase against the trained-A variant of the same rank; no variant crosses kappa
+(B = 0 at init and the KL anchor); the smallest passing variant is at most 300 KB in bf16
+(at least 29x smaller than the stored 8.7 MB).

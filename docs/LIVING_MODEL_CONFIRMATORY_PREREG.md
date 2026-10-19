@@ -2140,3 +2140,31 @@ those as leaks, which is what the labels estimate.
 Decision (SS85 rule). P1 holds: the paper reports the default configuration's locality
 on natural queries next to the template figure and states that 4.3% holds for
 CounterFact templates. Corrected rates follow when the 120 labels exist.
+
+## 89. SS87 results: rank-2 LoRA+ in int8 on fresh adapter facts (2026-10-20)
+
+Run as pinned (rank2_fresh.py; rank2_fresh.json, facts and tiers in
+rank2_fresh_facts.json, adapters in rank2_fresh_ref16.pt / rank2_fresh_r2_lp.pt).
+Of the 2000 drawn facts, 279 are adapter facts (117 CF, 162 zsRE; 13.95%). Training
+1651 s (ref16) and 1732 s (r2_lp).
+
+| arm | size per fact | efficacy | eff. + note | paraphrase | para. + note | held-out D mean / max | above kappa | wrong-route retained |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| ref16 (stored recipe) | 8.7 MB (fp32) | 0.986 | 0.946 | 0.835 | 0.918 | 0.401 / 1.401 | 0.022 | 0.695 |
+| r2_lp, int8 | 373 KB | 0.989 | 0.932 | 0.821 | 0.928 | 0.390 / 1.407 | 0.029 | 0.705 |
+
+r2_lp int8 - ref16, paired 95% CIs: efficacy +0.004 [-0.007, 0.018], efficacy with note
+-0.014 [-0.039, 0.011], paraphrase -0.014 [-0.043, 0.014], paraphrase with note +0.011
+[-0.022, 0.043]. Per dataset, above kappa: CF 0.043 / 0.043, zsRE 0.006 / 0.019.
+
+Decision rule: (i) efficacy with note -0.014 >= -0.02, paraphrase with note +0.011 >=
+-0.03, CI lower bound -0.022 >= -0.06; (ii) above kappa 0.029 <= 0.022 + 0.02, mean D
+0.390 <= 0.401 + 0.05; (iii) wrong-route retention 0.705 >= 0.695 - 0.03. All hold:
+rank-2 LoRA+ stored in int8 replaces the stored recipe for new adapters. The N=1000
+stores and the results reported from them keep the rank-16 adapters.
+Predictions: P1 holds; P2 holds (adapter-alone paraphrase -0.014, within 0.03); P3 fails
+(13.95%, below the predicted 15% to 25%).
+Size correction. The int8 size of a rank-2 adapter is 373 KB, not "about 280 KB" as
+written in SS83, SS84 and SS86: the one fp16 scale per row of B (out x 2) adds about
+100 KB. The adopted adapter is 23x smaller than the stored 8.7 MB, and the N=1000 store's
+adapter facts (162 CF) would take 60 MB instead of 1.4 GB.

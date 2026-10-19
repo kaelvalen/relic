@@ -2022,3 +2022,53 @@ queries written by another model family.
 Deviation (2026-10-19, before any SS85 run). The pinned description rule cuts P20's
 description inside "(e.g. city ...)", giving "most specific known (e.g". A '. ' that ends
 "e.g." or "i.e." no longer cuts; this changes only P20 among the 34 relations.
+
+## 86. SS84 results: rank-2 adapters on the adapter facts (2026-10-20)
+
+Run as pinned (rank2_confirm.py; rank2_confirm.json, trained adapters in
+rank2_confirm_r2_base.pt / rank2_confirm_r2_lp.pt). 368 adapter facts (162 CF, 206 zsRE);
+training 2396 s (r2_base) and 2424 s (r2_lp), about 6.5 s per fact.
+
+Pooled over the 368 facts (each fact served by its own adapter):
+
+| arm | size per fact | efficacy | eff. + note | paraphrase | para. + note | held-out D mean / max | above kappa | wrong-route retained |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| ref (rank 16, fp32) | 8.7 MB | 0.997 | 0.997 | 0.924 | 0.981 | 0.476 / 1.647 | 0.046 | 0.635 |
+| r2_base | 545 KB | 0.723 | 0.973 | 0.543 | 0.957 | 0.152 / 0.618 | 0 | 0.795 |
+| r2_base int8 | ~280 KB | 0.720 | 0.976 | 0.543 | 0.959 | 0.151 / 0.585 | 0 | 0.795 |
+| r2_lp | 545 KB | 0.997 | 0.986 | 0.924 | 0.978 | 0.484 / 1.905 | 0.060 | 0.670 |
+| r2_lp int8 | ~280 KB | 0.997 | 0.984 | 0.927 | 0.984 | 0.484 / 1.930 | 0.060 | 0.670 |
+
+Arm - ref, paired 95% CIs: r2_base efficacy with note -0.025 [-0.044, -0.008], paraphrase
+with note -0.025 [-0.049, 0.000]; r2_lp efficacy with note -0.011 [-0.022, -0.003],
+paraphrase with note -0.003 [-0.016, 0.008]. Identical outputs to fp32: r2_base int8
+0.959, r2_lp int8 0.987. Per dataset: CF ref paraphrase alone 0.833, r2_base 0.284, r2_lp
+0.840; above kappa CF ref 0.012, r2_lp 0.012; zsRE ref 0.073, r2_lp 0.097, r2_base 0.
+
+Decision rule. r2_base fails (i): efficacy with note is 0.0245 below ref (limit 0.02);
+(ii) and (iii) pass. r2_lp fails (ii): 6.0% of its adapters are above kappa (limit 2%);
+(i) and (iii) pass. Neither rank-2 recipe passes, so the stored recipe stays and only
+int8 storage (SS83 A) is adopted: 2.3 MB per adapter instead of 8.7 MB.
+Predictions: P1 (r2_base passes) fails; P2 (r2_lp held-out D above r2_base) holds (0.484
+against 0.152); P3 (r2_base below ref) holds (0.152 against 0.476); P4 (adapter-alone
+paraphrase r2_lp >= r2_base) holds (0.924 against 0.543); P5 (both int8 arms >= 97%
+identical) fails (r2_base int8 0.959); P6 (wrong-route retention of both rank-2 arms >=
+ref) holds (0.795 and 0.670 against 0.635).
+Readings.
+1. At rank 2, LoRA+ reproduces the rank-16 adapters on every quality reading (efficacy,
+   paraphrase alone and with the note within 0.011), at one eighth of the bf16 size and
+   about 1/31 of the stored fp32 size in int8. Its held-out D is the same as ref's (0.48
+   against 0.48). The rank-16 LoRA+ failure in SS83 (D mean 1.25) is therefore a property
+   of the high B learning rate at rank 16, not of LoRA+ at low rank.
+2. Criterion (ii) is not met by ref itself (4.6% above kappa): kappa is the 99th
+   percentile of D over 100 CounterFact adapters (SS69), and zsRE adapters have a higher
+   held-out D (ref 7.3% above kappa on zsRE, 1.2% on CF). The criterion was stricter than
+   the stored recipe; this was not checked when SS84 was pinned. It is recorded, not
+   changed after the fact.
+3. r2_base is the safer adapter: no adapter above kappa, and a wrong route keeps 79.5% of
+   correct base answers against 63.5% for ref. It does not learn the fact well alone
+   (efficacy 0.72) and relies on the note (0.97 with it).
+Follow-up (not run): a new entry on facts outside the N=1000 stores, with an
+above-kappa criterion relative to the stored recipe fixed before the run, is needed
+before r2_lp in int8 can replace the stored recipe; SS84 cannot be re-scored with a new
+criterion.

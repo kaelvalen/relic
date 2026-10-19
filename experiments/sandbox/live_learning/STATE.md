@@ -219,3 +219,17 @@ SS78 (2026-10-11): write-time negative keys from the base model (`confirm/gen_ne
 gives the same TPR with and without negatives; held-out E3 routed unchanged (0.059).
 Negatives ask for unrelated attributes, not the confusable neighbour. End-to-end eval
 not run (deviation recorded). SS76 stays default.
+SS79/§82 (2026-10-19): template-disjoint split (`confirm/relenc_template_split.py`): the
+trained encoder gains as much on unseen phrasings as on seen ones (Delta_B/Delta_A 0.96);
+its threshold routes 7.8-9.3% of other-relation prompts outside the calibrated phrasings
+(frozen mpnet ~3%).
+SS81-SS87/§81-§89 (2026-10-19/20): adapter size (`confirm/adapter_size.py`,
+`confirm/rank2_confirm.py`, `confirm/rank2_fresh.py`). int8 storage of rank-16 adapters
+keeps answers (2.3 MB). Rank-16 LoRA+ fails the held-out kappa (70% above). Adopted for
+new adapters (SS87): rank 2, q/v, all layers, LoRA+ (A 3e-4, B 2.4e-3), 16 passes, KL
+anchor, stored in int8 = 373 KB per fact; it matches rank-16 baseline adapters on 279
+fresh adapter facts. The N=1000 stores keep rank 16.
+SS85/§85 §88 (2026-10-20): natural other-relation questions by SmolLM3-3B
+(`confirm/natural_e3.py`): default router routes 0.2% (unrelated) vs 31% (near-neighbour)
+of them, leak with adapter+note 28.8% on near neighbours (automatic rule). 120 labels
+pending in the SS85 label page (P5, `natural_e3.py score --labels`).

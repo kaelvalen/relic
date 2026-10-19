@@ -1971,3 +1971,50 @@ Predictions.
   P4 adapter-alone paraphrase is at least as high for r2_lp as for r2_base.
   P5 both int8 arms have >= 97% identical outputs.
   P6 wrong-route retention of both rank-2 arms >= ref.
+
+## 85. SS80 pinned: natural other-relation queries (pinned 2026-10-19, before the run)
+
+This pins the SS80 draft after SS79 was reported (SS82), with these changes to the draft.
+Generator: Llama-3.2-3B-Instruct and Gemma-2-2B-it are gated on Hugging Face and not
+downloadable here without the author's account (HTTP 401), so the generator is
+HuggingFaceTB/SmolLM3-3B (not Qwen, not gated, bf16 on the shared GPU), in non-reasoning
+mode ("/no_think"), greedy, at most 48 new tokens; the first line of the output, stripped
+of quotes, is the question. Prompt (fixed): system "/no_think You write exactly one
+natural English question and nothing else."; user "Write one natural question about
+{subject} that asks for its {label} ({description}). Mention {subject} by name. Reply
+with the question only." The description is the Wikidata English description cut at its
+first ';' or '. '.
+Store and queries: the CounterFact N=1000 store (stored rank-16 adapters, SS68 tiers),
+one query per fact about its subject. R' != R: 500 facts drawn with seed 80 from the 675
+whose relation has a listed near neighbour get R' drawn from its neighbours (P495/P740,
+P176/P178, P17/P30/P131, P364/P407, P103/P1412/P37, P276/P131, P19/P20/P937; P131's
+neighbours are P17, P30, P276); the other 500 get R' drawn uniformly from the CounterFact
+relations other than R and R's neighbours. Questions in which the subject is not found
+(router v4 find_subject) are dropped and counted.
+Routers (each at its existing dev threshold, chosen now): the configured default (SS76
+relation encoder, theta 0.7501), the SS74 default (MiniLM, theta 0.757) and the frozen
+all-mpnet-base-v2 (theta 0.6694, SS75 dev).
+Readings per router, pooled and for the near-neighbour and uniform halves: routed share;
+leak under the default serving mode (adapter and note) and under the tiered policy, with
+the automatic rule: the response contains the queried fact's target and the base response
+does not (the SS71 rule with any stored answer is also reported). Before any rate is
+computed, 120 routed queries are sampled with seed 80 (40 per router, or all if fewer)
+into a label file with question, stored fact, response and base response; the author
+labels whether the stored target is a correct answer to the question under the
+counterfactual. Corrected leak rates are computed after the labels exist, in a later
+entry, as the draft specifies.
+Predictions.
+  P1 the default router routes at least 7% of the natural queries (its dev FPR 0.05 +
+     0.02; SS79 inflation off the template space).
+  P2 the default router routes a larger share of the natural queries than the frozen
+     mpnet, paired over the same queries.
+  P3 for the default router, near-neighbour queries are routed at least 0.05 more often
+     than uniform ones.
+  P4 the default router's automatic leak with adapter and note on natural queries is at
+     least its E3 template leak (0.043, xCfEthreeLeakBoth).
+  P5 (after labels) the correction removes less than half of the default router's
+     automatic leaks.
+Decision rule. P1 holds: the paper reports the default configuration's locality on
+natural queries next to the template figure and states that 4.3% holds for CounterFact
+templates. P1 fails: the paper states that the template E3 figure carries over to natural
+queries written by another model family.

@@ -384,6 +384,19 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS79 template-disjoint split (prefix "ts"): means over the three seeds.
+try:
+    ts = json.load(open(R + "relenc_template_split.json"))
+    for g in "ABC":
+        for enc, e in [("trained", "Trained"), ("frozen_mpnet", "Frozen")]:
+            row = ts["groups"][g][enc]
+            emit(f"tsPara{g}{e}", sum(row["route_correct"]) / 3, fixed=True)
+            emit(f"tsEthree{g}{e}", sum(row["e3_fpr"]) / 3, fixed=True)
+    emit("tsRatio", ts["P1"]["ratio_B_A"])
+    emit_diff("tsInflDiff", {"diff": ts["P3"]["I_diff"], "ci95": ts["P3"]["I_diff_ci95"]})
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

@@ -418,6 +418,19 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS87 rank-2 LoRA+ in int8 on fresh adapter facts (prefix "fr": "Ref" rank 16, "Rt" rank 2).
+try:
+    fr = json.load(open(R + "rank2_fresh.json"))
+    out.append(f"\\newcommand{{\\frN}}{{{fr['n_adapter']}}}")
+    for arm, a in [("ref16", "Ref"), ("r2_lp_int8", "Rt")]:
+        sm = fr["summary"][arm]
+        emit(f"fr{a}EffNote", sm["pooled"]["probe_note"], fixed=True)
+        emit(f"fr{a}ParaNote", sm["pooled"]["paraphrase_note"], fixed=True)
+        emit(f"fr{a}D", sm["pooled"]["d_heldout_mean"], fixed=True)
+        emit(f"fr{a}Wrong", sm["wrong_route_retained"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

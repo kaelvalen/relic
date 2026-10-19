@@ -1836,7 +1836,7 @@ C 0.110 / 0.085 / 0.083; frozen A 0.058 / 0.033 / 0.022, B 0.048 / 0.025 / 0.018
 C 0.030 / 0.037 / 0.035.
 
 Predictions.
-  P1 failed as predicted: the outcome is generalisation, not template memorisation
+  P1 failed: template memorisation was predicted; the outcome is generalisation
      (Delta_B / Delta_A = 0.326 / 0.339 = 0.96 >= 0.8).
   P2 failed: route-correct on B is 0.960 for the trained encoder against 0.634 for the
      frozen one (+0.33, not <= +0.05).

@@ -1808,3 +1808,49 @@ paraphrase against q+v all layers; fa variants keep efficacy >= 0.96 and lose so
 paraphrase against the trained-A variant of the same rank; no variant crosses kappa
 (B = 0 at init and the KL anchor); the smallest passing variant is at most 300 KB in bf16
 (at least 29x smaller than the stored 8.7 MB).
+
+## 82. SS79 results: template-disjoint split (2026-10-19)
+
+Run as pinned in SS79 with the deviation of 2026-10-18 (relenc_template_split.py; results
+relenc_template_split_s{79,80,81}.json and relenc_template_split.json). The split
+reproduces the pinned counts exactly (2767 strings, 46 ambiguous, 887 held, 917 + 917
+seen; pools 5034 / 3521 / 4910, 4489 / 3552 / 4910, 4758 / 3289 / 4910). Per seed: dev
+500 CF + 500 zsRE facts, store 400 facts per group, 5175 to 5408 triplets from 3000 CF and
+1500 zsRE facts, one epoch on CPU (383 to 452 s; loss 1.9-2.1 -> 1.10-1.15).
+Implementation choices not fixed by SS79: a CF fact counts toward the 3000 only if it
+contributes at least one triplet; theta is used unrounded; the store has one fact per
+subject, so route-correct is the share of paraphrases that reach their own fact.
+
+Paraphrase route-correct (seeds 79 / 80 / 81) at each encoder's own dev theta (dev CF
+FPR 0.048 to 0.050 for every encoder):
+
+| group | SS79 trained | frozen mpnet | SS76 (contaminated) | Delta (trained - frozen) |
+| :-- | :-- | :-- | :-- | :-- |
+| A seen strings | 0.983 / 0.985 / 0.995 | 0.765 / 0.632 / 0.547 | 0.990 / 0.988 / 1.000 | 0.218 / 0.353 / 0.448, mean 0.339 |
+| B unseen strings | 0.920 / 0.963 / 0.998 | 0.620 / 0.580 / 0.703 | 0.998 / 0.993 / 0.998 | 0.300 / 0.383 / 0.295, mean 0.326 |
+| C held relations | 0.897 / 0.820 / 0.797 | 0.530 / 0.580 / 0.520 | 0.892 / 0.912 / 0.890 | 0.368 / 0.240 / 0.278, mean 0.295 |
+
+Paired bootstrap 95% CIs of Delta exclude 0 in every group and seed (lowest bound 0.18).
+E3 FPR (seeds 79 / 80 / 81): trained A 0.040 / 0.050 / 0.033, B 0.077 / 0.080 / 0.075,
+C 0.110 / 0.085 / 0.083; frozen A 0.058 / 0.033 / 0.022, B 0.048 / 0.025 / 0.018,
+C 0.030 / 0.037 / 0.035.
+
+Predictions.
+  P1 failed as predicted: the outcome is generalisation, not template memorisation
+     (Delta_B / Delta_A = 0.326 / 0.339 = 0.96 >= 0.8).
+  P2 failed: route-correct on B is 0.960 for the trained encoder against 0.634 for the
+     frozen one (+0.33, not <= +0.05).
+  P3 holds: I_trained = +0.028, I_frozen = -0.020, I_trained - I_frozen = +0.048 (95% CI
+     0.032 to 0.063, n = 1200 pooled E3 queries) >= 0.02.
+Readings. The trained encoder's gain does not depend on having seen the phrasing: it is
+as large on unseen phrasings of seen relations (B) as on seen ones (A), and nearly as
+large on relations never trained on (C). The external review's concern (SS76 gains
+in-sample in the template space) is answered in favour of the encoder for routing
+accuracy. The cost is on the locality side: its threshold, calibrated on S_train
+negatives, routes 7.5 to 11% of other-relation queries outside that space (B, C), where
+the frozen encoder stays at or below its dev FPR.
+Decision (SS79 rule). P1 generalisation: the SS76 seen-relation claim stands and the
+paper reports it with the SS79 group B figures. P3 holds: the paper states that the
+trained encoder's threshold keeps its dev FPR only within the template space it was
+calibrated on, more so than a frozen encoder. The old split (relenc_split.json) is
+relabelled as a relation split only. SS80 can now be pinned.

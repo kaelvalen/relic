@@ -4,8 +4,9 @@
 \caption{Adapter variants on 50 CounterFact facts, each served by its own adapter.
 KL is the mean and maximum of $D$ over the first 10 adapters on the two training
 canaries ($\kappa=2$), an in-sample reading. On the 40 held-out canaries, \asLpAbovePct\%
-of the LoRA+ adapters exceed $\kappa=\chkKappa$ (mean $D$ \asLpHeldMean), so LoRA+ is
-not used; the stored adapters use the baseline recipe.}
+of the rank-16 LoRA+ adapters exceed $\kappa=\chkKappa$ (mean $D$ \asLpHeldMean); the
+stored adapters use the baseline recipe, and rank-2 LoRA+ adapters pass the held-out check
+(Section~\ref{sec:limits}).}
 \label{tab:recipes}
 \footnotesize
 \setlength{\tabcolsep}{4pt}

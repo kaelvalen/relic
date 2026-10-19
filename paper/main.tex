@@ -1012,7 +1012,14 @@ facts~\cite{cohen2024ripple}.
 
 \emph{Cost.} An adapter-only store of 1000 facts occupies 8.7\,GB in fp32, 2.8 times the
 base model in bf16. The tiered store reduces this five- to six-fold, and multi-adapter
-serving kernels~\cite{sheng2024slora} would reduce the serving overhead.
+serving kernels~\cite{sheng2024slora} would reduce the serving overhead. The adapter
+itself can be much smaller. In a registered comparison on \frN{} facts outside the test
+stores that need an adapter, rank-2 adapters trained with LoRA+~\cite{hayou2024loraplus}
+and stored in int8 (373\,KB, 23 times smaller) answered \frRtParaNotePct\% of the
+paraphrases with the note, against \frRefParaNotePct\% for rank-16 adapters trained like
+the stored ones, with the same held-out divergence (mean $D$ \frRtD{} against \frRefD)
+and wrong-route retention (\frRtWrongPct\% against \frRefWrongPct\%). The stores
+evaluated in this paper use rank-16 adapters.
 
 \emph{Scope.} The evaluation uses one base model, one hardware setup, single-token
 targets, substring scoring and synthetic distractor names. zsRE is used with reference

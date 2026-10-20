@@ -14,6 +14,7 @@ the SS87 r2_lp int8 rows.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import random
 import sys
@@ -229,6 +230,10 @@ def train_one(tok, model, runner, spec, lr, pairs, base_logits) -> dict:
             gram = t["R"] @ t["R"].T
             assert torch.allclose(gram, torch.eye(len(gram)), atol=1e-3), "R lost rank"
     del modules, opt
+    # parametrised modules sit in reference cycles; without a collection their GPU
+    # tensors accumulate over hundreds of trainings (OOM in the first full SS92 run)
+    gc.collect()
+    torch.cuda.empty_cache()
     return out
 
 

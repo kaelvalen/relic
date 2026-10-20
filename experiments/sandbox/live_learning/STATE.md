@@ -231,5 +231,7 @@ anchor, stored in int8 = 373 KB per fact; it matches rank-16 baseline adapters o
 fresh adapter facts. The N=1000 stores keep rank 16.
 SS85/§85 §88 (2026-10-20): natural other-relation questions by SmolLM3-3B
 (`confirm/natural_e3.py`): default router routes 0.2% (unrelated) vs 31% (near-neighbour)
-of them, leak with adapter+note 28.8% on near neighbours (automatic rule). 120 labels
-pending in the SS85 label page (P5, `natural_e3.py score --labels`).
+of them, leak with adapter+note 28.8% on near neighbours (automatic rule). Labels
+(§90 §91, made by the analysing model at the author's request, blind to the router):
+59% of the default router's automatic leaks are correct answers (P5 fails), corrected
+leak 11.7% near neighbours, 5.9% overall (`natural_e3_labels_model.json`).

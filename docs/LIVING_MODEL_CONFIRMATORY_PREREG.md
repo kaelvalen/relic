@@ -2308,8 +2308,8 @@ five. Held-out D grows with the rate for every variant (at 1e-2 the mean is 10 t
 | loreft_r2_id | 0.95 / 0.65 / 2.74 / 1.00 | 1.00 / 0.75 / 7.04 / 1.00 | 0.80 / 0.40 / 15.03 / 1.00 |
 | loreft_r4_id_L7 | 1.00 / 0.50 / 1.45 / 0.85 | 1.00 / 0.60 / 3.87 / 0.95 | 0.90 / 0.45 / 10.15 / 1.00 |
 
-Stage 2 (SS44 set, N=50, lr 1e-3, int8; fp32 gives the same picture within 0.04 on every
-rate and 0.01 on D mean).
+Stage 2 (SS44 set, N=50, lr 1e-3, int8; fp32 gives the same picture: rates within 0.06,
+D mean within 0.01).
 
 | variant | size (int8) | efficacy | paraphrase | para. + note | held-out D mean / max | above kappa | in-sample D max | pass |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |

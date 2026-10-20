@@ -442,6 +442,23 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS92 representation finetuning (prefix "rf"), stage 2 in int8, against SS83's rank-2
+# LoRA+ adapter on the same N=50 set.
+try:
+    rf = json.load(open(R + "reft_screen.json"))["variants"]
+    two = rf["loreft_r2_id"]["int8"]
+    lp2 = json.load(open(R + "adapter_size_sweep.json"))["variants"]["r2_qv_all"]
+    above = [v["int8"]["above_kappa"] for v in rf.values()]
+    emit("rfTwoPara", two["paraphrase"])
+    emit("rfTwoD", two["d_heldout_mean"])
+    emit("rfAboveMin", min(above))
+    emit("rfAboveMax", max(above))
+    emit("rfInMax", max(v["int8"]["d_in_sample_max"] for v in rf.values()))
+    emit("asRtwoPara", lp2["paraphrase"])
+    emit("asRtwoD", lp2["d_heldout_mean"])
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

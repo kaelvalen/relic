@@ -235,3 +235,9 @@ of them, leak with adapter+note 28.8% on near neighbours (automatic rule). Label
 (§90 §91, made by the analysing model at the author's request, blind to the router):
 59% of the default router's automatic leaks are correct answers (P5 fails), corrected
 leak 11.7% near neighbours, 5.9% overall (`natural_e3_labels_model.json`).
+SS92/§92 §93 (2026-10-20): LoReFT and DiReFT per-fact interventions (`confirm/reft_compare.py`,
+own forward hooks, last 8 prompt positions). On N=50 three of five reach the paraphrase
+limit (rank-2 LoReFT 0.86 at 172 KB) but 82-100% of facts exceed the held-out kappa (mean
+D 1.7-5.6 vs 0.45 for rank-2 LoRA+); in-sample D stays low. No candidate; rank-2 LoRA+
+int8 stays. Bugs found on the way: AdamW weight decay zeroes the orthogonal
+parametrisation (R -> 0); parametrised modules need gc.collect() per training.

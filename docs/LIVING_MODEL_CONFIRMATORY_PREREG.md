@@ -2215,3 +2215,65 @@ continent for an administrative entity (P30/P131), a city for a country of origi
 12% of natural questions about neighbouring relations and 6% of all, against 4.3% on
 CounterFact templates. Model labels are not independent of the analysis; the author's
 labels, if made later, are reported next to them and do not replace them.
+
+## 92. LoReFT against the adopted rank-2 LoRA+ adapter (pinned 2026-10-20, before the run)
+
+Motivation. The adopted per-fact adapter (SS89) is rank-2 LoRA+ on q_proj and v_proj in
+all layers, stored in int8: 373 KB. Representation finetuning (LoReFT, Wu et al. 2024)
+edits hidden states instead of weights, h + R^T(W h + b - R h) with R an r x d matrix
+with orthonormal rows, at chosen layers and token positions; at r = 4 in all 28 layers
+it stores 2 x 4 x 1536 + 4 numbers per layer. This entry asks whether it gives a smaller
+or a better per-fact adapter in this system.
+
+Intervention (fixed). On the residual stream output of a decoder layer, at the last 8
+positions of the prompt (the chat template's 5 closing tokens and the last 3 tokens of
+the user turn). Earlier positions are not used: every query starts with the same system
+prompt and template, so a prefix intervention could only add a fact-independent change.
+Generated tokens are not intervened on (they see the intervened positions through the
+cache), as in pyreft. Implemented as a forward hook in fp32 on the bf16 base, without
+pyreft. Variants:
+  loreft_r4_std   LoReFT, r = 4, all 28 layers; pyreft's initialisation (R orthogonal
+                  random, W and b as nn.Linear defaults): not the identity at the start
+  loreft_r4_id    as above with W = R and b = 0 at the start (the identity)
+  direft_r4       DiReFT, h + W2^T (W1 h + b), r = 4, all layers, W2 = 0 at the start
+  loreft_r2_id    LoReFT identity start, r = 2, all layers
+  loreft_r4_id_L7 LoReFT identity start, r = 4, layers 3, 7, 11, 15, 19, 23, 27
+Size per fact in int8 (one fp16 absmax scale per row of each matrix, b in fp16): 345 KB,
+345 KB, 345 KB, 172 KB, 86 KB. R is trained under torch's orthogonal parametrisation and
+stored as a plain matrix.
+Training: as the per-fact adapters, 16 passes over the two pairs, KL anchor on the two
+training canaries against the base (kl_lambda 1), AdamW with one learning rate for all
+intervention parameters, torch.manual_seed(92) before each intervention is created.
+
+Stage 1, learning rate (ReFT has no rate validated here). For each variant, lr in
+{1e-3, 3e-3, 1e-2} on 20 development facts: CounterFact facts of the SS87 draw whose note
+alone passes the tier check, outside the SS44 set, drawn with seed 92. Readings in int8:
+efficacy, paraphrase (adapter alone), held-out D on the 40 SS69 canaries. Selection
+(fixed now): among the rates whose held-out D max is <= kappa (0.968), the one with the
+highest efficacy + paraphrase, ties to the lower rate; if no rate qualifies, the rate
+with the lowest share above kappa, ties to the lower rate.
+
+Stage 2, screen (the SS81-B setup). The SS44 set (CounterFact N=50), the SS81-B pairs, each
+variant at its stage-1 rate, evaluated as stored in int8 (fp32 also reported): efficacy,
+paraphrase alone and with the note, held-out D mean / max and share above kappa,
+in-sample D, size, training seconds. Reference: r2_qv_all of SS83 (efficacy 0.98,
+paraphrase 0.88, held-out D max 0.923). Rule (SS81's): efficacy >= 0.98, paraphrase
+(adapter alone) >= 0.86, held-out D max <= kappa. Among the passing variants smaller than
+373 KB in int8, the smallest is the candidate (ties to the higher paraphrase). No
+candidate: the adopted adapter stays and stage 3 is not run.
+
+Stage 3, confirmation (only with a candidate). The 279 SS87 adapter facts with facts.pairs,
+candidate in int8 against the SS87 r2_lp int8 rows (same facts, same wrong-route draw),
+readings and paired bootstrap as SS87. The candidate replaces the adopted adapter for new
+adapters if, pooled: (i) efficacy with note >= r2_lp - 0.02 and paraphrase with note >=
+r2_lp - 0.03, with the lower CI bound of paraphrase with note (candidate - r2_lp) >=
+-0.06; (ii) share above kappa <= r2_lp + 0.02 and mean held-out D <= r2_lp + 0.05;
+(iii) wrong-route retention >= r2_lp - 0.03. Adoption also needs the store to serve
+interventions (hooks, state hash, removal), which is separate work.
+
+Predictions.
+  P1 loreft_r4_std fails the stage-2 rule.
+  P2 loreft_r4_id and direft_r4 reach efficacy >= 0.98 in stage 2.
+  P3 no variant reaches paraphrase (adapter alone) >= 0.86 in stage 2, so no candidate.
+  P4 loreft_r4_id has a higher mean held-out D than SS83's r2_qv_all (0.447).
+  P5 loreft_r4_id_L7 has lower stage-2 efficacy than loreft_r4_id.

@@ -2186,3 +2186,32 @@ where a group was formed; the original language of a work for its language) is a
 answer; "unsure" is used where the asked relation and the stored one can differ for the
 subject. The labels are written to natural_e3_labels_model.json before scoring. The
 paper calls them model labels, not author labels. P5 is scored on them unchanged.
+
+## 91. SS85 results with the model labels (2026-10-20)
+
+Labelled as fixed in SS90 (natural_e3_labels_model.json; scored with natural_e3.py score,
+natural_e3_scored.json). Of the 106 labelled items, 45 were labelled a correct answer, 33
+a leak and 28 unsure. Most unsure labels are questions whose relation does not apply to
+the subject (the "official language" of a person), a native language asked where the
+stored fact gives a language the subject uses or a place's official language, and a
+country asked where the question wants the administrative entity.
+
+| router | sampled automatic leaks | correct / leak / unsure | correct share (95% Wilson) | leak, adapter + note: all, automatic / corrected | near-neighbour, automatic / corrected |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| default, SS76 encoder | 35 | 19 / 13 / 3 | 0.594 (0.423 to 0.745) | 0.146 / 0.059 | 0.288 / 0.117 |
+| SS74 default, MiniLM | 36 | 11 / 9 / 16 | 0.550 (0.342 to 0.742) | 0.107 / 0.048 | 0.206 / 0.093 |
+| frozen mpnet | 35 | 15 / 11 / 9 | 0.577 (0.389 to 0.745) | 0.117 / 0.049 | 0.228 / 0.096 |
+
+P5 (the correction removes less than half of the default router's automatic leaks) fails:
+it removes 59%. The verdict does not depend on the unsure labels (0.543 if they are all
+leaks, 0.629 if they are all correct answers), but the interval includes 0.5.
+Readings. The correct answers are mostly entailed pairs: a country of creation asked as
+the place where a group was formed (P495/P740), an official language asked as a language
+spoken in a place (P37/P1412), a native language asked as a language a person speaks
+(P103/P1412), and the original language of a work asked as its language (P364/P407). The
+leaks are mostly a target of the wrong type: a continent for a country (P30/P17), a
+continent for an administrative entity (P30/P131), a city for a country of origin
+(P740/P495). With the labels, the default router serves a wrong stored answer to about
+12% of natural questions about neighbouring relations and 6% of all, against 4.3% on
+CounterFact templates. Model labels are not independent of the analysis; the author's
+labels, if made later, are reported next to them and do not replace them.

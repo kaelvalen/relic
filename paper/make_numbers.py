@@ -418,6 +418,17 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS85 with the model labels (SS90, SS91): share of sampled automatic leaks that are
+# correct answers, and the corrected leak rates of the default router.
+try:
+    sc = json.load(open(R + "natural_e3_scored.json"))["routers"]["default_ss76"]
+    out.append(f"\\newcommand{{\\nqLabelled}}{{{sc['sampled_auto_leaks']}}}")
+    emit("nqLegitShare", sc["legit_share"], fixed=True)
+    emit("nqLeakCorr", sc["leak_both_corrected"], fixed=True)
+    emit("nqNearLeakCorr", sc["near_leak_both_corrected"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS87 rank-2 LoRA+ in int8 on fresh adapter facts (prefix "fr": "Ref" rank 16, "Rt" rank 2).
 try:
     fr = json.load(open(R + "rank2_fresh.json"))

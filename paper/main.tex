@@ -65,8 +65,8 @@ relevance tests do not escape. A relation encoder trained
 offline on disjoint data does: at a threshold that routes 5\% of other-relation questions
 on development data, CounterFact paraphrase accuracy is \xCfParaBothPct\% at
 \xCfEthreeLeakBothPct\% leakage on CounterFact templates, and zsRE paraphrase accuracy is
-\xZsParaBothPct\%. Leakage into neighboring relations remains: \nqNearLeakPct\% of natural
-questions about them, written by another model, contain the stored answer. Only \vCfTierFracPct\% of CounterFact facts need an adapter, and the divergence check must
+\xZsParaBothPct\%. Leakage into neighboring relations remains: \nqNearLeakCorrPct\% of natural
+questions about them, written by another model, receive a wrong stored answer. Only \vCfTierFracPct\% of CounterFact facts need an adapter, and the divergence check must
 use held-out prompts.
 \end{abstract}
 
@@ -894,9 +894,16 @@ with adapter and note \nqNearLeakPct\% of the latter contain the stored answer
 frozen all-mpnet-base-v2 routes \nqFrozenNearRoutedPct\% of the neighbor questions, on
 other pairs. The leakage figure for templates therefore reflects how CounterFact pairs
 relations; for questions about neighboring relations the default router serves the stored
-answer about every third time. Some of these outputs may be correct, because neighboring
-relations can coincide for the subjects involved, such as the original language of a film
-and the language of the work, and our automatic rule counts them as leakage.
+answer about every third time. Many of these outputs are correct, because neighboring
+relations coincide for the subjects involved, such as the country in which a band was
+created and the place where it was formed, or the original language of a film and the
+language of the work. We labeled the \nqLabelled{} sampled outputs of the default router
+that the automatic rule counts as leakage, without seeing which router had served them;
+the labels were made by the language model used in the analysis, not by a human
+annotator. Of the outputs with a clear verdict, \nqLegitSharePct\% give a correct answer,
+which puts leakage at \nqNearLeakCorrPct\% for questions about neighboring relations and
+\nqLeakCorrPct\% overall. Most of the remaining leaks give an answer of the wrong type,
+such as a continent for a country or a city for a country of origin.
 
 \subsection{Comparison with Editing Methods}
 
@@ -1053,8 +1060,8 @@ serving mode. With general-purpose encoders a single threshold sets
 the balance between paraphrase accuracy and leakage. A relation encoder trained offline on
 disjoint data shifts this balance for known relations, to \xCfParaBothPct\% paraphrase
 accuracy at \xCfEthreeLeakBothPct\% leakage on CounterFact templates. Separating near
-neighbors of known relations, which receive the stored answer for \nqNearLeakPct\% of
-natural questions about them, and relations that the router has not seen in training is
+neighbors of known relations, which receive a wrong stored answer for \nqNearLeakCorrPct\%
+of natural questions about them, and relations that the router has not seen in training is
 the main open problem.
 
 % ===========================================================================

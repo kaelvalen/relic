@@ -2168,3 +2168,21 @@ Size correction. The int8 size of a rank-2 adapter is 373 KB, not "about 280 KB"
 written in SS83, SS84 and SS86: the one fp16 scale per row of B (out x 2) adds about
 100 KB. The adopted adapter is 23x smaller than the stored 8.7 MB, and the N=1000 store's
 adapter facts (162 CF) would take 60 MB instead of 1.4 GB.
+
+## 90. SS85 labels: who labels (deviation, 2026-10-20, before any label exists)
+
+SS85 pinned that the author labels the 120 sampled routed answers. The author asked the
+analysing model (Claude) to label them instead. Procedure, fixed before labelling: only
+the 106 items that the scorer uses (the response with adapter and note contains the
+stored target and the base response does not) are labelled; the other 14 cannot change
+any figure and stay unlabelled. The items are shown to the labeller without the router
+and without their ids, shuffled with seed 90; the labeller sees the question, the stored
+fact, the stored target, the served response and the base response. The rule is the
+label page's: in the counterfactual world where the stored fact is true, is the stored
+target a correct answer to the question? A target of the wrong type (a city or a
+continent for a country, a place of death for a place of birth) is a leak; a target
+entailed by the stored fact for the asked relation (a country of creation for the country
+where a group was formed; the original language of a work for its language) is a correct
+answer; "unsure" is used where the asked relation and the stored one can differ for the
+subject. The labels are written to natural_e3_labels_model.json before scoring. The
+paper calls them model labels, not author labels. P5 is scored on them unchanged.

@@ -211,12 +211,23 @@ def pair_step(tok, model, runner, modules, opt, user, assistant, base_logits):
 def train_one(tok, model, runner, spec, lr, pairs, base_logits) -> dict:
     cfg = model.config
     modules = make_modules(spec, cfg.hidden_size, cfg.num_hidden_layers, model.device)
-    opt = torch.optim.AdamW(modules.parameters(), lr=lr)
+    # weight decay on the orthogonal parametrisation's original tensor drives R to zero
+    # (seen in the first SS92 run); the rotation is trained without it
+    rot = [p for n, p in modules.named_parameters() if "parametrizations" in n]
+    rest = [p for n, p in modules.named_parameters() if "parametrizations" not in n]
+    groups = [{"params": rest}]
+    if rot:
+        groups.append({"params": rot, "weight_decay": 0.0})
+    opt = torch.optim.AdamW(groups, lr=lr)
     for _ in range(STEPS):
         for user, assistant in pairs:
             pair_step(tok, model, runner, modules, opt, user, assistant, base_logits)
     runner.fn = None
     out = {i: m.export() for i, m in modules.items()}
+    for t in out.values():
+        if "R" in t:
+            gram = t["R"] @ t["R"].T
+            assert torch.allclose(gram, torch.eye(len(gram)), atol=1e-3), "R lost rank"
     del modules, opt
     return out
 

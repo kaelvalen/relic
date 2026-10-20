@@ -2277,3 +2277,13 @@ Predictions.
   P3 no variant reaches paraphrase (adapter alone) >= 0.86 in stage 2, so no candidate.
   P4 loreft_r4_id has a higher mean held-out D than SS83's r2_qv_all (0.447).
   P5 loreft_r4_id_L7 has lower stage-2 efficacy than loreft_r4_id.
+
+Deviation (2026-10-20, during stage 1, before any valid reading). The first stage-1 run
+trained the LoReFT rotation with AdamW's default weight decay (0.01) on the orthogonal
+parametrisation's original tensor; within 32 steps the decay drove R to zero, so every
+LoReFT intervention became the identity after training (held-out D 0.0000 for all 20
+development facts of loreft_r4_std at 1e-3, the only completed setting). The run was
+stopped and its output (reft_lr.json) deleted. The rotation is now trained without
+weight decay (W, b and the DiReFT matrices keep AdamW's default, as the LoRA adapters),
+and training asserts that R keeps orthonormal rows. pyreft trains with weight decay 0 by
+default. Nothing else changes; stage 1 restarts from the beginning.

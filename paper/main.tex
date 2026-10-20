@@ -1026,7 +1026,15 @@ and stored in int8 (373\,KB, 23 times smaller) answered \frRtParaNotePct\% of th
 paraphrases with the note, against \frRefParaNotePct\% for rank-16 adapters trained like
 the stored ones, with the same held-out divergence (mean $D$ \frRtD{} against \frRefD)
 and wrong-route retention (\frRtWrongPct\% against \frRefWrongPct\%). The stores
-evaluated in this paper use rank-16 adapters.
+evaluated in this paper use rank-16 adapters. Representation finetuning~\cite{wu2024reft}
+did not make the adapter smaller in a second registered comparison. LoReFT and DiReFT
+interventions on the last eight prompt positions (86 to 345\,KB in int8) reached the
+paraphrase accuracy of the rank-2 adapter on 50 CounterFact facts (rank-2 LoReFT at
+172\,KB: \rfTwoParaPct\% against \asRtwoParaPct\%), but \rfAboveMinPct\% to
+\rfAboveMaxPct\% of them exceeded $\kappa$ on the held-out canaries (mean $D$ \rfTwoD{}
+against \asRtwoD{}), while their divergence on the two training canaries stayed below
+\rfInMax{}. An intervention at the positions that produce every answer is not held in
+place by an anchor on two prompts.
 
 \emph{Scope.} The evaluation uses one base model, one hardware setup, single-token
 targets, substring scoring and synthetic distractor names. zsRE is used with reference

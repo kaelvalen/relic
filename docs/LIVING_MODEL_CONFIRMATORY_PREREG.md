@@ -2287,3 +2287,58 @@ stopped and its output (reft_lr.json) deleted. The rotation is now trained witho
 weight decay (W, b and the DiReFT matrices keep AdamW's default, as the LoRA adapters),
 and training asserts that R keeps orthonormal rows. pyreft trains with weight decay 0 by
 default. Nothing else changes; stage 1 restarts from the beginning.
+
+## 93. SS92 results: LoReFT and DiReFT (2026-10-20)
+
+Run as pinned with the deviation recorded under SS92 (reft_compare.py; reft_lr.json,
+reft_screen.json, interventions in reft_screen_<variant>.pt). The resumed run also
+collects the trained modules after each fact (a GPU memory leak through the
+parametrisation's reference cycles stopped the first full run at loreft_r2_id; the
+completed settings were kept, nothing was recomputed).
+
+Stage 1 (20 development facts, int8). No variant has a learning rate with held-out D max
+<= kappa, so each takes the rate with the lowest share above kappa; that is 1e-3 for all
+five. Held-out D grows with the rate for every variant (at 1e-2 the mean is 10 to 39).
+
+| variant | 1e-3: efficacy / paraphrase / D mean / above kappa | 3e-3 | 1e-2 |
+| :-- | :-- | :-- | :-- |
+| loreft_r4_std | 1.00 / 0.75 / 5.52 / 1.00 | 0.95 / 0.80 / 13.02 / 1.00 | 0.70 / 0.20 / 17.53 / 1.00 |
+| loreft_r4_id | 0.90 / 0.75 / 5.68 / 1.00 | 0.90 / 0.50 / 12.63 / 1.00 | 0.70 / 0.40 / 21.42 / 1.00 |
+| direft_r4 | 0.95 / 0.80 / 1.66 / 0.70 | 1.00 / 0.75 / 4.91 / 1.00 | 0.35 / 0.15 / 39.42 / 1.00 |
+| loreft_r2_id | 0.95 / 0.65 / 2.74 / 1.00 | 1.00 / 0.75 / 7.04 / 1.00 | 0.80 / 0.40 / 15.03 / 1.00 |
+| loreft_r4_id_L7 | 1.00 / 0.50 / 1.45 / 0.85 | 1.00 / 0.60 / 3.87 / 0.95 | 0.90 / 0.45 / 10.15 / 1.00 |
+
+Stage 2 (SS44 set, N=50, lr 1e-3, int8; fp32 gives the same picture within 0.04 on every
+rate and 0.01 on D mean).
+
+| variant | size (int8) | efficacy | paraphrase | para. + note | held-out D mean / max | above kappa | in-sample D max | pass |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| r2_qv_all LoRA+ (SS83, reference) | 373 KB | 0.98 | 0.88 | 1.00 | 0.447 / 0.923 | 0 | 0.077 | yes |
+| loreft_r4_std | 345 KB | 1.00 | 0.86 | 0.94 | 5.557 / 9.458 | 1.00 | 0.266 | no (D) |
+| loreft_r4_id | 345 KB | 1.00 | 0.68 | 0.76 | 4.706 / 13.135 | 1.00 | 0.219 | no |
+| direft_r4 | 345 KB | 0.98 | 0.88 | 0.90 | 1.949 / 5.591 | 0.82 | 0.065 | no (D) |
+| loreft_r2_id | 172 KB | 1.00 | 0.86 | 0.94 | 3.140 / 7.492 | 1.00 | 0.119 | no (D) |
+| loreft_r4_id_L7 | 86 KB | 0.98 | 0.68 | 0.90 | 1.743 / 4.928 | 0.90 | 0.038 | no |
+
+(The reference row is SS83's, trained with seed 81 and evaluated in fp32; its int8 size is
+the SS89 figure.) No variant passes, so there is no candidate and stage 3 was not run. The
+adopted rank-2 LoRA+ adapter stays.
+Predictions: P1 holds (loreft_r4_std fails, on D). P2 holds (loreft_r4_id 1.00, direft_r4
+0.98). P3 fails: loreft_r4_std (0.86), direft_r4 (0.88) and loreft_r2_id (0.86) reach the
+paraphrase limit; no candidate exists because of the held-out check alone. P4 holds (4.71
+against 0.447). P5 holds (0.98 against 1.00).
+Readings.
+1. On quality, ReFT matches LoRA here: at 172 KB, loreft_r2_id has the paraphrase rate of
+   the 373 KB LoRA+ adapter. What fails is divergence on prompts outside training: held-out
+   D is 4 to 12 times the LoRA+ adapter's and above kappa for 82% to 100% of the facts,
+   while in-sample D on the two anchored canaries stays as low as LoRA's (0.04 to 0.27).
+2. The KL anchor on two prompts does not carry to other prompts for an intervention on the
+   last prompt positions. Such an intervention acts on the position that produces the
+   answer of every query, and the anchor only fixes it on the two queries it sees. This is
+   the SS69 lesson (in-sample D understates an adapter's effect) in a stronger form.
+3. The identity start does not help (loreft_r4_id is no closer to the base than
+   loreft_r4_std); the variants differ in how the edit is parametrised, and the one
+   without a projection (DiReFT) and the one with fewer layers diverge least.
+4. Untested here and not pinned: a larger or held-out anchor set, a position gate keyed on
+   the subject, or interventions on the subject's tokens instead of the last positions.
+   Any of them would be a new entry.

@@ -2398,9 +2398,9 @@ Predictions.
   P2 (i) and (ii) hold on both datasets (SS84: rank-2 LoRA+ matched rank 16 on the
      adapter facts of these stores).
   P3 Adapter-alone paraphrase is within 0.03 of rank 16 on each dataset.
-  P4 (iv) fails: SS84 found 6.0% of rank-2 LoRA+ adapters above kappa against 4.6% for
-     rank 16 on the adapter facts; over all facts the gap is predicted to stay above 0.02
-     on zsRE. Pooled, it is predicted to hold narrowly (not more than 0.02).
+  P4 (iv) holds pooled, with a gap in the share above kappa of at most 0.02; on zsRE
+     alone the rank-2 share is higher than the rank-16 share (SS84 on the adapter facts:
+     9.7% against 7.3%).
   P5 (iii) and (v) hold.
   P6 Removal on CounterFact stays complete (gone 1.0, retention >= 0.99).
 Storage of the two stores is computed, not predicted: 2 x 1000 x 373 KB, about 0.75 GB

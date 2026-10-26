@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cerata"
 version = "0.2.0"
-description = "CERATA: closed-form, exactly reversible, auditable learning after deployment (formerly PAL-MoE)"
+description = "CERATA: transactional knowledge updates for frozen language models (per-fact notes and adapters, routed, removable, with provenance)"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [

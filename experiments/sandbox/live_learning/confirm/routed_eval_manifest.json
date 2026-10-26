@@ -76,6 +76,21 @@
       },
       "id": "counterfact_n1000_r2",
       "n": 1000
+    },
+    {
+      "checkpoint": {
+        "path": "results/live_learning/confirm/zsre_n1000_r2.ckpt",
+        "sha256": "70ab8c1dd1eaf00a73e20253e69e63d1c861d7a23fbd0ecb11e18cec5bd10865",
+        "sha256_scope": "all checkpoint file bytes"
+      },
+      "dataset": "zsre",
+      "facts": {
+        "path": "results/live_learning/confirm/external_zsre_n1000.json",
+        "sha256": "356d8257f92175c1fe071c2cff2bcd2316732d49c9b8f0c36d6f78fac095b546",
+        "sha256_scope": "all ordered JSON file bytes, including every fact field"
+      },
+      "id": "zsre_n1000_r2",
+      "n": 1000
     }
   ]
 }

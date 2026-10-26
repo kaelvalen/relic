@@ -36,7 +36,7 @@ from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 from harness import chat, load_model  # noqa: E402
 from ledger import sym_kl  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, trim  # noqa: E402
+from pilot import CANARIES, SYSTEM, PilotStore, hit, trim  # noqa: E402
 from rank2_confirm import R2  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
@@ -124,21 +124,36 @@ def verified_inputs(dataset):
 
 
 def identity_check(store, model_id, facts, r2, n=20):
-    """The padded adapter in the store answers as the rank-2 adapter in a rank-2 model."""
+    """The padded adapter in the store answers as the rank-2 adapter in a rank-2 model.
+
+    Revised criterion (SS94 deviation): B @ A equal in fp32 and the same hit on the
+    target for every answer; the bf16 logit difference is reported, not gated.
+    """
     m = make_variant(load_model(model_id)[1], R2)
     m.eval()
     rows = []
     for f in facts[:n]:
-        set_delta(m, r2[f["id"]])
-        store.deltas = {f["id"]: pad(r2[f["id"]])}
+        d, p = r2[f["id"]], pad(r2[f["id"]])
+        set_delta(m, d)
+        store.deltas = {f["id"]: p}
         store.materialize()
-        row = {"fact_id": f["id"]}
+        row = {
+            "fact_id": f["id"],
+            "ba_diff": max(
+                float((p[k]["B"] @ p[k]["A"] - d[k]["B"] @ d[k]["A"]).abs().max())
+                for k in d
+            ),
+        }
         for k in ("probe", "paraphrase"):
             msgs = [
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": f[k]},
             ]
-            row[k] = chat(store.tok, m, msgs) == chat(store.tok, store.model, msgs)
+            a, b = chat(store.tok, m, msgs), chat(store.tok, store.model, msgs)
+            row[k] = {
+                "same_text": a == b,
+                "same_hit": hit(a, f["answer"]) == hit(b, f["answer"]),
+            }
         with torch.no_grad():
             diff = store._logits(m, f["probe"]) - store._logits(store.model, f["probe"])
         row["logit_diff"] = float(diff.abs().max())
@@ -147,7 +162,10 @@ def identity_check(store, model_id, facts, r2, n=20):
     store.materialize()
     del m
     torch.cuda.empty_cache()
-    ok = all(r["probe"] and r["paraphrase"] and r["logit_diff"] <= 0.05 for r in rows)
+    ok = all(
+        r["ba_diff"] <= 1e-6 and r["probe"]["same_hit"] and r["paraphrase"]["same_hit"]
+        for r in rows
+    )
     return ok, rows
 
 

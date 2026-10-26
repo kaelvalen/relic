@@ -46,9 +46,15 @@ def main(argv=None):
     ap.add_argument("--selection", default=str(CONFIRM / "router_v7_select.json"))
     ap.add_argument("--suffix", default="v7")
     ap.add_argument("--prereg", default="SS75")
+    ap.add_argument(
+        "--store", choices=["r16", "r2"], default="r16", help="r2: the SS94 rebuild"
+    )
     args = ap.parse_args(argv)
     ckpt, facts_file, tag = FILES[args.dataset]
-    out_path = CONFIRM / f"{tag}_n1000_{args.suffix}_eval.json"
+    build = ""
+    if args.store == "r2":
+        ckpt, build = ckpt.replace(".ckpt", "_r2.ckpt"), "_r2"
+    out_path = CONFIRM / f"{tag}_n1000{build}_{args.suffix}_eval.json"
     if out_path.exists():
         ap.error(f"refusing to overwrite {out_path}")
     sel = json.loads(Path(args.selection).read_text())

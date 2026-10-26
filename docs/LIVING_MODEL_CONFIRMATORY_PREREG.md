@@ -2405,3 +2405,21 @@ Predictions.
   P6 Removal on CounterFact stays complete (gone 1.0, retention >= 0.99).
 Storage of the two stores is computed, not predicted: 2 x 1000 x 373 KB, about 0.75 GB
 instead of 17.4 GB.
+
+Deviation (2026-10-26, after the padding check, before any evaluation reading). The
+pinned padding check failed on its logit criterion: on the first 20 CounterFact facts
+the padded adapter in the store and the rank-2 adapter in a rank-2 model gave identical
+greedy answers to all 20 edit prompts and to 19 of 20 paraphrases, but the edit-prompt
+logits differed by up to 0.42 (0 for two facts, 0.19 to 0.42 for the others). The run
+stopped as pinned. Diagnosis (scratch script, six facts): B @ A of the padded and the
+rank-2 adapter are equal in fp32 (difference 0.0); the base logits of the two models are
+equal (0.0); moving the rank-2 rows to slots 14 and 15 of the rank-16 layout changes the
+store's logits by 0.0. The difference therefore comes from the bf16 matrix product with
+an inner size of 2 against 16 (a different reduction order in the kernel), not from the
+padding; at logit magnitudes of 23 to 29 one bf16 step is 0.125, so 0.19 to 0.42 is one
+to three steps. The 0.05 limit was set without this in mind. The paraphrase that differs
+(x0002) is a miss in both models. Revised check (applied to the same 20 facts): B @ A
+equal in fp32 within 1e-6, and the hit on the target (edit prompt and paraphrase) the
+same in both models for all 40 answers; the logit difference is reported. What SS94
+evaluates is the padded store, which computes the rank-2 update up to bf16 rounding.
+Nothing else changes; the 20 trained adapters are kept and the build resumes.

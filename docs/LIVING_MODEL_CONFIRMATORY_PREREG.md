@@ -2342,3 +2342,66 @@ Readings.
 4. Untested here and not pinned: a larger or held-out anchor set, a position gate keyed on
    the subject, or interventions on the subject's tokens instead of the last positions.
    Any of them would be a new entry.
+
+## 94. The N=1000 stores with the adopted rank-2 adapter (pinned 2026-10-26, before the run)
+
+Motivation. SS89 adopted rank-2 LoRA+ in int8 (373 KB) for new adapters, but every
+end-to-end result in the paper (routing, serving arms, tiered store, removal, locality)
+comes from the two N=1000 stores built with rank-16 adapters (8.7 MB). This entry
+rebuilds both stores with the adopted recipe and repeats the end-to-end evaluation of the
+default router, so that the main results can be reported for the adapter the system now
+uses.
+
+Build (fixed). For each of the 1000 CounterFact and 1000 zsRE facts of the stores, in the
+stored order: a rank-2 LoRA+ adapter on q_proj and v_proj in all layers (A lr 3e-4, B lr
+2.4e-3, 16 passes over facts.pairs, KL anchor on the two training canaries, kl_lambda 1;
+adapter_size.train_one with b_mult 8 and seed 94), rounded to int8 with one fp16 scale
+per row (SS83's round_to), then written into the rank-16 layout with the 14 unused rows
+of A and columns of B set to zero. With lora_alpha = 2r the LoRA scale is 2 at both
+ranks, so the padded adapter computes the same update; the existing evaluation code then
+runs unchanged. Check before the build continues: on the first 20 CounterFact facts the
+padded adapter in the store and the rank-2 adapter in a rank-2 model give the same greedy
+answer to the edit prompt and the paraphrase, and the logits of the edit prompt differ by
+at most 0.05; otherwise the run stops and this entry is revised. Commit gate as in the
+stored build: in-sample D on the two training canaries <= 2.0 (store.propose_and_commit's
+rule); a rejected candidate is retrained once with seed 95, and if it is rejected again
+the run stops. Keys, notes and fact order are those of the rank-16 stores. Outputs:
+cf_n1000_r2.ckpt and zsre_n1000_r2.ckpt (same format as the stored checkpoints), added to
+routed_eval_manifest.json with their SHA256 once written.
+
+Held-out divergence. For every adapter of both stores, rank-16 and rank-2: held-out D on
+the 40 SS69 canaries against the base, and in-sample D. Reading: mean, p95, max and the
+share above kappa (0.968), per dataset and pooled, paired by fact.
+
+End-to-end evaluation (fixed). v7_eval.py with the SS76 default router
+(router_v8_select.json: the trained relation encoder, theta 0.750) on each rank-2 store,
+the same code and readings as {cf,zsre}_n1000_v8_eval.json: serving arms on the edit
+prompt and paraphrase, the tiered store, removal, distractor leak and locality (E3 other
+relation and E2 neighbourhood on CounterFact, loc questions on zsRE). Wrong route:
+canary_eval.py on the rank-2 CounterFact store with its defaults (the same 200 zsRE dev
+questions and the same random draw of adapters as SS69). Paired differences to the
+rank-16 rows with a bootstrap over facts (10000 resamples, seed 94).
+
+Decision rule (fixed now). The paper reports its main end-to-end results from the rank-2
+stores, with the rank-16 results kept as the earlier build, if all of the following hold;
+otherwise it reports both and keeps rank 16 as the main build:
+  (i)   paraphrase with adapter and note (both) >= rank 16 - 0.03 on each dataset, and the
+        lower bound of the paired 95% CI of the difference >= -0.06;
+  (ii)  efficacy with adapter alone >= rank 16 - 0.02 on each dataset;
+  (iii) E3 leak (both) <= rank 16 + 0.01 on CounterFact;
+  (iv)  share of adapters above kappa (pooled over 2000) <= rank 16 + 0.02, and mean
+        held-out D <= rank 16 + 0.05;
+  (v)   wrong-route retention >= rank 16 - 0.03 (SS69: 0.72).
+
+Predictions.
+  P1 All 2000 candidates pass the commit gate on the first training.
+  P2 (i) and (ii) hold on both datasets (SS84: rank-2 LoRA+ matched rank 16 on the
+     adapter facts of these stores).
+  P3 Adapter-alone paraphrase is within 0.03 of rank 16 on each dataset.
+  P4 (iv) fails: SS84 found 6.0% of rank-2 LoRA+ adapters above kappa against 4.6% for
+     rank 16 on the adapter facts; over all facts the gap is predicted to stay above 0.02
+     on zsRE. Pooled, it is predicted to hold narrowly (not more than 0.02).
+  P5 (iii) and (v) hold.
+  P6 Removal on CounterFact stays complete (gone 1.0, retention >= 0.99).
+Storage of the two stores is computed, not predicted: 2 x 1000 x 373 KB, about 0.75 GB
+instead of 17.4 GB.

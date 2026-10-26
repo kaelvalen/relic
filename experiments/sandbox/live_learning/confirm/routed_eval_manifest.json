@@ -61,6 +61,21 @@
         "sha256": "356d8257f92175c1fe071c2cff2bcd2316732d49c9b8f0c36d6f78fac095b546",
         "sha256_scope": "all ordered JSON file bytes, including every fact field"
       }
+    },
+    {
+      "checkpoint": {
+        "path": "results/live_learning/confirm/cf_n1000_r2.ckpt",
+        "sha256": "c5549a2365fa8119bb9380d969bb49bb8d80a52a5291d356d6a095e653f8e9a5",
+        "sha256_scope": "all checkpoint file bytes"
+      },
+      "dataset": "counterfact",
+      "facts": {
+        "path": "results/live_learning/confirm/external_counterfact_n1000.json",
+        "sha256": "5c7ee3102e58b36caef2bcb9df2aedfb9ca2515b8466dd9d486616cc7cc6de18",
+        "sha256_scope": "all ordered JSON file bytes, including every fact field"
+      },
+      "id": "counterfact_n1000_r2",
+      "n": 1000
     }
   ]
 }

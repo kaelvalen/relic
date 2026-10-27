@@ -13,15 +13,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from cerata.eval.metrics import ContinualEvaluator
-from cerata.legacy.adaptation.ttt import ContinualTrainer, TestTimeAdapter
-from cerata.legacy.builder.expert_builder import ExpertBuilder
-from cerata.legacy.memory.prototype_memory import PrototypeMemory
-from cerata.legacy.models.encoder import EMAEncoder, SharedEncoder
-from cerata.legacy.models.expert import MLPExpert
-from cerata.legacy.models.moe import DynamicMoE
-from cerata.legacy.models.router import DynamicRouter
-from cerata.legacy.trigger.expert_trigger import QuantitativeTrigger
+from relic.eval.metrics import ContinualEvaluator
+from relic.legacy.adaptation.ttt import ContinualTrainer, TestTimeAdapter
+from relic.legacy.builder.expert_builder import ExpertBuilder
+from relic.legacy.memory.prototype_memory import PrototypeMemory
+from relic.legacy.models.encoder import EMAEncoder, SharedEncoder
+from relic.legacy.models.expert import MLPExpert
+from relic.legacy.models.moe import DynamicMoE
+from relic.legacy.models.router import DynamicRouter
+from relic.legacy.trigger.expert_trigger import QuantitativeTrigger
 
 # archive/ (the earlier programs' runners) was removed from the working tree in 894ad16;
 # tests of those runners run only when it is restored from 894ad16^.
@@ -134,7 +134,7 @@ def test_prototype_routing_confidence_scales_with_ambiguity():
 
 
 def test_attention_router_routing_expansion_and_lock():
-    from cerata.legacy.models.router import AttentionRouter
+    from relic.legacy.models.router import AttentionRouter
 
     torch.manual_seed(0)
     router = AttentionRouter(input_dim=16, num_experts=2, top_k=1, temperature=0.1)
@@ -171,7 +171,7 @@ def test_attention_router_routing_expansion_and_lock():
 
 
 def test_router_anchor_distillation_learns_prototype_owners():
-    from cerata.legacy.adaptation.ttt import ContinualTrainer
+    from relic.legacy.adaptation.ttt import ContinualTrainer
 
     torch.manual_seed(5)
     encoder = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -217,9 +217,9 @@ def test_rejected_expansion_owner_is_newest_expert():
     """
     from torch.utils.data import DataLoader, TensorDataset
 
-    from cerata.legacy.adaptation.ttt import ContinualTrainer
-    from cerata.legacy.builder.expert_builder import ValidationGateResult
-    from cerata.legacy.trigger.expert_trigger import TriggerEvaluationResult
+    from relic.legacy.adaptation.ttt import ContinualTrainer
+    from relic.legacy.builder.expert_builder import ValidationGateResult
+    from relic.legacy.trigger.expert_trigger import TriggerEvaluationResult
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -293,7 +293,7 @@ def test_rejected_expansion_owner_is_newest_expert():
 def test_feature_cache_matches_raw_encoder():
     from torch.utils.data import DataLoader, TensorDataset
 
-    from cerata.data.feature_cache import build_feature_cache
+    from relic.data.feature_cache import build_feature_cache
 
     class DummyTask:
         def __init__(self, task_id, loader):
@@ -416,7 +416,7 @@ def test_prototype_auto_threshold_and_class_balanced_eviction():
 
 
 def test_optimizer_state_is_carried_across_rebuilds():
-    from cerata.legacy.adaptation.ttt import ContinualTrainer
+    from relic.legacy.adaptation.ttt import ContinualTrainer
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -1097,7 +1097,7 @@ def test_split_cifar10_tasks():
 
     import torch
 
-    from cerata.data.split_cifar import get_split_cifar10_tasks
+    from relic.data.split_cifar import get_split_cifar10_tasks
 
     with patch("torchvision.datasets.CIFAR10") as MockCIFAR:
         mock_dataset = MagicMock()
@@ -1124,10 +1124,10 @@ def test_split_cifar10_tasks():
 
 
 def test_freeze_historical_experts():
-    from cerata.legacy.models.encoder import SharedEncoder
-    from cerata.legacy.models.expert import MLPExpert
-    from cerata.legacy.models.moe import DynamicMoE
-    from cerata.legacy.models.router import DynamicRouter
+    from relic.legacy.models.encoder import SharedEncoder
+    from relic.legacy.models.expert import MLPExpert
+    from relic.legacy.models.moe import DynamicMoE
+    from relic.legacy.models.router import DynamicRouter
 
     enc = SharedEncoder(input_dim=64, hidden_dims=(32,), output_dim=16)
     router = DynamicRouter(input_dim=16, num_experts=3)
@@ -1159,7 +1159,7 @@ def test_freeze_historical_experts():
 
 def test_null_space_anchor_makes_new_row_orthogonal():
     """The null-space basis must make historically disjoint routings at init."""
-    from cerata.legacy.models.router import _project_to_null_space
+    from relic.legacy.models.router import _project_to_null_space
 
     torch.manual_seed(0)
     w = torch.randn(16)
@@ -1173,8 +1173,8 @@ def test_null_space_anchor_makes_new_row_orthogonal():
 
 def test_add_expert_null_space_basis():
     """DynamicMoE.add_expert forwards the null-space basis to the router."""
-    from cerata.legacy.models.moe import DynamicMoE
-    from cerata.legacy.models.router import DynamicRouter
+    from relic.legacy.models.moe import DynamicMoE
+    from relic.legacy.models.router import DynamicRouter
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=64, hidden_dims=(32,), output_dim=16)
@@ -1200,8 +1200,8 @@ def test_add_expert_null_space_basis():
 
 def test_persistence_roundtrip():
     """save_checkpoint/load_checkpoint round-trips model + prototype memory."""
-    from cerata.legacy.memory.prototype_memory import Prototype
-    from cerata.legacy.persistence import load_checkpoint, save_checkpoint
+    from relic.legacy.memory.prototype_memory import Prototype
+    from relic.legacy.persistence import load_checkpoint, save_checkpoint
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=64, hidden_dims=(32,), output_dim=16)
@@ -1246,7 +1246,7 @@ def test_persistence_roundtrip():
 
 def test_persistence_strict_rejects_mismatched_state(tmp_path):
     """strict=True must refuse a checkpoint from a different architecture."""
-    from cerata.legacy.persistence import load_checkpoint, save_checkpoint
+    from relic.legacy.persistence import load_checkpoint, save_checkpoint
 
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
     model = DynamicMoE(
@@ -1272,8 +1272,8 @@ def test_persistence_strict_rejects_mismatched_state(tmp_path):
 
 def test_der_erace_agem_smoke():
     """DER++, ER-ACE and AGEM train a full task without error and improve loss."""
-    from cerata.legacy.baselines.agem import AGEM
-    from cerata.legacy.baselines.der import DERPP, ERACE
+    from relic.legacy.baselines.agem import AGEM
+    from relic.legacy.baselines.der import DERPP, ERACE
 
     torch.manual_seed(0)
     xs = torch.randn(24, 64)
@@ -1292,7 +1292,7 @@ def test_der_erace_agem_smoke():
 
 def test_icarl_smoke():
     """iCaRL trains a task and classifies by nearest class mean."""
-    from cerata.legacy.baselines.icarl import ICaRL
+    from relic.legacy.baselines.icarl import ICaRL
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=64, hidden_dims=(32,), output_dim=16)
@@ -1382,7 +1382,7 @@ def test_prune_keeps_historical_routing_lock():
     assert router.gate.weight.grad[1].abs().sum().item() > 0.0
 
     # Lock count also stays consistent for the other router variants
-    from cerata.legacy.models.router import AttentionRouter, DistanceRouter
+    from relic.legacy.models.router import AttentionRouter, DistanceRouter
 
     for cls in (AttentionRouter, DistanceRouter):
         r = cls(input_dim=8, num_experts=3, top_k=1)
@@ -1614,7 +1614,7 @@ def test_runner_baseline_helpers():
     """Factory/record helpers used by the benchmark runner."""
     from archive.experiments.stage1.infra.run_benchmark import _record_baseline_result
 
-    from cerata.legacy.factory import build_single_head
+    from relic.legacy.factory import build_single_head
 
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
     model = build_single_head(enc, 8, 8, 3, torch.device("cpu"))
@@ -1632,7 +1632,7 @@ def test_split_folder_tasks_from_images(tmp_path):
     """The generic folder splitter builds class-incremental tasks from images."""
     from PIL import Image
 
-    from cerata.data.split_folder import get_split_folder_tasks
+    from relic.data.split_folder import get_split_folder_tasks
 
     for class_idx, colour in enumerate([(220, 30, 30), (30, 30, 220)]):
         class_dir = tmp_path / f"class_{class_idx}"
@@ -1661,7 +1661,7 @@ def test_domain_shift_phase_stream():
 
     import torch.utils.data as tdata
 
-    from cerata.data.domain_shift import (
+    from relic.data.domain_shift import (
         apply_phase_shift,
         permutation_transform,
         rotation_transform,
@@ -1696,7 +1696,7 @@ def test_domain_shift_phase_stream():
 
 
 def test_streaming_task_free_evaluation():
-    from cerata.eval.task_free import StreamingEvaluator
+    from relic.eval.task_free import StreamingEvaluator
 
     torch.manual_seed(0)
     model = nn.Linear(4, 2)
@@ -1721,7 +1721,7 @@ def test_streaming_task_free_evaluation():
 
 def test_resnet_encoder_shapes():
     """ResNet backbones accept 3-channel and adapted 1-channel inputs."""
-    from cerata.legacy.models.encoder import SharedEncoder
+    from relic.legacy.models.encoder import SharedEncoder
 
     enc = SharedEncoder(input_dim=3072, output_dim=16, arch="resnet18")
     enc.eval()
@@ -1738,7 +1738,7 @@ def test_resnet_encoder_shapes():
 
 def test_resnet_identity_head_makes_features_seed_invariant():
     """output_dim == backbone width => identity head and a shareable cache."""
-    from cerata.legacy.models.encoder import SharedEncoder
+    from relic.legacy.models.encoder import SharedEncoder
 
     enc = SharedEncoder(input_dim=3072, output_dim=512, arch="resnet18")
     assert enc.backbone_feature_dim == 512
@@ -1757,8 +1757,8 @@ def test_diagnose_detects_resnet_and_encoder_meta(tmp_path):
         infer_config,
     )
 
-    from cerata.legacy.factory import build_moe
-    from cerata.legacy.persistence import save_checkpoint
+    from relic.legacy.factory import build_moe
+    from relic.legacy.persistence import save_checkpoint
 
     model = build_moe(
         SharedEncoder(input_dim=3072, output_dim=8, arch="resnet18"),
@@ -1866,7 +1866,7 @@ def test_distill_skips_out_of_range_owners():
 
 def test_shared_expert_stability_anchor():
     """The always-on expert is anchored to its registration-time outputs."""
-    from cerata.legacy.factory import build_moe
+    from relic.legacy.factory import build_moe
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -1900,7 +1900,7 @@ def test_shared_expert_stability_anchor():
 
 
 def test_freeze_shared_expert_after_task():
-    from cerata.legacy.factory import build_moe
+    from relic.legacy.factory import build_moe
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -1964,7 +1964,7 @@ def test_adapter_experts_freeze_the_base_pathway():
 
 
 def test_model_merging_utilities():
-    from cerata.legacy.merge import model_soup, task_arithmetic, ties_merge
+    from relic.legacy.merge import model_soup, task_arithmetic, ties_merge
 
     torch.manual_seed(0)
     experts = [MLPExpert(8, 16, 3, i) for i in range(3)]
@@ -2071,7 +2071,7 @@ def test_param_reporting_fields():
     """total/trainable/active parameter counts must tell the compute story."""
     from archive.experiments.stage1.infra.run_benchmark import _active_params_per_sample
 
-    from cerata.legacy.factory import build_moe, build_single_head
+    from relic.legacy.factory import build_moe, build_single_head
 
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
     baseline = build_single_head(enc, 8, 8, 3)
@@ -2088,7 +2088,7 @@ def test_param_reporting_fields():
 
 
 def test_uncertainty_weighter_formula_and_gradients():
-    from cerata.legacy.adaptation.losses import UncertaintyWeighter
+    from relic.legacy.adaptation.losses import UncertaintyWeighter
 
     weighter = UncertaintyWeighter(("task", "router"))
     losses = {
@@ -2186,7 +2186,7 @@ def test_loss_weighting_uncertainty_trains():
 
 
 def test_latent_generative_replay_gaussian_and_vae():
-    from cerata.legacy.memory.generative import LatentReplayGenerator
+    from relic.legacy.memory.generative import LatentReplayGenerator
 
     torch.manual_seed(0)
     memory = PrototypeMemory(feature_dim=4)
@@ -2284,8 +2284,8 @@ def test_prototype_ann_index_is_optional():
 
 def test_ncm_and_bias_correction_heads():
     """Both read-out heads must beat an artificially biased model head."""
-    from cerata.eval.heads import BiasCorrectionHead, NCMHead
-    from cerata.legacy.factory import build_cached_encoder
+    from relic.eval.heads import BiasCorrectionHead, NCMHead
+    from relic.legacy.factory import build_cached_encoder
 
     torch.manual_seed(0)
     # Identity encoder: the test works directly in the latent space, which is
@@ -2338,8 +2338,8 @@ def test_ncm_and_bias_correction_heads():
 
 def test_shared_generalist_expert():
     """The always-on generalist mixes with the routed expert and stays trainable."""
-    from cerata.legacy.factory import build_moe
-    from cerata.legacy.persistence import load_checkpoint, save_checkpoint
+    from relic.legacy.factory import build_moe
+    from relic.legacy.persistence import load_checkpoint, save_checkpoint
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -2384,8 +2384,8 @@ def test_diagnose_infer_config_detects_shared_expert(tmp_path):
         infer_config,
     )
 
-    from cerata.legacy.factory import build_moe
-    from cerata.legacy.persistence import save_checkpoint
+    from relic.legacy.factory import build_moe
+    from relic.legacy.persistence import save_checkpoint
 
     model = build_moe(
         SharedEncoder(input_dim=784, hidden_dims=(64,), output_dim=8),
@@ -2441,7 +2441,7 @@ def test_prototype_routing_alpha_calibration():
 
 
 def test_expert_temperature_calibration_reduces_nll():
-    from cerata.eval.calibration import (
+    from relic.eval.calibration import (
         calibrate_expert_temperatures,
         fit_temperature,
     )
@@ -2471,7 +2471,7 @@ def test_expert_temperature_calibration_reduces_nll():
 
 def test_energy_boundary_loss_pushes_prototypes_down():
     """The energy hinge must lower old-prototype energy and raise new-feature energy."""
-    from cerata.legacy.adaptation.ttt import energy_boundary_loss
+    from relic.legacy.adaptation.ttt import energy_boundary_loss
 
     torch.manual_seed(0)
     expert = MLPExpert(8, 16, 3, 0)
@@ -2499,7 +2499,7 @@ def test_energy_boundary_loss_pushes_prototypes_down():
 
 
 def test_energy_trigger_flags_out_of_distribution_batches():
-    from cerata.legacy.trigger.energy_trigger import EnergyTrigger
+    from relic.legacy.trigger.energy_trigger import EnergyTrigger
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -2520,7 +2520,7 @@ def test_energy_trigger_flags_out_of_distribution_batches():
 
 def test_router_learnable_temperature():
     """learn_temperature adds a trainable log-temperature and stays stable."""
-    from cerata.legacy.models.router import AttentionRouter, DistanceRouter
+    from relic.legacy.models.router import AttentionRouter, DistanceRouter
 
     torch.manual_seed(0)
     h = torch.randn(32, 8)
@@ -2550,7 +2550,7 @@ def test_router_learnable_temperature():
 
 def test_router_anchor_margin_distillation():
     """Margin distillation trains the router onto prototype owners."""
-    from cerata.legacy.adaptation.ttt import ContinualTrainer
+    from relic.legacy.adaptation.ttt import ContinualTrainer
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -2590,7 +2590,7 @@ def test_router_anchor_margin_distillation():
 
 def test_geometry_report_separates_clusters():
     """Geometry metrics must separate clustered from overlapping features."""
-    from cerata.eval.geometry import (
+    from relic.eval.geometry import (
         geometry_report,
         nearest_other_margin,
         silhouette_score,
@@ -2615,7 +2615,7 @@ def test_geometry_report_separates_clusters():
 
 
 def test_router_diagnostics_reports_owner_accuracy():
-    from cerata.eval.diagnostics import router_diagnostics
+    from relic.eval.diagnostics import router_diagnostics
 
     torch.manual_seed(0)
     enc = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=8)
@@ -2653,7 +2653,7 @@ def test_sample_buffer_reservoir_balances_tasks():
     """Reservoir mode keeps every task; recency evicts the oldest tasks."""
     import random
 
-    from cerata.legacy.baselines.buffer import SampleBuffer, task_class_counts
+    from relic.legacy.baselines.buffer import SampleBuffer, task_class_counts
 
     random.seed(0)
     torch.manual_seed(0)
@@ -2680,7 +2680,7 @@ def test_sample_buffer_reservoir_balances_tasks():
 
 def test_ewc_online_keeps_single_fisher():
     """online=True accumulates one running Fisher instead of one per task."""
-    from cerata.legacy.baselines.ewc import EWC
+    from relic.legacy.baselines.ewc import EWC
 
     model = nn.Linear(4, 3)
     x = torch.randn(16, 4)
@@ -2720,7 +2720,7 @@ def test_test_time_adapter_restores_model_weights():
 
 def test_factory_builds_consistent_models():
     """The shared factory must construct every router/model variant."""
-    from cerata.legacy.factory import (
+    from relic.legacy.factory import (
         build_moe,
         build_prototype_memory,
         build_router,
@@ -2753,8 +2753,8 @@ def test_diagnose_infer_config_rebuilds_every_router_and_cached_encoder(tmp_path
         infer_config,
     )
 
-    from cerata.legacy.factory import build_cached_encoder, build_moe
-    from cerata.legacy.persistence import save_checkpoint
+    from relic.legacy.factory import build_cached_encoder, build_moe
+    from relic.legacy.persistence import save_checkpoint
 
     enc = SharedEncoder(input_dim=784, hidden_dims=(64,), output_dim=8)
     for router_type in ("dynamic", "distance", "attention"):
@@ -2871,7 +2871,7 @@ def test_refresh_representations_handles_multiple_prototypes():
 
 def test_icarl_herding_matches_bruteforce():
     """Vectorized herding must select the same exemplars as the greedy scan."""
-    from cerata.legacy.baselines.icarl import ICaRL
+    from relic.legacy.baselines.icarl import ICaRL
 
     torch.manual_seed(0)
     feats = torch.randn(64, 12)
@@ -2892,7 +2892,7 @@ def test_icarl_herding_matches_bruteforce():
 
 def test_derpp_update_buffer_chunked_logits_are_consistent():
     """Chunked buffer logits must equal a plain forward for the same sample."""
-    from cerata.legacy.baselines.der import DERPP
+    from relic.legacy.baselines.der import DERPP
 
     torch.manual_seed(0)
     model = nn.Sequential(nn.Linear(8, 3))
@@ -2916,7 +2916,7 @@ def test_config_validation_and_precedence(tmp_path):
     import argparse
     import json
 
-    from cerata.config import ConfigError, apply_config
+    from relic.config import ConfigError, apply_config
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=3)
@@ -2956,7 +2956,7 @@ def test_split_cifar100_loader():
     """CIFAR-100 splitter produces 20 tasks x 5 disjoint classes (offline mock)."""
     import torchvision.datasets as tvd
 
-    from cerata.data.split_cifar100 import NUM_TASKS, get_split_cifar100_tasks
+    from relic.data.split_cifar100 import NUM_TASKS, get_split_cifar100_tasks
 
     class FakeCIFAR100:
         def __init__(self, root, train=True, download=False, transform=None):
@@ -3019,7 +3019,7 @@ def test_vit_encoder_shapes_and_projection():
 def test_always_trigger_fires_on_new_task():
     from types import SimpleNamespace
 
-    from cerata.legacy.trigger.expert_trigger import AlwaysTrigger
+    from relic.legacy.trigger.expert_trigger import AlwaysTrigger
 
     trigger = AlwaysTrigger()
     result = trigger.evaluate(SimpleNamespace(num_experts=3))
@@ -3030,7 +3030,7 @@ def test_always_trigger_fires_on_new_task():
 def test_feature_cache_persistence_roundtrip(tmp_path):
     from torch.utils.data import DataLoader, TensorDataset
 
-    from cerata.data.feature_cache import (
+    from relic.data.feature_cache import (
         build_feature_cache,
         load_feature_cache,
         save_feature_cache,
@@ -3088,9 +3088,9 @@ def test_feature_cache_persistence_roundtrip(tmp_path):
 
 def test_stored_memory_accounting():
     """Every memory-carrying baseline reports the bytes it actually stores."""
-    from cerata.legacy.baselines.buffer import SampleBuffer
-    from cerata.legacy.baselines.ewc import EWC
-    from cerata.legacy.baselines.icarl import ICaRL
+    from relic.legacy.baselines.buffer import SampleBuffer
+    from relic.legacy.baselines.ewc import EWC
+    from relic.legacy.baselines.icarl import ICaRL
 
     buf = SampleBuffer(4, mode="recency")
     assert buf.memory_bytes() == 0
@@ -3142,7 +3142,7 @@ def test_encoder_in_channels_override():
 
 
 def test_mir_selects_interfered_samples():
-    from cerata.legacy.baselines.mir import MIR
+    from relic.legacy.baselines.mir import MIR
 
     encoder = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=4)
     net = nn.Sequential(
@@ -3165,7 +3165,7 @@ def test_mir_selects_interfered_samples():
 
 
 def test_latent_replay_trainer():
-    from cerata.legacy.baselines.latent_replay import LatentReplayTrainer
+    from relic.legacy.baselines.latent_replay import LatentReplayTrainer
 
     encoder = SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=4)
     net = nn.Sequential(
@@ -3191,7 +3191,7 @@ def test_latent_replay_trainer():
 def test_split_folder_tasks(tmp_path):
     from PIL import Image
 
-    from cerata.data.split_folder import get_split_folder_tasks
+    from relic.data.split_folder import get_split_folder_tasks
 
     for cls in ("a", "b", "c", "d"):
         cls_dir = tmp_path / cls

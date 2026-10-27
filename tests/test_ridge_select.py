@@ -4,8 +4,8 @@ import math
 
 import torch
 
-from cerata.core.random_features import RandomProjection
-from cerata.edit.stats import LinearStats, one_hot, select_ridge
+from relic.core.random_features import RandomProjection
+from relic.edit.stats import LinearStats, one_hot, select_ridge
 
 
 def _data(n=600, d=32, C=5, seed=0):

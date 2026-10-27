@@ -10,7 +10,7 @@ the representation-expert check - that distinction is the whole point of S1.
 import pytest
 import torch
 
-from cerata.arch import (
+from relic.arch import (
     CLASSIFICATION_EXPERTS,
     READOUTS,
     Backbone,
@@ -32,8 +32,8 @@ from cerata.arch import (
     mask_unseen,
     wrap_encoder,
 )
-from cerata.data.feature_cache import CachedFeatureEncoder
-from cerata.legacy.models.encoder import SharedEncoder
+from relic.data.feature_cache import CachedFeatureEncoder
+from relic.legacy.models.encoder import SharedEncoder
 
 B = 8
 
@@ -293,7 +293,7 @@ def test_prototype_router_candidate_set_and_distribution():
 
 
 def test_legacy_router_exposes_the_same_interface():
-    from cerata.arch import build_legacy_router
+    from relic.arch import build_legacy_router
 
     router = build_legacy_router("dynamic", input_dim=6, top_k=1, num_experts=3)
     assert isinstance(router, Router)
@@ -305,6 +305,6 @@ def test_legacy_router_exposes_the_same_interface():
 
 def test_router_registry_has_no_unknown_v1_type():
     with pytest.raises(KeyError, match="unknown router_type"):
-        from cerata.arch import build_legacy_router
+        from relic.arch import build_legacy_router
 
         build_legacy_router("nope", input_dim=4, top_k=1, num_experts=2)

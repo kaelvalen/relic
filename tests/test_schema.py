@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from cerata.eval.schema import (
+from relic.eval.schema import (
     BLOCK_FIELDS,
     BLOCKS,
     aggregate_runs,

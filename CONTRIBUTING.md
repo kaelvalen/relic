@@ -35,10 +35,10 @@ ruff check . && black --check .
 ## Rules the codebase depends on
 
 1. **A refactor that changes a number is a bug, not a finding.** Code that stored
-   results depend on (`cerata/experts/ladder.py`, `cerata/core/`, `cerata/eval/stats.py`,
+   results depend on (`relic/experts/ladder.py`, `relic/core/`, `relic/eval/stats.py`,
    the routers) must reproduce them: run `experiments/v3_anchors.py` on the machine
    that has `results/` and report the deltas (`docs/V3_ARCHITECTURE.md` section 7).
-2. **`cerata/legacy/` is frozen bitwise.** It is the v1 (PAL-MoE) record; the old
+2. **`relic/legacy/` is frozen bitwise.** It is the v1 (PAL-MoE) record; the old
    import paths (`pal_moe.models`, `pal_moe.adaptation`, ...) are `sys.modules` aliases
    onto it, registered by the `pal_moe` compatibility package, so old checkpoints still
    unpickle. New code never imports `pal_moe`. `tests/fixtures/*_stage1.pt` prove that; regenerate

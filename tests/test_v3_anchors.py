@@ -64,10 +64,10 @@ def test_moved_names_are_the_same_objects():
     import s6b_difficulty
     import s11_confirmatory as s11
 
-    import cerata.core.constructions as cons
-    import cerata.core.features as feats
-    import cerata.eval.stats as stats
-    import cerata.experts.ladder as ladder
+    import relic.core.constructions as cons
+    import relic.core.features as feats
+    import relic.eval.stats as stats
+    import relic.experts.ladder as ladder
 
     assert s2_ladder.LadderModel is ladder.LadderModel
     assert s2_ladder.LEVELS_BY_NAME is ladder.LEVELS_BY_NAME
@@ -92,11 +92,11 @@ def test_pal_moe_compat_package_aliases_not_copies():
     """The pre-rename name and the pre-v3 paths are the same module objects."""
     import warnings
 
-    import cerata.api.facade as facade
-    import cerata.eval.schema as schema
-    import cerata.legacy.factory as factory
-    import cerata.legacy.memory.prototype_memory as pm
-    import cerata.legacy.models.moe as moe
+    import relic.api.facade as facade
+    import relic.eval.schema as schema
+    import relic.legacy.factory as factory
+    import relic.legacy.memory.prototype_memory as pm
+    import relic.legacy.models.moe as moe
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
@@ -109,10 +109,10 @@ def test_pal_moe_compat_package_aliases_not_copies():
 
     assert old_moe is moe and old_factory is factory and old_pm is pm
     assert old_schema is schema and old_facade is facade
-    assert pal_moe.api.PalMoE is facade.Cerata and pal_moe.PALMoE is moe.PALMoE
+    assert pal_moe.api.PalMoE is facade.Relic and pal_moe.PALMoE is moe.PALMoE
     files = {}
     for name, mod in list(sys.modules.items()):
-        if name.startswith(("cerata", "pal_moe")) and getattr(mod, "__file__", None):
+        if name.startswith(("relic", "pal_moe")) and getattr(mod, "__file__", None):
             files.setdefault(mod.__file__, set()).add(id(mod))
     assert not [f for f, ids in files.items() if len(ids) > 1], (
         "a module was loaded twice"
@@ -124,7 +124,7 @@ def test_pal_moe_compat_package_aliases_not_copies():
 
 @needs(ETID2_JSON)
 def test_anchor_etid2_report_recomputes_exactly():
-    from cerata.eval.stats import paired_stats
+    from relic.eval.stats import paired_stats
 
     d = json.loads(ETID2_JSON.read_text())
     for regime, fam in d["report"].items():
@@ -249,10 +249,10 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 
 def _build_v1():
-    from cerata.legacy.models.encoder import SharedEncoder
-    from cerata.legacy.models.expert import MLPExpert
-    from cerata.legacy.models.moe import DynamicMoE
-    from cerata.legacy.models.router import DynamicRouter
+    from relic.legacy.models.encoder import SharedEncoder
+    from relic.legacy.models.expert import MLPExpert
+    from relic.legacy.models.moe import DynamicMoE
+    from relic.legacy.models.router import DynamicRouter
 
     return DynamicMoE(
         encoder=SharedEncoder(input_dim=16, hidden_dims=(8,), output_dim=4),
@@ -274,8 +274,8 @@ def test_v1_whole_object_pickle_loads_through_the_shims():
     pickle names `pal_moe.models.*` and `pal_moe.memory.prototype_memory`. Unpickling
     must resolve them, through the `pal_moe` compatibility package, to the legacy
     classes and reproduce the stored forward bitwise."""
-    import cerata.legacy.memory.prototype_memory as pm
-    import cerata.legacy.models.moe as moe
+    import relic.legacy.memory.prototype_memory as pm
+    import relic.legacy.models.moe as moe
 
     blob = torch.load(FIXTURES / "v1_whole_objects_stage1.pt", weights_only=False)
     assert isinstance(blob["model"], moe.DynamicMoE)
@@ -293,8 +293,8 @@ def test_v1_whole_object_pickle_loads_through_the_shims():
 
 @requires_pal_moe
 def test_v1_persistence_checkpoint_loads_through_the_shims():
-    from cerata.legacy.memory.prototype_memory import PrototypeMemory
-    from cerata.legacy.persistence import load_checkpoint
+    from relic.legacy.memory.prototype_memory import PrototypeMemory
+    from relic.legacy.persistence import load_checkpoint
 
     blob = torch.load(FIXTURES / "v1_whole_objects_stage1.pt", weights_only=False)
     model, mem = _build_v1(), PrototypeMemory(feature_dim=4, store_raw=False)

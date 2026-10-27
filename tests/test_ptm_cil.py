@@ -9,18 +9,18 @@ import numpy as np
 import pytest
 import torch
 
-from cerata.api import Batch, Cerata
-from cerata.core.hashing import digest
-from cerata.core.random_features import RandomProjection
-from cerata.data.ptm_benchmarks import (
+from relic.api import Batch, Relic
+from relic.core.hashing import digest
+from relic.core.random_features import RandomProjection
+from relic.data.ptm_benchmarks import (
     BENCHMARKS,
     class_order,
     split_tasks,
     stream_test_order,
     task_increments,
 )
-from cerata.edit import LinearStats, one_hot, select_ridge
-from cerata.eval.decomposition import (
+from relic.edit import LinearStats, one_hot, select_ridge
+from relic.eval.decomposition import (
     ExpertDump,
     decompose,
     p2_decomposition,
@@ -108,7 +108,7 @@ def test_select_ridge_is_deterministic_and_scale_free():
 
 def test_palmoe_with_random_features_passes_every_guard():
     bs = _batches(3, n=30)
-    m = Cerata(dim=D, num_classes=C, random_features=M, canary=torch.randn(20, D))
+    m = Relic(dim=D, num_classes=C, random_features=M, canary=torch.randn(20, D))
     recs = [m.write(Batch(z, y, task=i)) for i, (z, y) in enumerate(bs)]
     for r in recs:
         assert r.order_report["pass"] and r.reversibility_report["pass"]
@@ -502,7 +502,7 @@ def test_prepare_ptm_data_rejects_an_archive_with_a_wrong_published_md5(tmp_path
 
 
 def test_load_raw_cache_accepts_a_torch_version_in_meta(tmp_path):
-    from cerata.data.ptm_benchmarks import load_raw_cache
+    from relic.data.ptm_benchmarks import load_raw_cache
 
     payload = {
         "meta": {

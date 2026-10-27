@@ -241,3 +241,12 @@ limit (rank-2 LoReFT 0.86 at 172 KB) but 82-100% of facts exceed the held-out ka
 D 1.7-5.6 vs 0.45 for rank-2 LoRA+); in-sample D stays low. No candidate; rank-2 LoRA+
 int8 stays. Bugs found on the way: AdamW weight decay zeroes the orthogonal
 parametrisation (R -> 0); parametrised modules need gc.collect() per training.
+SS94/§94 §95 (2026-10-26/27): both N=1000 stores rebuilt with the rank-2 int8 adapter
+(`confirm/store_r2.py`, `v7_eval.py --store r2`; cf/zsre_n1000_r2.ckpt pinned in the
+manifest; padded into the rank-16 layout, exact in fp32, bf16 logits differ by 1-3 ulps).
+All 2000 pass the gate on the first training. Serving within 0.01 of rank 16 on both
+datasets (CF paraphrase both 0.885 vs 0.891, zsRE 0.975 vs 0.982), leak and removal
+unchanged, pooled held-out share above kappa 5.4% vs 4.45%. Wrong route keeps 0.675 vs
+0.72 (CI of the paired difference [-0.095, 0.005]), below the 0.69 limit: rule fails
+on (v), P5 fails. The paper keeps rank 16 as the main build and reports rank 2 beside
+it. Open: a larger wrong-route sample.

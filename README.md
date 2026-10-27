@@ -64,9 +64,12 @@ entries 64 to 93.
 | Removed facts returning to the base answer (100 removed) | 1.00 | 1.00 | 0.84 (1.00 removing by content) |
 | Facts that need an adapter (tiered store) | 0.162 | 0.162 | 0.206 |
 
-These stores were built with the earlier rank-16 adapters (8.7 MB each). Rebuilding
-both with the adopted 373 KB adapter and repeating the evaluation is entry 94, in
-progress.
+These stores were built with the earlier rank-16 adapters (8.7 MB each). Entry 94
+rebuilt both with the adopted 373 KB adapter (0.75 GB instead of 17.4 GB for the two
+stores) and repeated the evaluation. Every serving reading moved by less than 0.01 and
+leakage and removal were unchanged, but a wrong route kept 0.675 of the base model's
+correct answers instead of 0.72, below the pre-registered limit of 0.69. As registered,
+the table keeps the rank-16 stores as the main build; see entry 95.
 
 ### Comparison with existing methods
 

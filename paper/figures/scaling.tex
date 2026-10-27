@@ -19,10 +19,10 @@
 ]
 \addplot[thick, blue!70!black, mark=*, mark size=1.6pt]
   coordinates {(50,1.00)+-(0,0) (200,0.995)+-(0,0.01) (1000,0.999)+-(0,0.002)};
-\addlegendentry{Cerata, own adapter}
+\addlegendentry{RELIC, own adapter}
 \addplot[thick, blue!50, dashed, mark=diamond*, mark size=2.2pt, only marks]
   coordinates {(1000,\cfEff)+-(0,\cfEffErr)};
-\addlegendentry{Cerata, routed}
+\addlegendentry{RELIC, routed}
 \addplot[thick, red!70!black, mark=square*, mark size=1.5pt]
   coordinates {(50,0.76)+-(0,0.12) (200,0.85)+-(0,0.05) (1000,0.834)+-(0,0.023)};
 \addlegendentry{Retrieval}
@@ -32,7 +32,7 @@
 \end{axis}
 \end{tikzpicture}
 \caption{Efficacy on CounterFact for different numbers of stored facts, with 95\%
-bootstrap intervals. Retrieval and Cerata use the same router. ``Own adapter'' serves
+bootstrap intervals. Retrieval and RELIC use the same router. ``Own adapter'' serves
 each edit prompt with its own adapter; ``routed'' uses the router's selection
 (Section~\ref{sec:v3}).}
 \label{fig:scaling}

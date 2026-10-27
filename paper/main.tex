@@ -1,4 +1,4 @@
-% Cerata - IEEEtran journal paper.
+% RELIC - IEEEtran journal paper.
 % Build: cd paper && mkdir -p build && nix run nixpkgs#tectonic -- main.tex -o build
 % Numbers: run `.venv/bin/python paper/make_numbers.py` from the repository root.
 \documentclass[journal,10pt]{IEEEtran}
@@ -36,7 +36,7 @@
 \newcommand{\revoke}{\textsc{Remove}}
 \newcommand{\serve}{\textsc{Serve}}
 
-\title{Cerata: A Transactional Knowledge Store for\\ Frozen Language Models}
+\title{RELIC: A Transactional Knowledge Store for\\ Frozen Language Models}
 \author{Mehmet~Arda~Hakbilen and Rukiye~Savran~K{\i}z{\i}ltepe%
 \thanks{M.~A.~Hakbilen and R.~Savran~K{\i}z{\i}ltepe are with the Department of
 Software Engineering, Ankara University, Ankara, Turkey (e-mail:
@@ -50,7 +50,7 @@ mehmetardahakbilen2005@gmail.com).}}
 \begin{abstract}
 Knowledge editing writes facts into a model's weights but cannot remove an
 individual fact, identify the fact behind an answer, or limit an update's effect on
-unrelated inputs. We present Cerata, which keeps the base model
+unrelated inputs. We present RELIC, which keeps the base model
 frozen and stores each fact as an entry served as a note in the context, a low-rank
 adapter, or both. A router whose parameters are fixed before any fact is stored
 selects at most one entry per query, so exact removal and answer attribution follow from
@@ -105,7 +105,8 @@ that contradicts their parametric knowledge~\cite{longpre2021conflicts,xie2024ch
 We treat additions to and removals from the model's stored knowledge as transactions in
 the database sense~\cite{haerder1983transactions}: an addition is accepted only if it
 passes a check, a removal returns the store to its earlier state, and each operation is
-logged. The base model is never updated, each fact is a separate entry that consists of
+logged. We call the resulting system RELIC (Revocable Entries for Language model
+Insertions and Corrections). The base model is never updated, each fact is a separate entry that consists of
 a note and, if needed, a low-rank adapter, and a router whose parameters are fixed
 before any fact is stored applies at most one entry to a query. Exact removal and answer attribution are then
 properties of the data structure (Section~\ref{sec:problem}). Whether stored facts are
@@ -171,7 +172,7 @@ locality. Later work studies ripple effects and multi-hop
 consistency~\cite{cohen2024ripple,zhong2023mquake}, forgetting over long edit
 sequences~\cite{gupta2024forgetting}, damage to general abilities~\cite{gu2024harms},
 and the difference between teacher-forced and free generation~\cite{yang2025mirage}.
-Cerata's adapters behind an index follow the MELO design. Cerata differs in the
+RELIC's adapters behind an index follow the MELO design. RELIC differs in the
 operations it provides around it: a divergence check at write time, removal of
 individual facts, attribution of answers, and the combination with notes.
 Table~\ref{tab:positioning} compares these operations across approaches.
@@ -210,7 +211,7 @@ large language models is approximate in general~\cite{eldan2023harrypotter} and 
 evaluated with forget and retain sets~\cite{maini2024tofu,shi2025muse,
 liu2025rethinking}. In mixture-of-experts models, an update to the router can redirect
 queries away from the expert that holds the knowledge without removing it, and SEUF and
-GRIP constrain the router to prevent this~\cite{zhuang2025seuf,zhu2026grip}. Cerata
+GRIP constrain the router to prevent this~\cite{zhuang2025seuf,zhu2026grip}. RELIC
 resembles SISA with one shard per fact. Its router has no state that depends on the stored facts, so removing a
 fact cannot change routing decisions for queries unrelated to it
 (Proposition~\ref{prop:locality}).
@@ -909,7 +910,7 @@ such as a continent for a country or a city for a country of origin.
 
 \input{tables/baselines}
 
-Table~\ref{tab:baselines} compares the official editing implementations with Cerata.
+Table~\ref{tab:baselines} compares the official editing implementations with RELIC.
 GRACE answers all 200 edits on the plain edit prompt but only 2.5\% under the chat
 template, because its keys are activations of the last token of the plain prompt and
 the chat template changes this token. WISE reports a per-edit accuracy of 100\%, while
@@ -920,7 +921,7 @@ template. These results agree with earlier findings that editing results depend 
 evaluation format and on whether accuracy is measured after each edit or after all
 edits~\cite{yang2025mirage,gupta2024forgetting}. Neither implementation provides an
 operation for removing a single edit. Because GRACE and WISE were run with 200 facts and
-Cerata with 1000, the comparison is descriptive.
+RELIC with 1000, the comparison is descriptive.
 
 \subsection{Grouped Adapters}
 \label{sec:capacity}
@@ -1054,7 +1055,7 @@ Each problem was documented before and after it was corrected.
 % ===========================================================================
 \section{Conclusion}
 
-Cerata stores each fact learned after deployment as a separate entry on a frozen
+RELIC stores each fact learned after deployment as a separate entry on a frozen
 language model, consisting of a note and, where needed, a low-rank adapter, and selects
 entries with a router whose parameters do not depend on the stored facts. Removal and attribution are
 exact by construction. A first version met its requirements on the prompts used to store

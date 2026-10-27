@@ -1,14 +1,14 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "CERATA: closed-form, exactly reversible, auditable learning after deployment (formerly PAL-MoE)"
+title: "RELIC: Transactional Knowledge Updates for Frozen Language Models"
 authors:
   - family-names: "Hakbilen"
     given-names: "Mehmet Arda"
     email: "mehmetardahakbilen2005@gmail.com"
 version: 0.2.0
 date-released: 2026-09-13
-url: "https://github.com/kaelvalen/cerata"
-repository-code: "https://github.com/kaelvalen/cerata"
+url: "https://github.com/kaelvalen/relic"
+repository-code: "https://github.com/kaelvalen/relic"
 keywords:
   - continual-learning
   - class-incremental-learning

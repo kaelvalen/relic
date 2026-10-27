@@ -1,14 +1,14 @@
-# CERATA
+# RELIC
 
-[![ci](https://github.com/kaelvalen/cerata/actions/workflows/ci.yml/badge.svg)](https://github.com/kaelvalen/cerata/actions/workflows/ci.yml)
+[![ci](https://github.com/kaelvalen/relic/actions/workflows/ci.yml/badge.svg)](https://github.com/kaelvalen/relic/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![Pre-registered](https://img.shields.io/badge/experiments-pre--registered-6f42c1.svg)
 
-Transactional knowledge updates for frozen language models. The name comes from the
-*tabula cerata*, the Roman wax tablet, which could be written on and wiped clean.
+Transactional knowledge updates for frozen language models. RELIC stands for Revocable
+Entries for Language model Insertions and Corrections.
 
-Cerata keeps a pre-trained language model frozen and stores each fact learned after
+RELIC keeps a pre-trained language model frozen and stores each fact learned after
 deployment as a separate entry: a note (the fact's statement, served in the system prompt
 with an instruction to follow it) and, if the note alone does not produce the answer, a
 small low-rank adapter. A router applies at most one entry to a query and otherwise
@@ -80,7 +80,7 @@ Share of edit prompts answered with the stored fact, in chat format.
 | Note only (retrieval in the system prompt), 1000 facts | 0.84 |
 | GRACE (official code, 200 facts) | 0.025 in chat format, 1.00 in plain text |
 | WISE (official code, 200 facts) | 0.07 after 200 sequential edits, 1.00 one at a time |
-| Cerata, 1000 facts | 0.996 |
+| RELIC, 1000 facts | 0.996 |
 
 One shared adapter for many facts holds 256 facts, but leaks 10% to 30% and cannot
 remove a single fact.
@@ -109,8 +109,8 @@ remove a single fact.
 ## Repository layout
 
 ```text
-cerata/
-├── cerata/                         # library code from the earlier programs (API, routers, edits, eval)
+relic/
+├── relic/                          # library code from the earlier programs (API, routers, edits, eval)
 ├── experiments/sandbox/live_learning/
 │   ├── text/                       # store, ledger, router, controller, sessions
 │   ├── confirm/                    # confirmatory harness: data adapters, pilot, evaluations
@@ -157,19 +157,19 @@ Environment notes for the GPU runs (NixOS, shared 8 GB GPU) are in
 ## Earlier work
 
 The project started as PAL-MoE, a mixture-of-experts model for class-incremental
-learning, followed by a closed-form vision study (CERATA v3). That material was removed
+learning, followed by a closed-form vision study (RELIC v3). That material was removed
 from the working tree in commit `894ad16`; it is available in the history at
-`894ad16^` (for example `git show 894ad16^:archive/docs/README.md`). The `cerata/`
+`894ad16^` (for example `git show 894ad16^:archive/docs/README.md`). The `relic/`
 package still contains the library code from those programs, and `import pal_moe` is no
 longer supported.
 
 ## Citation
 
 ```bibtex
-@software{cerata2026,
+@software{relic2026,
   author = {Hakbilen, Mehmet Arda},
-  title  = {CERATA: Transactional Knowledge Updates for Frozen Language Models},
-  url    = {https://github.com/kaelvalen/cerata},
+  title  = {RELIC: Transactional Knowledge Updates for Frozen Language Models},
+  url    = {https://github.com/kaelvalen/relic},
   year   = {2026}
 }
 ```

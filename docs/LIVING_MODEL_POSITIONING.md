@@ -72,7 +72,7 @@ unlearning objectives, the sandbox bench. New: the transaction/ledger abstractio
 a deployed model, the state-identity guarantee (G2), the router-integrity invariant
 (G3 measured), provenance as a first-class output (G5), and one controller across the
 three time scales. The delta is the guarantee set and its measurement, not a new
-block. This is the LLM continuation of the CERATA guards (locality, reversibility,
+block. This is the LLM continuation of the RELIC guards (locality, reversibility,
 order invariance, purity) - the same values, a harder substrate.
 
 ## 5. Feasibility (8 GB)

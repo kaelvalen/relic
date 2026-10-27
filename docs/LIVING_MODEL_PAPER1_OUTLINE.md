@@ -1,6 +1,6 @@
 # Paper 1 - outline (draft v0, 2026-10-09)
 
-Working title: **"Cerata: Transactional Memory for Frozen Language Models -
+Working title: **"RELIC: Transactional Memory for Frozen Language Models -
 Exact Revoke, Audit, and Capability Safety at Scale"**
 Alternatives: "Write, Forget, Audit: ..." / "Learning after deployment as an API
 call on a frozen base".
@@ -40,7 +40,7 @@ measure every guarantee at N=1000.
 - Transaction API: write (propose -> KL gate -> commit; atomic on failure),
   forget (slot free + materialize; exact), audit (state hash, commit records,
   leave-one-out provenance).
-- Implementation: cerata/ (API layer) + experiments/sandbox/live_learning (harness);
+- Implementation: relic/ (API layer) + experiments/sandbox/live_learning (harness);
   details to appendix.
 
 ## 4. Guarantee definitions (operational, falsifiable)

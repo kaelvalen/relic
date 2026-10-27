@@ -2423,3 +2423,56 @@ equal in fp32 within 1e-6, and the hit on the target (edit prompt and paraphrase
 same in both models for all 40 answers; the logit difference is reported. What SS94
 evaluates is the padded store, which computes the rank-2 update up to bf16 rounding.
 Nothing else changes; the 20 trained adapters are kept and the build resumes.
+
+## 95. SS94 results: the N=1000 stores with the rank-2 adapter (2026-10-27)
+
+Source: results/live_learning/confirm/store_r2.json (store_r2.py report), from
+store_r2_{cf,zsre}.json, {cf,zsre}_n1000_r2_v8_eval.json and canary_eval_r2.json. The
+two rank-2 stores are pinned in routed_eval_manifest.json (counterfact_n1000_r2,
+zsre_n1000_r2). Training took 6.9 s per adapter on CounterFact and 6.6 s on zsRE.
+Storage of the two stores as int8 rank-2 adapters: 2 x 1000 x 373 KB, about 0.75 GB
+instead of 17.4 GB.
+
+Serving (rank 16 against rank 2, paired difference with its 95% bootstrap CI).
+CounterFact: efficacy with adapter alone 0.997 against 0.998 (+0.001, [-0.002, 0.005]);
+paraphrase with adapter and note 0.891 against 0.885 (-0.006, [-0.016, 0.004]);
+paraphrase with adapter alone 0.730 against 0.732 (+0.002, [-0.015, 0.019]); tiered
+store: 0.162 against 0.161 of facts need an adapter, tiered paraphrase 0.723 against
+0.724. zsRE: efficacy 0.999 against 1.000 (+0.001, [0.000, 0.003]); paraphrase with
+adapter and note 0.982 against 0.975 (-0.007, [-0.015, 0.000]); adapter alone 0.967
+against 0.969 (+0.002, [-0.003, 0.008]); tier fraction 0.206 in both.
+
+Locality and removal. CounterFact E3 leak (both) 0.043 against 0.044 (CI [0.000,
+0.003]); E2 neighbourhood leak (both) 0.017 in both; zsRE loc questions 0 in both.
+Removal on CounterFact: gone 1.0 in both, retention 0.9967 against 0.9989; on zsRE the
+removal readings are those of rank 16 (gone 0.4, retention 0.9989 against 1.000).
+
+Held-out divergence (40 SS69 canaries, kappa 0.968). Share above kappa, rank 16 against
+rank 2: CounterFact 0.011 against 0.019, zsRE 0.078 against 0.089, pooled 0.0445 against
+0.054. Mean held-out D: CounterFact 0.354 against 0.396, zsRE 0.545 against 0.551,
+pooled 0.450 against 0.474. No candidate failed the commit gate (in-sample D max 0.12 on
+CounterFact).
+
+Wrong route (canary_eval.py, the same 200 zsRE dev questions and the same adapters as
+SS69, paired by question): base answers retained 0.72 with rank 16 and 0.675 with rank
+2 (difference -0.045, bootstrap CI [-0.095, 0.005]; 17 answers lost and 8 gained). The
+p99 of benign held-out D over the 100 SS69 benign adapters is 1.11 with rank 2 against
+0.968 with rank 16.
+
+Decision rule. (i) holds on both datasets, (ii) holds on both, (iii) holds, (iv) holds
+(gap in the share above kappa 0.0095, in mean D 0.024), (v) fails: 0.675 is below the
+limit of 0.69. The rule fails, so as pinned the paper reports both builds and keeps rank
+16 as the main build. The difference in (v) is within the sampling error of 200
+questions, but the limit was fixed as a point value.
+
+Predictions. P1 held: all 2000 candidates passed the gate on the first training. P2
+held. P3 held (+0.002 on both datasets). P4 held: the pooled gap is 0.0095, and on zsRE
+the rank-2 share (8.9%) is higher than the rank-16 share (7.8%). P5 failed: (iii) held,
+(v) did not. P6 held (gone 1.0, retention 0.9989).
+
+Reading. On the 2000 stored facts the rank-2 adapter answers as the rank-16 adapter does
+(every serving difference is under 0.01) and leaks as little. It changes the base model
+slightly more: on held-out prompts, and when it is applied to a question it was not
+trained for, where it keeps 4.5 points fewer of the base model's correct answers. New
+facts continue to be stored with the rank-2 adapter (SS89); a larger wrong-route sample
+would tell whether the difference in (v) is real.

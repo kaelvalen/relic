@@ -5,15 +5,20 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![Pre-registered](https://img.shields.io/badge/experiments-pre--registered-6f42c1.svg)
 
-Transactional knowledge updates for frozen language models. RELIC stands for Revocable
-Entries for Language model Insertions and Corrections.
+**R**evocable **E**ntries for **L**anguage model **I**nsertions and **C**orrections:
+transactional knowledge updates for frozen language models.
+
+The name describes the design. Each fact learned after deployment is an *entry* of its
+own. An entry is an *insertion* of a fact the *language model* does not know or a
+*correction* of an answer it gives, and the model itself is never changed. Every entry is
+*revocable*: removing a fact deletes its entry and nothing else, so the model answers
+exactly as it did before the fact was added.
 
 RELIC keeps a pre-trained language model frozen and stores each fact learned after
 deployment as a separate entry: a note (the fact's statement, served in the system prompt
 with an instruction to follow it) and, if the note alone does not produce the answer, a
 small low-rank adapter. A router applies at most one entry to a query and otherwise
-answers with the unmodified base model. Removing a fact deletes its entry, and every
-answer reports which entry produced it.
+answers with the unmodified base model. Every answer reports which entry produced it.
 
 ## How it works
 

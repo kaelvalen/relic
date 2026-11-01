@@ -2476,3 +2476,53 @@ slightly more: on held-out prompts, and when it is applied to a question it was 
 trained for, where it keeps 4.5 points fewer of the base model's correct answers. New
 facts continue to be stored with the rank-2 adapter (SS89); a larger wrong-route sample
 would tell whether the difference in (v) is real.
+
+## 96. Write-time slots on the N=1000 stores (pinned 2026-11-01, before the run; eval-only)
+
+Question. In the zsRE store, removal returns 0.84 of the removed facts to the base answer,
+because a rephrased duplicate of the removed fact stays stored (SS64); removal by content
+reaches 1.00 only by deleting every entry with the same subject and answer. relic.ledger.Ledger
+decides at write time instead: a write whose subject is stored and whose relation the
+relation encoder cannot tell apart from a stored one (similarity >= theta_slot) adds a
+phrasing to that entry if the answer is the same, and replaces the entry if it differs.
+Does this close the removal gap, and how many different facts does it wrongly merge?
+zsRE records carry no relation identifier (relation is "external" in all of them), so the
+comparison has to go through the encoder; subject and relation identifier alone cannot
+be used on this dataset.
+
+Runner: confirm/slot_eval.py on cf_n1000.ckpt and zsre_n1000.ckpt (rank 16, the main build),
+manifest-verified, default router (relation_encoder_mpnet, theta 0.7501). No training.
+
+theta_slot, fixed on the dev split of SS66 (not the test stores) with the same encoder: the
+lowest threshold at which at most 1% of dev other-relation pairs (edit prompt against the
+`negative` template of another relation, same subject) reach it. It is stored in the output.
+
+Readings. (a) Write actions per dataset in fact order: inserts, duplicates, updates. (b)
+False merges: on CounterFact, merged pairs whose two relation identifiers differ; over
+all pairs of CounterFact templates from different relations, the share at or above
+theta_slot and the ten worst relation pairs; over pairs from one relation, the same share
+(recall on known-identical relations). (c) Serving on the original 1000 edit prompts and
+paraphrases, arms adapter and both, paired with the SS76 evaluation. A query is re-served
+only if its route changed; otherwise the saved outcome stands, since serving is
+deterministic (100 of 100 responses reproduced when the code moved). (d) Removal of the
+first 100 original facts, removing the entry that holds each: gone, return, retention on
+the facts whose entry stays.
+
+Decision rule. Slot detection becomes the default write path if all hold: (i) zsRE return,
+lower end of the one-sided 95% bootstrap interval, >= 0.95; (ii) CounterFact pairs merged
+across different relation identifiers: at most 1 in the store; (iii) over template pairs
+from different relations, share at or above theta_slot <= 0.02; (iv) non-inferiority of
+efficacy and paraphrase (both) on both datasets at margin 0.01: the lower end of the
+one-sided 95% interval of the paired difference is >= -0.01. Otherwise the store keeps
+per-entry writes and the paper reports the gap as it is.
+
+Predictions. P1: theta_slot lies between 0.85 and 0.95. P2: on zsRE most of the 216
+surplus entries in multi-entry subjects (360 entries, 144 subjects) merge; at least 150.
+P3: zsRE return is 0.96 to 1.00, not exactly 1.00 by construction: some duplicates are
+worded below theta_slot and stay separate entries, and those still answer. The claim that
+slots reach 100% structurally therefore holds only as far as the encoder recognises the
+phrasing. P4: rule (iii) is the tightest: near-neighbour relations are the known weakness
+of this encoder (SS85: 31% routed), and a wrong merge loses a stored fact. P5: on CounterFact
+the two different-answer same-subject pairs (Marissa Mayer employer, Gambit network) are
+decided correctly as different only if their relations differ by identifier; the result is
+reported either way, since a merge of the Gambit pair would be a correct update.

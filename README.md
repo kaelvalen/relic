@@ -115,10 +115,10 @@ remove a single fact.
 
 ```text
 relic/
-├── relic/                          # library code from the earlier programs (API, routers, edits, eval)
+├── relic/                          # the system: ledger, router, serving, model wrapper, readings
 ├── experiments/sandbox/live_learning/
-│   ├── text/                       # store, ledger, router, controller, sessions
-│   ├── confirm/                    # confirmatory harness: data adapters, pilot, evaluations
+│   ├── text/                       # exploratory records: controller, sessions, checks
+│   ├── confirm/                    # confirmatory runs: data adapters, pilot, evaluations
 │   ├── vlm/                        # vision-language runs (Qwen3-VL-2B)
 │   └── STATE.md                    # current state and next steps
 ├── docs/                           # positioning, pre-registration records, review notes
@@ -140,9 +140,8 @@ Pinned entries are tagged in git (`prereg-ss*`). Result files are written to
 ## Running
 
 ```bash
-uv sync                                 # full local environment: dev, lm, ptm, experiments
-uv sync --no-default-groups --extra lm  # lean install: library plus the LM backend only
-# pip alternative for dev + LM extras: pip install -e ".[dev,lm]"
+uv sync                                 # full local environment: dev, quant, experiments
+uv sync --no-default-groups             # the library only (or: pip install -e .)
 python -m pytest                        # test suite
 
 # end-to-end evaluation of a saved store with the default router (requires the saved
@@ -164,11 +163,9 @@ Environment notes for the GPU runs (NixOS, shared 8 GB GPU) are in
 ## Earlier work
 
 The project started as PAL-MoE, a mixture-of-experts model for class-incremental
-learning, followed by a closed-form vision study (RELIC v3). That material was removed
-from the working tree in commit `894ad16`; it is available in the history at
-`894ad16^` (for example `git show 894ad16^:archive/docs/README.md`). The `relic/`
-package still contains the library code from those programs, and `import pal_moe` is no
-longer supported.
+learning, followed by a closed-form vision study. Neither is part of this package. Their
+documents and runners are in the history at `894ad16^`, and their library code is at the
+tag `archive/pre-llm-library`.
 
 ## Citation
 

@@ -1,4 +1,4 @@
-"""Corrected, eval-only evaluation of a saved confirmatory PilotStore checkpoint.
+"""Corrected, eval-only evaluation of a saved confirmatory DeltaStore checkpoint.
 
 This is deliberately separate from the legacy aggregate pilot JSON path. The routed
 metrics below serve the router-selected expert (and the base model on abstention),
@@ -40,17 +40,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from facts import NUMBERS  # noqa: E402
-from pilot import (  # noqa: E402
-    CANARIES,
-    TAU,
-    PilotStore,
-    Router,
-    base_answer,
-    ci,
-    hit,
-    routed_answer,
-    trim,
-)
+from pilot import TAU, Router  # noqa: E402
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import ci, hit  # noqa: E402
+from relic.serving import base_answer, routed_answer, trim  # noqa: E402
 
 BOOTSTRAP_SAMPLES = 2000
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -565,7 +559,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--ckpt", required=True, help="saved PilotStore .ckpt")
+    ap.add_argument("--ckpt", required=True, help="saved DeltaStore .ckpt")
     ap.add_argument("--facts", required=True, help="matching saved fact subset JSON")
     ap.add_argument("--model", default=None, help="must match the pinned manifest ID")
     ap.add_argument("--revoke-sample", type=int, default=100)
@@ -618,7 +612,7 @@ def main(argv=None):
 
     torch.manual_seed(0)
     enc = SentenceTransformer(router_model["id"])
-    store = PilotStore(base_model_id, steps=16)
+    store = DeltaStore(base_model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     try:
         checkpoint, loaded_checkpoint_sha256 = load_verified_checkpoint(

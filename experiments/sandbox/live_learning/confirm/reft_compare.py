@@ -30,11 +30,14 @@ import torch  # noqa: E402
 from adapter_size import KAPPA, _int8_rows, mean_d  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from pilot import CANARIES, SYSTEM, hit, rag_system, trim  # noqa: E402
 from rank2_confirm import READS, store_logits, summarize  # noqa: E402
 from torch import nn  # noqa: E402
 from torch.nn.utils.parametrizations import orthogonal  # noqa: E402
+
+from relic.ledger import CANARIES  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, rag_system, trim  # noqa: E402
 
 SEED = 92
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"

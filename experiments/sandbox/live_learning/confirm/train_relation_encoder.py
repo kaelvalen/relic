@@ -20,8 +20,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from external import adapt_zsre  # noqa: E402
-from router_v4 import find_subject, key_text, relation_text  # noqa: E402
 from router_v4_calibrate import _templates_by_relation, build_dev  # noqa: E402
+
+from relic.router import find_subject, key_text, relation_text  # noqa: E402
 
 SEED = 76
 N_HELDOUT = 11

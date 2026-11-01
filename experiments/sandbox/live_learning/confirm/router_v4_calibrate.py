@@ -27,7 +27,8 @@ from facts import generate  # noqa: E402
 from locality_eval import match_raw, other_relation_prompts  # noqa: E402
 from pilot import TAU, Router  # noqa: E402
 from router_stress import KINDS, perturbed_probe  # noqa: E402
-from router_v4 import RouterV4  # noqa: E402
+
+from relic.router import RouterV4  # noqa: E402
 
 SEED = 66
 DEV_N = 500

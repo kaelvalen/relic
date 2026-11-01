@@ -26,7 +26,7 @@ from canary_eval import HELDOUT, d_on  # noqa: E402
 from facts import NUMBERS  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 from locality_eval import match_raw, other_relation_prompts  # noqa: E402
-from pilot import CANARIES, PilotStore, Router, hit, trim  # noqa: E402
+from pilot import Router  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -35,8 +35,14 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
-from router_v4 import RouterV4  # noqa: E402
-from v4_eval import Server  # noqa: E402
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.router import RouterV4  # noqa: E402
+from relic.serving import (
+    Server,  # noqa: E402
+    trim,  # noqa: E402
+)
 
 SEED = 70
 N_LOCAL = 3
@@ -136,7 +142,7 @@ def main(argv=None):
 
     torch.manual_seed(SEED)
     enc = SentenceTransformer(manifest["models"]["router_encoder"]["id"])
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     checkpoint, _ = load_verified_checkpoint(
         verified["checkpoint_path"],
         verified["checkpoint_sha256"],

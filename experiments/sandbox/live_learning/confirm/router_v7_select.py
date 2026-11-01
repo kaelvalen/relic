@@ -29,7 +29,8 @@ from router_v4_calibrate import (  # noqa: E402
     build_dev,
     youden,
 )
-from router_v7 import SCORERS, RouterV7, make_scorer  # noqa: E402
+
+from relic.router import SCORERS, RouterV7, make_scorer  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 

@@ -33,16 +33,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from pilot import (  # noqa: E402
-    CANARIES,
-    PilotStore,
-    Router,
-    base_answer,
-    hit,
-    rag_system,
-    routed_answer,
-    trim,
-)
+from pilot import Router  # noqa: E402
 from routed_eval import (  # noqa: E402
     BOOTSTRAP_SAMPLES,
     MANIFEST_PATH,
@@ -54,6 +45,10 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.serving import base_answer, rag_system, routed_answer, trim  # noqa: E402
 
 TEMPLATE_SEED = 65
 
@@ -250,7 +245,7 @@ def main(argv=None):
 
     torch.manual_seed(0)
     enc = SentenceTransformer(manifest["models"]["router_encoder"]["id"])
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, ckpt_sha = load_verified_checkpoint(
         ckpt_path,

@@ -1,19 +1,11 @@
 """State hash of the transactional delta store covers every part of an entry."""
 
-import sys
-from pathlib import Path
-
 import pytest
 
 torch = pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[1] / "experiments/sandbox/live_learning/text"),
-)
-
-from ledger import DeltaStore  # noqa: E402
+from relic.ledger import DeltaStore  # noqa: E402
 
 
 def _store():

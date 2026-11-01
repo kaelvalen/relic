@@ -1,23 +1,8 @@
 """Router v4 (prereg SS66): entity match, clause scoping and relation keys."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "experiments/sandbox/live_learning/confirm"
-    ),
-)
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[1] / "experiments/sandbox/live_learning/text"),
-)
-
-from router_v4 import (  # noqa: E402
+from relic.router import (  # noqa: E402
     RouterV4,
     RouterV5,
     clause_with_span,
@@ -137,7 +122,7 @@ class BagScorer:
 
 
 def test_v7_generated_keys_raise_paraphrase_score():
-    from router_v7 import RouterV7
+    from relic.router import RouterV7
 
     facts = [
         {"subject": "Jean Galland", "probe": "The mother tongue of Jean Galland is"}

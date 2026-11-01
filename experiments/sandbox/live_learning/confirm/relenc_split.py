@@ -21,7 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from locality_eval import match_raw, other_relation_prompts  # noqa: E402
-from router_v4 import RouterV4  # noqa: E402
+
+from relic.router import RouterV4  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 
@@ -110,7 +111,7 @@ def main(argv=None):
             "trained_leak_both": rate(v8_e3_leak[i] for i in idx)[0],
         }
     if args.routing_only:
-        from router_v7 import RouterV7, make_scorer
+        from relic.router import RouterV7, make_scorer
 
         out["routing_only"] = {}
         for spec in args.routing_only:

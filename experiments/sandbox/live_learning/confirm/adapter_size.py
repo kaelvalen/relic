@@ -24,9 +24,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from ledger import sym_kl  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, hit, rag_system, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -34,6 +31,14 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import (
+    hit,  # noqa: E402
+    sym_kl,  # noqa: E402
+)
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, rag_system, trim  # noqa: E402
 
 SEED = 81
 KAPPA = 0.968  # SS69 held-out kappa (paper \chkKappa)
@@ -117,7 +122,7 @@ def precision(args) -> None:
     trim()
 
     torch.manual_seed(SEED)
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     slot = next(p for n, p in store.model.named_parameters() if "lora_A" in n)
     store.deltas = {}
     store.materialize()
@@ -327,7 +332,7 @@ def shared_a_identical(deltas) -> bool:
 def sweep(args) -> None:
     data = json.loads(Path(args.facts).read_text())
     facts = data["facts"] if isinstance(data, dict) else data
-    store = PilotStore(args.model, steps=16)
+    store = DeltaStore(args.model, steps=16)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

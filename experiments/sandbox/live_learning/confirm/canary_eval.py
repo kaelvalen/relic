@@ -25,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from external import adapt_counterfact, adapt_zsre  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from pilot import CANARIES, PilotStore, base_answer, hit, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -33,6 +32,10 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.serving import base_answer, trim  # noqa: E402
 
 SEED = 69
 CONFIRM = Path("results/live_learning/confirm")
@@ -126,7 +129,7 @@ def main(argv=None):
     import torch
 
     torch.manual_seed(SEED)
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, _ = load_verified_checkpoint(
         verified["checkpoint_path"],

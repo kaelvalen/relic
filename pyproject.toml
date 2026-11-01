@@ -85,7 +85,7 @@ target-version = ["py39"]
 [tool.ruff]
 line-length = 88
 target-version = "py39"
-src = ["relic", "experiments", "tests"]
+src = [".", "tests"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "W", "I", "B", "UP"]
@@ -95,7 +95,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["relic", "pal_moe"]
+known-first-party = ["relic"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

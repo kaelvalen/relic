@@ -34,9 +34,6 @@ from adapter_size import (  # noqa: E402
 )
 from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from ledger import sym_kl  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, hit, trim  # noqa: E402
 from rank2_confirm import R2  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
@@ -45,6 +42,14 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import (
+    hit,  # noqa: E402
+    sym_kl,  # noqa: E402
+)
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, trim  # noqa: E402
 
 SEED, RETRY_SEED = 94, 95
 GATE = 2.0
@@ -184,7 +189,7 @@ def build(args):
         else {"prereg": "SS94", "dataset": args.dataset, "kappa": KAPPA}
     )
 
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
 
     # Phase A: train (the store model waits on the CPU; train_one loads its own base).

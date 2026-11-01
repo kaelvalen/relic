@@ -32,7 +32,8 @@ from routed_eval import (  # noqa: E402
     _repo_path,
     verify_manifest_inputs,
 )
-from router_v4 import find_subject  # noqa: E402
+
+from relic.router import find_subject  # noqa: E402
 
 SEED = 80
 N_NEAR = 500
@@ -210,12 +211,14 @@ def serve(args):
         raise SystemExit("refusing to overwrite natural_e3 outputs")
     import torch
     from facts import NUMBERS
-    from pilot import CANARIES, PilotStore, hit, trim
     from routed_eval import _validate_checkpoint, load_verified_checkpoint
-    from router_v7 import RouterV7, make_scorer
     from serving_locality import POLICIES
     from serving_locality import serve as serve_policies
-    from v4_eval import Server
+
+    from relic.ledger import CANARIES, DeltaStore
+    from relic.metrics import hit
+    from relic.router import RouterV7, make_scorer
+    from relic.serving import Server, trim
 
     model_id, verified = load_facts()
     facts = verified["facts"]
@@ -227,7 +230,7 @@ def serve(args):
         ]["serving"]
     }
     torch.manual_seed(0)
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, _ = load_verified_checkpoint(
         verified["checkpoint_path"],
@@ -356,7 +359,7 @@ def score(args):
     automatic leaks labelled "legit" (the target also answers the question) scales the
     automatic leak rate; "unsure" labels are reported and left out of the share.
     """
-    from pilot import hit
+    from relic.metrics import hit
 
     sample = json.loads((CONFIRM / "natural_e3_labels.json").read_text())
     verdicts = json.loads(Path(args.labels).read_text())
@@ -383,9 +386,9 @@ def score(args):
             "leak_both_auto": rate_auto,
             "leak_both_corrected": None if legit is None else rate_auto * (1 - legit),
             "near_leak_both_auto": near_auto,
-            "near_leak_both_corrected": None
-            if legit is None
-            else near_auto * (1 - legit),
+            "near_leak_both_corrected": (
+                None if legit is None else near_auto * (1 - legit)
+            ),
         }
     d = out["routers"]["default_ss76"]
     out["P5"] = {

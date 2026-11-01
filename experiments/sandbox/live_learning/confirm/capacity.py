@@ -21,7 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 import torch  # noqa: E402
 from facts import generate  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from pilot import SYSTEM, PilotStore, hit  # noqa: E402
+
+from relic.ledger import DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.serving import SYSTEM  # noqa: E402
 
 
 def main() -> None:
@@ -38,7 +41,7 @@ def main() -> None:
         facts = data["facts"] if isinstance(data, dict) else data
     else:
         facts = generate(args.n, args.n)
-    store = PilotStore(args.model, steps=16)
+    store = DeltaStore(args.model, steps=16)
     store.kl_prompts = ["What is the capital of France?", "What is 7 times 8?"]
 
     report = {}

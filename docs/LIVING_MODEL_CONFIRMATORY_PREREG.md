@@ -2961,3 +2961,33 @@ Runner: confirm/soft_prompt.py on Qwen2.5-1.5B. The vectors are spliced into the
 selection function. Stage 2 runs on the 279 fresh adapter facts of SS87 against the rank-2 LoRA+ int8 rows, with the same readings, the 200 wrong-route questions, and the same rule as SS92 stage 3: (i) efficacy with note within 0.02, paraphrase with note within 0.03 and its CI's lower end >= -0.06; (ii) share above kappa within 0.02, mean held-out D within 0.05; (iii) wrong route retained within 0.03.
 
 Predictions. P1: efficacy is reached at the selected learning rate. P2: the rule fails on (ii): like an intervention at the last prompt positions, a soft prompt sits in every prompt it is applied to, and SS93's held-out D of 4 to 12 times is the closer comparison. P3: without the note its paraphrase score is below the adapter's. P4: as a replacement it fails; its size makes it worth reporting even so.
+
+## 114. SS100 results: the cost of a wrong route (2026-11-01)
+
+Source: results/live_learning/confirm/wrong_route.json, 1000 questions, capacity 1 as in entry 111.
+
+Share of base-correct answers retained, by substring / by word boundary. Adapter rank 16: 0.705 / 0.696. Adapter rank 2: 0.668 / 0.657.
+Note: 0.511 / 0.505. Adapter and note, rank 16: 0.396 / 0.394. Adapter and note, rank 2: 0.370 / 0.367.
+
+Paired differences, with 95% CI and lower end of the one-sided 95% interval. Rank 2 minus rank 16, adapter: -0.037 [-0.061, -0.013], -0.058.
+Rank 2 minus rank 16, both: -0.026 [-0.051, 0.000], -0.048. Note minus adapter rank 16: -0.194 [-0.232, -0.157]. Both minus adapter rank 16:
+-0.309 [-0.343, -0.274]. Both minus note, rank 2: -0.141 [-0.177, -0.105].
+
+Decision rule. The lower end is -0.058 against the margin -0.03, so rank 16 stays main. With 1000 questions this is no longer a matter of sampling noise,
+since the upper end of the two-sided interval excludes zero.
+
+Predictions. P1 held under the relaxed form of entry 111: the first 200 rows give 0.725 and 0.675. P2 held: the difference lies in [-0.05, 0] and the half-width is
+0.024; the lower end did not clear the margin. P3 failed by a wide distance: the note retains 0.511, not at least 0.85, and less than the adapter. P4 held, and
+by more than expected.
+
+Reading. The figure 0.72 quoted so far describes an arm the system does not serve. A wrong route to the served combination keeps 0.40 of the answers the base model had right, and the
+note does more of the damage than the adapter. A wrong route is therefore more expensive than the earlier text said, and the gate's false-route rate is what keeps this cost small. Every report of wrong-route cost uses the served figure from now on.
+
+## 115. SS104 reading (b): residual routes on fresh facts (2026-11-01)
+
+Source: results/live_learning/confirm/slot_fresh.json. 1000 zsRE records over 328 subjects, none in the N=1000 stores or the dev split; the first 100 facts removed in turn.
+
+Residual-route share, with upper end of the one-sided 95% interval. Per-entry writes: 0.99, 1.00 (1000 inserts). SS96 slots: 0.32, 0.40 (490 inserts, 510 duplicates). Asymmetric slots: 0.01, 0.03 (347 inserts, 653 duplicates).
+No merge joined different answers in any arm. No updates occurred, as the sample was not built to contain conflicting answers.
+
+Rule (i) of SS104 holds. P2 held. Rule (ii) waits for reading (a), which is in the queue. The sample prefers subjects with several records, so these shares describe stores with many facts per subject, the case in which duplicates exist at all.

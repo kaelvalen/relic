@@ -251,6 +251,18 @@ def test_full_subject_outranks_a_shorter_alias_of_another_entry():
     assert router.candidates("Paris plays")[0] == [1]
 
 
+def test_relation_threshold_applies_to_entries_of_that_relation():
+    from relic.router import RouterV7
+
+    fact = {**OBAMA, "relation": "P103"}
+    q = "The mother tongue of Barack Obama is"
+    assert RouterV7([fact], ToyScorer(), 0.5).route(q)[0] == 0
+    strict = RouterV7([fact], ToyScorer(), 0.5, relation_tau={"P103": 1.5})
+    assert strict.route(q)[0] is None
+    other = RouterV7([fact], ToyScorer(), 0.5, relation_tau={"P37": 1.5})
+    assert other.route(q)[0] == 0
+
+
 def test_pronoun_resolves_to_the_last_stored_subject():
     from relic.router import resolve_reference
 

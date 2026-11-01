@@ -75,7 +75,9 @@ def by_label(subject, ctx):
             "limit": 1,
         },
         ctx,
-    )["search"]
+    ).get(
+        "search", []
+    )  # an API error for one title means no alias, not a stop
     if not hits or hits[0].get("label", "").lower() != subject.lower():
         return None
     return {"qid": hits[0]["id"], "aliases": hits[0].get("aliases", []), "via": "label"}

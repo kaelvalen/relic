@@ -2851,3 +2851,40 @@ one-sided 95% interval below 0; (ii) paraphrase route accuracy on both stores no
 Predictions. P1: N sets a threshold near 0.90 and fails (ii): the natural near-neighbour scores overlap the paraphrase scores (SS85). P2: R
 passes (i) with a smaller fall, about 0.10 to 0.15, and is borderline on (ii) on CounterFact. P3: neither reaches a near-neighbour routed
 share under 0.10. The boundary for these relations is not a matter of threshold, as SS77 and SS78 already suggest.
+
+## 108. SS106 results: the three-tier gate (2026-11-01)
+
+Source: results/live_learning/confirm/tier_gate.json. t2 = 0.8985, t1 = 0.9585 on the dev split.
+
+Mean against the current gate. U2 (note alone for 0.7501 <= s < 0.8985, 15.8% of CounterFact paraphrases and 14.1% of zsRE paraphrases):
+natural near-neighbour leak 0.288 to 0.190 (-0.098), E3 leak 0.043 to 0.037, E2 0.017 to 0.015; CounterFact paraphrase 0.891 to 0.845 (-0.046), zsRE
+paraphrase 0.982 to 0.952 (-0.030); edit prompts unchanged. U1 gives the same near-neighbour leak at a higher cost (CounterFact paraphrase
+0.768, zsRE 0.915). Every routed near-neighbour question scores below t2, so both bands reduce to the note alone on these questions.
+
+Decision rule. (i) holds for both, (ii) fails for both: no policy is adopted and the two-tier gate stays. The lower band L was not served, since
+its prediction was a failure of (i) and it would raise routing into a region where the natural leak is already the problem; it is left unmeasured.
+
+Predictions. P1 failed in the favourable direction: the fall is 0.098, above the predicted range. P2 held.
+
+Reading. The middle tier does what it was proposed to do, and the trade is real in both directions: about 2 points of paraphrase per point of
+near-neighbour leak on CounterFact. It suits a deployment that prefers misses to wrong answers, and it stays available as a setting, not as the
+default. Before labels, about half of these automatic leaks are not errors (SS91), so the gain is probably smaller than it looks.
+
+## 109. SS107 results: threshold calibration (2026-11-01)
+
+Source: results/live_learning/confirm/tau_calib.json. 496 calibration and 497 test questions, split by subject. N: 0.7968. R: 9 relations have
+at least 20 calibration questions, with thresholds from 0.7501 to 0.8281 (P37 0.8281, P495 0.8128, P30 0.7968, P103 0.7835; P1412, P178, P27, P449,
+P937 stay at 0.7501).
+
+Test half, global / N / R. Natural near routed 0.3045 / 0.1111 / 0.1687 (R minus global -0.136, CI [-0.181, -0.095]); automatic leak 0.280 / 0.103 /
+0.161; uniform routed 0.004 / 0 / 0. Paraphrase route accuracy, CounterFact 0.910 / 0.886 / 0.903, zsRE 0.745 / 0.725 / 0.742. E3 routed 0.044 / 0.036 / 0.040.
+Edit prompts 1.0 in all.
+
+Decision rule. N fails (ii): lower ends -0.032 and -0.028 against the margin -0.02. R passes both, so R replaces the global threshold where a relation
+identifier exists.
+
+Predictions. P1 failed on the value (0.7968, not near 0.90), held on the failure of (ii). P2 held, and R was not borderline. P3 held: neither arm is under 0.10.
+
+Reading. Most of the near-neighbour routing lies just above the global threshold, in a few relations. Limits: R needs a relation identifier on the entry, which zsRE
+does not have, so R equals the global threshold there; about half of the automatic near-neighbour leaks are legitimate answers, so part of the fall is lost correct
+answers, and the corrected reading awaits the labels of SS102. The thresholds come from questions written by one generator model.

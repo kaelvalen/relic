@@ -360,9 +360,12 @@ class CrossScorer:
 class RouterV7(RouterV4):
     """route(q, enc=None) -> (index or None, score); `enc` is ignored."""
 
-    def __init__(self, facts, scorer, tau: float, extra_keys=None):
+    def __init__(self, facts, scorer, tau: float, extra_keys=None, relation_tau=None):
         self.tau = tau
         self.scorer = scorer
+        # SS107: per-relation thresholds, for entries that carry a relation identifier
+        relation_tau = relation_tau or {}
+        self.taus = [relation_tau.get(f.get("relation"), tau) for f in facts]
         self.key_sets = []
         for f in facts:
             keys = [key_text(f["probe"], f["subject"])]
@@ -390,7 +393,7 @@ class RouterV7(RouterV4):
             return None, 0.0
         k = max(range(len(cand)), key=lambda t: sims[t])
         j, sim = cand[k], sims[k]
-        return (j if sim >= self.tau else None), sim
+        return (j if sim >= self.taus[j] else None), sim
 
 
 SCORERS = {

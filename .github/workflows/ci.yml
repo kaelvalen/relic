@@ -10,8 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      # The live-learning tests import transformers through the sandbox harness.
-      # Select dev + lm explicitly: a plain sync would also install the ptm and
-      # experiments default groups, which this job does not need.
-      - run: uv sync --frozen --no-default-groups --group dev --group lm
-      - run: uv run --frozen --no-default-groups --group dev --group lm pytest -q
+      - run: uv sync --frozen --no-default-groups --group dev
+      - run: uv run --frozen --no-default-groups --group dev pytest -q
+      - run: uv run --frozen --no-default-groups --group dev ruff check relic experiments tests

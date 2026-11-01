@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "relic"
-version = "0.2.0"
+version = "0.3.0"
 description = "RELIC: transactional knowledge updates for frozen language models (per-fact notes and adapters, routed, removable, with provenance)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,12 +16,10 @@ maintainers = [
 ]
 requires-python = ">=3.10"
 keywords = [
-    "continual-learning",
-    "class-incremental-learning",
     "knowledge-editing",
     "machine-unlearning",
-    "closed-form",
-    "pre-trained-models",
+    "language-models",
+    "lora",
     "pytorch",
 ]
 classifiers = [
@@ -36,9 +34,13 @@ classifiers = [
 ]
 dependencies = [
     "torch>=2.0.0",
-    "torchvision>=0.15.0",
     "numpy>=1.24.0",
-    "scikit-learn>=1.2.0",
+    # `dtype=` in from_pretrained needs transformers >= 4.56
+    "transformers>=4.56.0",
+    "accelerate>=1.0.0",
+    # per-fact LoRA adapters and the sentence-encoder router
+    "peft>=0.21.0",
+    "sentence-transformers>=6.1.0",
 ]
 
 [project.optional-dependencies]
@@ -50,20 +52,9 @@ dev = [
     "ruff==0.16.8",
     "black==26.5.1",
 ]
-# The v3 LM backend (relic.core.hf_lm): `dtype=` in from_pretrained needs
-# transformers >= 4.56; 4-bit loading needs bitsandbytes and device_map accelerate.
-lm = [
-    "transformers>=4.56.0",
-    "accelerate>=1.0.0",
+# 4-bit loading of larger base models
+quant = [
     "bitsandbytes>=0.45.0",
-    # the live-learning store: per-fact LoRA adapters and the sentence-encoder router
-    "peft>=0.21.0",
-    "sentence-transformers>=6.1.0",
-]
-# Frozen ViT feature extraction for the PTM-CIL study (experiments/extract_ptm_features.py).
-ptm = [
-    "timm>=1.0.0",
-    "gdown>=5.0.0",  # experiments/prepare_ptm_data.py: the Google Drive splits
 ]
 
 [project.urls]
@@ -75,9 +66,6 @@ Repository = "https://github.com/kaelvalen/relic.git"
 where = ["."]
 include = ["relic*"]
 
-# The lint target stays py39 on purpose: it keeps the syntax a subset of what
-# 3.10 accepts without rewriting ~190 annotations and zip() calls in
-# relic/legacy, whose behaviour is frozen bitwise.
 [tool.black]
 line-length = 88
 target-version = ["py39"]
@@ -103,10 +91,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --strict-markers"
 
-# Dependency groups mirror the direct requirements of the optional extras above,
-# so the local uv environment keeps the same roots without duplicating transitive
-# packages. All groups below are installed by a plain `uv sync`; see
-# [tool.uv].default-groups.
+# Everything below is installed by a plain `uv sync`; see [tool.uv].default-groups.
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",  # stricter than the [dev] extra on purpose
@@ -114,23 +99,20 @@ dev = [
     "ruff==0.16.8",
     "black==26.5.1",
 ]
-lm = [
-    "transformers>=4.56.0",
-    "accelerate>=1.0.0",
+quant = [
     "bitsandbytes>=0.45.0",
-    "peft>=0.21.0",
-    "sentence-transformers>=6.1.0",
 ]
-ptm = [
-    "timm>=1.0.0",
-    "gdown>=5.0.0",
-]
-# Roots used by the experiment scripts that are not part of any optional extra.
+# Roots used by the experiment scripts that the library itself does not need.
 experiments = [
+    "certifi>=2024.0.0",
     "easydict>=1.9.0",
     "matplotlib>=3.7.0",
+    "pillow>=10.0.0",
+    "pyarrow>=15.0.0",
+    "scikit-learn>=1.2.0",
     "tabulate>=0.9.0",
+    "torchvision>=0.15.0",  # the fast image processors of the vision-language records
 ]
 
 [tool.uv]
-default-groups = ["dev", "lm", "ptm", "experiments"]
+default-groups = ["dev", "quant", "experiments"]

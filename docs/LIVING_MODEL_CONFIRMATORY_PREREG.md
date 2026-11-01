@@ -2526,3 +2526,33 @@ of this encoder (SS85: 31% routed), and a wrong merge loses a stored fact. P5: o
 the two different-answer same-subject pairs (Marissa Mayer employer, Gambit network) are
 decided correctly as different only if their relations differ by identifier; the result is
 reported either way, since a merge of the Gambit pair would be a correct update.
+
+## 97. Audit of the answer score on the saved outputs (pinned 2026-11-01, before the analysis; no model run)
+
+Question. An answer counts as correct if the output contains the target as a substring,
+ignoring case (`hit`). Two ways this can flatter a result: an output that contains both the
+new and the old answer counts as correct, and a short target matches inside another word
+(the zsRE target "C" matches any output containing that letter).
+
+Runner: confirm/score_audit.py, on the saved outputs of the default router's evaluations
+(cf_n1000_v8_eval.json, zsre_n1000_v8_eval.json), edit prompts and paraphrases, arms adapter,
+retrieval and both. CounterFact's old answer is `target_true` of the raw record. zsRE has no
+old answer. Removal `gone` and the E2 and E3 leak readings are recomputed the same way where
+the outputs are saved.
+
+Readings per dataset, kind and arm: (a) substring rate, the reported number; (b) word-boundary
+rate: the target must match between non-alphanumeric characters; (c) CounterFact only: share
+of the substring hits that also contain the old answer at a word boundary, and the strict rate
+(new answer at a word boundary and old answer absent); (d) number of targets of one or two
+characters, and the substring and word-boundary rates on them.
+
+Decision rule. If the word-boundary rate or the strict rate is below the substring rate by
+more than 0.02 on any edit-prompt or paraphrase reading of the both arm, the stricter score
+becomes the primary score in the paper and README and make_numbers.py is changed to it.
+Otherwise the substring score stays primary and the stricter readings are reported beside it.
+
+Predictions. P1: strict CounterFact rates on the both arm are within 0.02 of the substring
+rates; outputs are short (at most 24 tokens) and mostly one phrase. P2: the retrieval arm
+contains both answers more often than the adapter arm, since a note can prompt a correction
+("X, not Y"). P3: the one- and two-character targets are few (under 2% of facts) but score
+near 1.00 by substring whatever the output, so the word-boundary rate on them is clearly lower.

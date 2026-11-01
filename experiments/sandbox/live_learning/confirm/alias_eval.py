@@ -98,7 +98,6 @@ def one_dataset(
         ]
         if pool:
             with_alias.append((f, rng.choice(pool)))
-    report["alias_coverage"][dataset] = rate([bool(g["aliases"]) for g in with_names])
 
     sets = {}
     for kind, key in (("A1", "probe"), ("A2", "paraphrase")):

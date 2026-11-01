@@ -76,20 +76,6 @@ leakage and removal were unchanged, but a wrong route kept 0.675 of the base mod
 correct answers instead of 0.72, below the pre-registered limit of 0.69. As registered,
 the table keeps the rank-16 stores as the main build; see entry 95.
 
-### Comparison with existing methods
-
-Share of edit prompts answered with the stored fact, in chat format.
-
-| Method | Edit prompts answered |
-| :-- | :-- |
-| Note only (retrieval in the system prompt), 1000 facts | 0.84 |
-| GRACE (official code, 200 facts) | 0.025 in chat format, 1.00 in plain text |
-| WISE (official code, 200 facts) | 0.07 after 200 sequential edits, 1.00 one at a time |
-| RELIC, 1000 facts | 0.996 |
-
-One shared adapter for many facts holds 256 facts, but leaks 10% to 30% and cannot
-remove a single fact.
-
 ### Further checks
 
 | Question | Entry | Outcome |
@@ -98,6 +84,15 @@ remove a single fact.
 | Do natural questions written by another model leak? | 85, 88, 91 | Questions by SmolLM3-3B about an unrelated attribute of a stored subject are routed 0.2% of the time. Questions about a closely related attribute are routed 31% of the time; after labelling, 11.7% of them get a wrong stored answer (5.9% over all natural questions). |
 | Can the adapter be smaller? | 81 to 89 | Yes. Rank 2 with LoRA+ in int8 (373 KB) matches the rank-16 adapter (8.7 MB) on 279 fresh adapter facts: paraphrase with note 0.928 against 0.918, 2.9% against 2.2% of adapters above the divergence limit. |
 | Is representation finetuning (LoReFT, DiReFT) a better per-fact adapter? | 92, 93 | No. At 172 KB LoReFT reaches the same paraphrase rate, but 82% to 100% of the interventions exceed the divergence limit on held-out prompts. |
+
+## Comparison with editing methods
+
+GRACE and WISE were run with their official code on 200 CounterFact facts, against 1000 for
+RELIC, so this comparison is descriptive and not a ranking. It is also sensitive to format:
+GRACE answers all 200 on the plain edit prompt and 2.5% under the chat template, because its
+keys are activations of the last token of the plain prompt. WISE answers 100% one at a time
+and 7% after all 200 sequential edits. Neither provides an operation for removing one edit.
+See entries 53, 54 and 63 of the pre-registration and the paper.
 
 ## Limitations
 

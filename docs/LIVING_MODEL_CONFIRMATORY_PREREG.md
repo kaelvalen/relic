@@ -2913,3 +2913,16 @@ both stores is non-inferior at margin 0.02; (iii) E3 routed is no higher by more
 
 Predictions. P1: identical template text exists across several pairs (P495 and P740 score 1.0), which sets a floor no encoder can pass on templates alone. P2: hardB lowers near routed by 0.03 to 0.10 and hardA by
 less, since the most confused pairs may lie among held-out relations. P3: hardB passes (ii) and hardA is close to the limit. Overall: at most one arm passes.
+
+## 111. Deviation for SS100, SS101 and SS105: serving with a single adapter slot (2026-11-01, before any result of these entries)
+
+The store model carried a rank-1024 LoRA (64 slots of rank 16) for merged serving, which routed serving never uses. At that width SS100 would take
+about 2.5 hours. DeltaStore now takes `capacity`; SS100, SS101 and the served reading of SS105 use capacity 1. In exact arithmetic the output is the same.
+In floating point it is not quite: on the first 25 CounterFact facts, 149 of 150 saved responses reproduce, 26 s instead of several minutes. One adapter response on a near tie differs (x0010 paraphrase, BMW against Microsoft), because
+the width of the matrix product changes how rounding accumulates.
+
+Consequences, fixed before the runs. All arms within SS100 and within SS101 use the same width, so paired differences are not affected. SS100 P1 is relaxed: the first 200 rows reproduce 0.72 and 0.675
+within 0.01, and not exactly. The SS100 run stopped at 100 of 1000 questions, without writing any output or showing a retained rate, and restarts from the beginning. Scripts that compare against saved
+evaluations keep the default capacity and reproduce them exactly, including SS104 (a).
+
+A side reading: about 0.7% of responses here depend on rounding at this level, which is a floor on what a difference between two stores can mean.

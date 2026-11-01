@@ -89,7 +89,7 @@ def main(argv=None):
     _, r2 = load(manifest, "cf_n1000_r2.ckpt", facts_file, model_id)
     index = {f["id"]: i for i, f in enumerate(facts)}
 
-    store = DeltaStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16, capacity=1)
     store.deltas = {}
     store.materialize()
 

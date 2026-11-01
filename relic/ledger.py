@@ -44,6 +44,7 @@ class DeltaStore:
         kl_lambda: float = 1.0,
         tau: float = 0.0,
         kl_prompts=None,
+        capacity: int = CAP,
     ):
         self.model_name, self.lr, self.steps, self.seed = model_name, lr, steps, seed
         self.kl_lambda = kl_lambda
@@ -51,7 +52,10 @@ class DeltaStore:
         self.kl_prompts = list(CANARIES if kl_prompts is None else kl_prompts)
         self._base_logits: list | None = None
         self.tok, base = load_model(model_name)
-        self.model = make_lora(base, r=CAP * R)
+        # routed serving activates one delta at a time and needs capacity 1; spare slots
+        # hold zeros, which change no output but cost every forward pass their width
+        self.capacity = capacity
+        self.model = make_lora(base, r=capacity * R)
         self.deltas: dict[str, dict] = {}
         self.keys: dict[str, str] = {}
         self.notes: dict[str, str] = {}
@@ -60,7 +64,7 @@ class DeltaStore:
         # the caller, hashed into the state
         self.router_config = ""
         self.base_hash = hashlib.sha256(
-            f"{model_name}|r{R}|cap{CAP}".encode()
+            f"{model_name}|r{R}|cap{capacity}".encode()
         ).hexdigest()
         self._zero()
 
@@ -73,7 +77,7 @@ class DeltaStore:
 
     def materialize(self) -> None:
         self._zero()
-        if len(self.deltas) > CAP:  # routed serving activates one delta at a time
+        if len(self.deltas) > self.capacity:  # nothing to merge; serving picks one
             return
         with torch.no_grad():
             params = dict(self.model.named_parameters())

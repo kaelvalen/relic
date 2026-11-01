@@ -133,7 +133,7 @@ def main(argv=None):
     store = None
     if args.serve:
         manifest = json.loads(MANIFEST_PATH.read_bytes())
-        store = DeltaStore(manifest["models"]["base"]["id"], steps=16)
+        store = DeltaStore(manifest["models"]["base"]["id"], steps=16, capacity=1)
         store.deltas = {}
         store.materialize()
 

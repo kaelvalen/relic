@@ -104,7 +104,7 @@ def main(argv=None):
     zs, zs16 = load(manifest, "zsre_n1000.ckpt", zs_file, model_id)
     stores = {"counterfact": (cf, cf16), "zsre": (zs, zs16)}
 
-    store = DeltaStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16, capacity=1)
     store.deltas = {}
     store.materialize()
     scorer = make_scorer("relenc")

@@ -10,12 +10,18 @@ configuration), so revoking the last addition restores the recorded pre-add hash
 from __future__ import annotations
 
 import hashlib
+import os
+import threading
 import time
+from pathlib import Path
 
 import torch
 
-from relic.metrics import sym_kl
+from relic.adapters import fact_pairs, train_adapter
+from relic.metrics import hit, sym_kl
 from relic.model import chat, load_model, make_lora
+from relic.router import RouterV7, key_text, normalize
+from relic.serving import base_answer, rag_system, serve_expert
 
 R = 16  # rank per fact
 CAP = 64  # capacity of the merged adapter, in facts; routed serving has no such limit
@@ -286,3 +292,189 @@ class DeltaStore:
             ],
             max_new_tokens=24,
         )
+
+
+class Ledger:
+    """The entries of a store, with one active entry per (subject, relation) slot.
+
+    A write whose subject is stored and whose relation the scorer cannot tell apart from
+    a stored relation of that subject (`slot_theta`) is not a new entry. With the same
+    answer it adds its phrasing to the entry, with another answer it replaces the entry
+    and keeps its phrasings. Removing an entry therefore removes the fact, however many
+    times it was written. A wrong slot decision drops a stored fact, so `slot_theta` is
+    set well above the routing threshold (prereg SS96).
+
+    Slot decision and store change happen under one lock, so commits from several threads
+    have a serial order and each one decides against the state left by the one before.
+    Serving swaps the active adapter in place and holds the same lock. This covers
+    threads of one process; several processes on one file are not coordinated.
+    """
+
+    def __init__(self, store, scorer, tau: float, slot_theta: float):
+        self.store, self.scorer = store, scorer
+        self.tau, self.slot_theta = tau, slot_theta
+        self.entries: dict[str, dict] = {}
+        self.phrasings: dict[str, list[str]] = {}
+        self.log: list[dict] = []
+        self.lock = threading.RLock()
+        self._router = None
+
+    # -- slots ------------------------------------------------------------
+    def slot(self, fact: dict) -> str | None:
+        """The entry that holds this fact's subject and relation, or None."""
+        subject = normalize(fact["subject"]).strip()
+        relation = key_text(fact["probe"], fact["subject"])
+        best, best_score = None, float("-inf")
+        for fid in sorted(self.entries):
+            entry = self.entries[fid]
+            if normalize(entry["subject"]).strip() != subject:
+                continue
+            prompts = [entry["probe"], *self.phrasings[fid]]
+            keys = [key_text(p, entry["subject"]) for p in prompts]
+            score = max(self.scorer.sims(relation, keys))
+            if score > best_score:
+                best, best_score = fid, score
+        return best if best_score >= self.slot_theta else None
+
+    def _same_answer(self, fid: str, fact: dict) -> bool:
+        stored = self.entries[fid]["answer"]
+        return normalize(stored).strip() == normalize(fact["answer"]).strip()
+
+    # -- transactions -----------------------------------------------------
+    def _drop(self, fid: str) -> None:
+        del self.entries[fid], self.phrasings[fid]
+        self.store.deltas.pop(fid, None)
+        self.store.keys.pop(fid, None)
+        self.store.notes.pop(fid, None)
+        self._router = None
+
+    def _record(self, action: str, fid: str, **extra) -> dict:
+        event = {
+            "seq": len(self.log),
+            "action": action,
+            "entry": fid,
+            **extra,
+            "state_hash": self.state_hash(),
+        }
+        self.log.append(event)
+        return event
+
+    def commit(self, fact: dict, delta: dict | None = None) -> dict:
+        """Apply one write atomically: insert, duplicate (new phrasing) or update."""
+        with self.lock:
+            old = self.slot(fact)
+            if old is not None and self._same_answer(old, fact):
+                if fact["probe"] != self.entries[old]["probe"] and (
+                    fact["probe"] not in self.phrasings[old]
+                ):
+                    self.phrasings[old].append(fact["probe"])
+                self._router = None
+                return self._record("duplicate", old, written=fact["id"])
+            kept = []
+            if old is not None:
+                kept = [self.entries[old]["probe"], *self.phrasings[old]]
+                self._drop(old)
+            self.entries[fact["id"]] = fact
+            self.phrasings[fact["id"]] = [p for p in kept if p != fact["probe"]]
+            self.store.keys[fact["id"]] = fact["probe"]
+            self.store.notes[fact["id"]] = fact["teach"]
+            if delta is not None:
+                self.store.deltas[fact["id"]] = delta
+            self._router = None
+            if old is None:
+                return self._record("insert", fact["id"])
+            return self._record("update", fact["id"], superseded=old)
+
+    def revoke(self, fid: str) -> dict:
+        with self.lock:
+            self._drop(fid)
+            return self._record("revoke", fid)
+
+    def write(self, fact: dict, kld_limit: float = 2.0) -> dict:
+        """The tiered write path: a note if it answers the edit prompt, else an adapter.
+
+        The store's one model is parked while a candidate trains, so a write holds the
+        lock throughout. A candidate above the divergence limit commits nothing.
+        """
+        with self.lock:
+            old = self.slot(fact)
+            if old is not None and self._same_answer(old, fact):
+                return self.commit(fact)
+            note = rag_system("instruct", [fact], 0)
+            if hit(base_answer(self.store, fact["probe"], system=note), fact["answer"]):
+                return self.commit(fact)
+            delta = train_adapter(self.store, fact_pairs(fact))
+            kld = self.store._expert_kld(delta)
+            if not kld <= kld_limit:  # a NaN divergence is rejected, not committed
+                return {"action": "rejected", "entry": fact["id"], "kld": kld}
+            return {**self.commit(fact, delta), "kld": kld}
+
+    # -- reads ------------------------------------------------------------
+    @property
+    def router(self):
+        if self._router is None:
+            facts = [self.entries[fid] for fid in sorted(self.entries)]
+            extra = {
+                f"{f['subject']}\t{f['probe']}": self.phrasings[f["id"]] for f in facts
+            }
+            self._router = (RouterV7(facts, self.scorer, self.tau, extra), facts)
+        return self._router
+
+    def ask(self, query: str) -> dict:
+        """The answer and the entry that produced it (None: the unmodified base model)."""
+        with self.lock:
+            router, facts = self.router
+            j, score = router.route(query)
+            if j is None:
+                answer = base_answer(self.store, query)
+                return {"answer": answer, "entry": None, "score": score}
+            fact = facts[j]
+            note = rag_system("instruct", facts, j)
+            if fact["id"] in self.store.deltas:
+                answer = serve_expert(self.store, fact["id"], query, system=note)
+            else:
+                answer = base_answer(self.store, query, system=note)
+            return {"answer": answer, "entry": fact["id"], "score": score}
+
+    def state_hash(self) -> str:
+        """A function of the active set: the store's hash plus what routes to each entry."""
+        h = hashlib.sha256(self.store.state_hash().encode())
+        for fid in sorted(self.entries):
+            fields = [fid, self.entries[fid]["subject"], self.entries[fid]["answer"]]
+            for s in fields + sorted(self.phrasings[fid]):
+                b = s.encode()
+                h.update(f"{len(b)}:".encode() + b)
+        return h.hexdigest()
+
+    # -- durability -------------------------------------------------------
+    def save(self, path) -> None:
+        """Write the state to a new file and rename it: a crash leaves the old file whole."""
+        path = Path(path)
+        tmp = path.with_name(f"{path.name}.tmp")
+        with self.lock:
+            state = {
+                "entries": self.entries,
+                "phrasings": self.phrasings,
+                "log": self.log,
+                "deltas": self.store.deltas,
+                "router_config": self.store.router_config,
+                "state_hash": self.state_hash(),
+            }
+            with tmp.open("wb") as f:
+                torch.save(state, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+
+    def load(self, path) -> None:
+        state = torch.load(path, map_location="cpu", weights_only=False)
+        with self.lock:
+            self.entries, self.phrasings = state["entries"], state["phrasings"]
+            self.log = state["log"]
+            self.store.deltas = state["deltas"]
+            self.store.router_config = state["router_config"]
+            self.store.keys = {f: e["probe"] for f, e in self.entries.items()}
+            self.store.notes = {f: e["teach"] for f, e in self.entries.items()}
+            self._router = None
+            if self.state_hash() != state["state_hash"]:
+                raise ValueError(f"{path}: state hash does not match its contents")

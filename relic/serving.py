@@ -27,11 +27,11 @@ def base_answer(store, q, note=None, system=None):
     return resp
 
 
-def serve_expert(store, fid, q):
+def serve_expert(store, fid, q, system=None):
     full = store.deltas
     store.deltas = {fid: full[fid]}
     store.materialize()
-    resp = store.answer(q, system=SYSTEM)
+    resp = store.answer(q, system=system or SYSTEM)
     store.deltas = full
     store.materialize()
     return resp

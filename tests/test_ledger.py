@@ -81,6 +81,14 @@ def test_same_slot_other_answer_replaces_the_entry():
     assert [e["action"] for e in led.log] == ["insert", "update"]
 
 
+def test_a_write_under_an_alias_finds_the_slot_of_the_full_name():
+    led = make_ledger()
+    full = fact("a", "Ann Lee", "Ann Lee was born in", "Oslo")
+    led.commit({**full, "aliases": ["Annie"]})
+    event = led.commit(fact("b", "Annie", "Annie was born in", "Rome"))
+    assert event["action"] == "update" and event["superseded"] == "a"
+
+
 def test_hash_covers_phrasings():
     led = make_ledger()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))

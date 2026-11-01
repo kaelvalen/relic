@@ -123,6 +123,56 @@ def key_text(prompt: str, subject: str) -> str:
     return relation_text(prompt, span) if span else prompt
 
 
+def usable_aliases(aliases) -> list[str]:
+    """Aliases that can name a subject on their own.
+
+    shortcut: a length and capitalisation test, which drops lower-case descriptions and
+    two- and three-letter codes that match ordinary words; replace it if a store needs
+    short names such as acronyms.
+    """
+    return [
+        a for a in aliases if len(a) >= 4 and any(c.isupper() or c.isdigit() for c in a)
+    ]
+
+
+_PRONOUN = re.compile(
+    r"\b(he|she|it|they|him|her|them|his|hers|its|their|theirs)\b", re.I
+)
+_POSSESSIVE = {"his", "hers", "its", "their", "theirs"}
+# a capitalised word that does not open a sentence
+_NAME = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][\w-]+")
+
+
+def resolve_reference(query: str, history, router) -> str:
+    """Replace the query's pronoun with the stored subject the conversation is about.
+
+    The query is returned unchanged if it names a stored subject itself, has no pronoun,
+    or if a more recent turn names someone the store does not hold: the pronoun then most
+    likely refers to that name, and answering from the base model is the safe failure.
+
+    shortcut: the last named entity wins and names are found by capitalisation, so
+    this misreads questions about two entities at once; a coreference model would
+    handle those.
+    """
+    if router.candidates(query)[0]:
+        return query
+    found = _PRONOUN.search(query)
+    if found is None:
+        return query
+    for turn in reversed(list(history)):
+        candidates, _ = router.candidates(turn)
+        if candidates:
+            subject = router.subjects[candidates[0]]
+            word = found.group(1).lower()
+            following = query[found.end() :].lstrip()[:1]
+            possessive = word in _POSSESSIVE or (word == "her" and following.isalnum())
+            name = f"{subject}'s" if possessive else subject
+            return query[: found.start()] + name + query[found.end() :]
+        if _NAME.search(turn):
+            return query
+    return query
+
+
 class RouterV4:
     """Same interface as pilot.Router: route(q, enc) -> (index or None, similarity)."""
 
@@ -137,6 +187,11 @@ class RouterV4:
         self._by_subject: dict[str, list[int]] = {}
         for i, s in enumerate(self.subjects):
             self._by_subject.setdefault(normalize(s).strip(), []).append(i)
+        for i, f in enumerate(facts):
+            for alias in usable_aliases(f.get("aliases", ())):
+                entries = self._by_subject.setdefault(normalize(alias).strip(), [])
+                if i not in entries:
+                    entries.append(i)
         # content order of the entries: ties between candidates are broken by it, so
         # routing depends on the stored set and not on the order of insertion
         self._content = [

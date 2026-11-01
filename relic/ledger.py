@@ -20,7 +20,13 @@ import torch
 from relic.adapters import fact_pairs, train_adapter
 from relic.metrics import hit, sym_kl
 from relic.model import chat, load_model, make_lora
-from relic.router import RouterV7, key_text, normalize
+from relic.router import (
+    RouterV7,
+    key_text,
+    normalize,
+    resolve_reference,
+    usable_aliases,
+)
 from relic.serving import base_answer, rag_system, serve_expert
 
 R = 16  # rank per fact
@@ -342,7 +348,8 @@ class Ledger:
         best, best_score = None, float("-inf")
         for fid in sorted(self.entries):
             entry = self.entries[fid]
-            if normalize(entry["subject"]).strip() != subject:
+            names = [entry["subject"], *usable_aliases(entry.get("aliases", ()))]
+            if subject not in {normalize(n).strip() for n in names}:
                 continue
             prompts = [entry["probe"], *self.phrasings[fid]]
             keys = [key_text(p, entry["subject"]) for p in prompts]
@@ -437,10 +444,15 @@ class Ledger:
             self._router = (RouterV7(facts, self.scorer, self.tau, extra), facts)
         return self._router
 
-    def ask(self, query: str) -> dict:
-        """The answer and the entry that produced it (None: the unmodified base model)."""
+    def ask(self, query: str, history=()) -> dict:
+        """The answer and the entry that produced it (None: the unmodified base model).
+
+        `history` holds the earlier user turns; a pronoun in the query is resolved against
+        them, and the model sees the resolved question.
+        """
         with self.lock:
             router, facts = self.router
+            query = resolve_reference(query, history, router)
             j, score = router.route(query)
             if j is None:
                 answer = base_answer(self.store, query)
@@ -465,7 +477,8 @@ class Ledger:
         for fid in sorted(self.entries):
             entry = self.entries[fid]
             fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
-            for s in [*fields, entry["probe"], *sorted(self.phrasings[fid])]:
+            names = sorted(entry.get("aliases", ()))
+            for s in [*fields, entry["probe"], *sorted(self.phrasings[fid]), *names]:
                 _hash_text(h, s)
             _hash_text(h, self._delta_digest.get(fid, ""))
         return h.hexdigest()

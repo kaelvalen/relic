@@ -2687,3 +2687,29 @@ accuracy between 0.50 and 0.80. P4: forced adapter costs 2 to 15 points, less th
 because a letter answer depends less on the fact the adapter was trained toward. P5: forced note and
 forced adapter with note cost more than forced adapter alone, since the instruction tells the model to use
 an unrelated context.
+
+## 102. Human labels for the natural-question sample (pinned 2026-11-01, before any human label exists)
+
+Question. The natural-question leak rate rests on labels from the analysing model (SS90). Does a human
+agree with them? This closes one limitation only if the author does the labelling, so nothing here is
+scored until the author has filled in the sheet.
+
+Sample. 200 automatic leaks: the 106 items labelled in SS91, plus 94 further automatic leaks drawn with seed
+102 from the routed rows of natural_e3.json, without repeating a (question, stored fact) pair. The model labels
+the 94 new items blind with the rule and display of SS90, before the sheet is issued, and writes them to
+natural_e3_labels_model_ext.json. The sheet (confirm/label_sheet.py make) is shuffled with seed 102 and shows
+the question, the stored fact, the stored target, the served response and the base response. It does not show
+the router, the source of the item or any label.
+
+Rule, as in SS90. In the counterfactual world where the stored fact is true, is the stored target a correct
+answer to the question? legit: yes, or entailed for the asked relation. leak: no, including a target of the wrong
+type. unsure: the asked relation and the stored one can differ for this subject.
+
+Readings (confirm/label_sheet.py score). Agreement and Cohen's kappa between author and model over the three
+classes, and over legit against leak on items neither marks unsure, with 95% bootstrap intervals; the confusion
+table; the corrected near-neighbour leak rate of the default router with author labels, beside the 11.7% from
+model labels.
+
+Decision rule. Kappa >= 0.6 on the two-class reading: the paper reports both labelers and the limitation is
+closed. Below 0.6: the author's labels replace the model's in every figure, and the disagreement is reported.
+Prediction. P1: kappa 0.5 to 0.8. The unsure class (28 of 106) is where most disagreement will fall.

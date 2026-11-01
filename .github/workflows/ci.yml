@@ -10,7 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      # The live-learning tests import transformers through the sandbox harness;
-      # it is only in the lm extra, so a plain sync cannot collect them.
-      - run: uv sync --frozen --extra lm
-      - run: uv run --frozen --extra lm pytest -q
+      # The live-learning tests import transformers through the sandbox harness.
+      # Select dev + lm explicitly: a plain sync would also install the ptm and
+      # experiments default groups, which this job does not need.
+      - run: uv sync --frozen --no-default-groups --group dev --group lm
+      - run: uv run --frozen --no-default-groups --group dev --group lm pytest -q

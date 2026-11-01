@@ -140,7 +140,9 @@ Pinned entries are tagged in git (`prereg-ss*`). Result files are written to
 ## Running
 
 ```bash
-uv sync --extra dev --extra lm          # or: pip install -e ".[dev,lm]"
+uv sync                                 # full local environment: dev, lm, ptm, experiments
+uv sync --no-default-groups --extra lm  # lean install: library plus the LM backend only
+# pip alternative for dev + LM extras: pip install -e ".[dev,lm]"
 python -m pytest                        # test suite
 
 # end-to-end evaluation of a saved store with the default router (requires the saved

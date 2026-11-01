@@ -3,10 +3,17 @@
 ## Setup
 
 ```bash
-uv sync --extra dev                 # or: pip install -e ".[dev]"
-uv sync --extra dev --extra lm      # + the LM backend (transformers, accelerate, bitsandbytes)
-uv sync --extra dev --extra ptm     # + timm, for PTM-CIL feature extraction
+uv sync                                              # full local environment: dev, lm, ptm, experiments
+uv sync --no-default-groups --extra dev              # lean: test and lint tools only
+uv sync --no-default-groups --extra dev --extra lm   # + the LM backend (transformers, accelerate, bitsandbytes)
+uv sync --no-default-groups --extra dev --extra ptm  # + timm, for PTM-CIL feature extraction
 ```
+
+Plain `uv sync` installs every default dependency group (`dev`, `lm`, `ptm`, and
+`experiments`), so it is the normal command for working on this repository. Pass
+`--no-default-groups` with the extras you need when you want a lean environment that
+does not include the full local toolchain. The optional extras remain available to pip
+users, for example `pip install -e ".[dev,lm]"`.
 
 `pyproject.toml` is the only dependency source; `uv.lock` pins it. Python >= 3.10.
 

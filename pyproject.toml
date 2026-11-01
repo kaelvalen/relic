@@ -103,7 +103,34 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --strict-markers"
 
+# Dependency groups mirror the direct requirements of the optional extras above,
+# so the local uv environment keeps the same roots without duplicating transitive
+# packages. All groups below are installed by a plain `uv sync`; see
+# [tool.uv].default-groups.
 [dependency-groups]
 dev = [
-    "pytest>=9.1.1",
+    "pytest>=9.1.1",  # stricter than the [dev] extra on purpose
+    "pytest-cov>=5.0.0",
+    "ruff==0.16.8",
+    "black==26.5.1",
 ]
+lm = [
+    "transformers>=4.56.0",
+    "accelerate>=1.0.0",
+    "bitsandbytes>=0.45.0",
+    "peft>=0.21.0",
+    "sentence-transformers>=6.1.0",
+]
+ptm = [
+    "timm>=1.0.0",
+    "gdown>=5.0.0",
+]
+# Roots used by the experiment scripts that are not part of any optional extra.
+experiments = [
+    "easydict>=1.9.0",
+    "matplotlib>=3.7.0",
+    "tabulate>=0.9.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "lm", "ptm", "experiments"]

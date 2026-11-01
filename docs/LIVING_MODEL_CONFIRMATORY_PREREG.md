@@ -2926,3 +2926,38 @@ within 0.01, and not exactly. The SS100 run stopped at 100 of 1000 questions, wi
 evaluations keep the default capacity and reproduce them exactly, including SS104 (a).
 
 A side reading: about 0.7% of responses here depend on rounding at this level, which is a floor on what a difference between two stores can mean.
+
+## 112. Shard adapters with exact removal (pinned 2026-11-01, before the run)
+
+Question. A rank-2 adapter is 373 KB per fact, 373 GB at a million facts. One adapter for many facts leaks and cannot lose a single fact. In between: train k facts into one adapter and, when one is removed, retrain that shard from the ledger's remaining facts, in the
+manner of SISA (Bourtoule et al.). State stays a function of the ledger, so removal stays exact, at about k times 7 s.
+
+Literature, scanned before the run. The idea is not new as such. SISA-A (Kumar, Gangadharaiah, Roth, arXiv 2212.09573) trains adapters on shards for guaranteed unlearning in NLP classification. APA (Hu et al., arXiv 2404.10327) trains one adapter per data shard for LLM-based
+recommendation, retrains only the affected adapters, and aggregates all of them per test sample. What we did not find, in a quick scan that is not exhaustive: shards of facts with one shard selected by a router instead of all aggregated, or a measurement of leakage to other
+relations under them. Any claim in the paper is limited to that difference.
+
+Storage is not automatically k times smaller. It is rank-dependent: rank 16 in int8 is about 3 MB, so k = 8 at rank 16 stores the same 373 KB per fact as the adopted adapter. A gain needs a lower rank or a larger k.
+
+Runner: confirm/shard_eval.py on Qwen2.5-1.5B (bf16). 96 CounterFact facts of the N=1000 store, 32 from each of the three most frequent relations. Arms, as k/rank: 8/2, 8/4, 8/16, 16/4, 16/16, 32/4, 32/16, grouped by relation, and 16/16 grouped at random. Recipe: the
+grouped recipe of SS42 (lr 3e-4 for A and B, 16 passes over all pairs, KL anchor on the canaries), since LoRA+ collapses when grouped (SS47), stored in int8. Reference: the same 96 facts with their SS94 rank-2 adapters.
+
+Readings per arm. Edit prompt with the shard adapter; edit prompt and paraphrase with adapter and note; cross-talk: output contains another fact's answer from the shard and not its own; forced E3: the other-relation prompt of each fact with its shard's adapter active, adapter alone and with note, leak =
+a stored answer of the shard that the base output lacks; held-out D per shard and share above 0.968; bytes per fact; seconds per training. Removal, for 8/16 and 32/16: retrain the first shard without its first fact, twice with the same seed; are the two results bitwise equal, how long does it take, and does the
+removed fact's edit prompt stop answering it.
+
+Decision rule. An arm is viable if all hold: (i) edit prompt with adapter and note >= 0.95; (ii) paraphrase with adapter and note non-inferior to the reference at margin 0.03, lower end of the one-sided 95% interval; (iii) forced E3 leak, adapter alone, no more than 0.02 above the reference at the upper end of the
+one-sided 95% interval; (iv) share above kappa <= 0.10; (v) at most a quarter of the reference's bytes per fact (93 KB). Viable arms make shards worth a full study on the N=1000 stores. No arm being viable leaves the per-fact store as the answer on storage at this scale, and the follow-up is noted as open.
+
+Predictions. P1: 8/16 passes (i) to (iv) and fails (v) by construction. P2: 32/16 (93 KB) and 8/4 (93 KB) are the interesting arms, and neither passes all: 32/16 fails (iii) or (ii), 8/4 fails (i). P3: grouping by relation gives more cross-talk within the shard than random grouping, since the facts compete for one
+relation, and the forced E3 leak is lower. P4: leak grows with k at fixed rank, answering the open question about 256 facts: 8 to 32 stays below the 10% to 30% seen at 256. P5: retraining is not bitwise reproducible on the GPU unless deterministic ops are forced, so "exact" here would mean a function of the remaining facts up to numerical noise; reported as measured.
+
+## 113. A per-fact soft prompt (pinned 2026-11-01, before the run)
+
+Question. ReFT failed on held-out drift (SS93). A soft prompt of 10 tokens per fact, 10 times 1536 values in bf16, is 30.7 KB, 12 times smaller than the adopted adapter. It touches no weight, enters by the same route as the note, and can be cached. Is it a better second tier?
+
+Related: PSPEM (Cai et al., arXiv 2403.14381) edits with soft prompts from a prompt encoder; its abstract does not report locality, and we did not find per-fact soft prompts with a held-out drift reading, in a quick scan.
+
+Runner: confirm/soft_prompt.py on Qwen2.5-1.5B. The vectors are spliced into the input embeddings just before the user turn and trained on the pairs of the adapter recipe with the KL anchor, 32 passes, random initial values at the scale of the embeddings. Stage 1 picks a learning rate of {3e-3, 1e-2, 3e-2} on the 20 development facts of SS92 with its
+selection function. Stage 2 runs on the 279 fresh adapter facts of SS87 against the rank-2 LoRA+ int8 rows, with the same readings, the 200 wrong-route questions, and the same rule as SS92 stage 3: (i) efficacy with note within 0.02, paraphrase with note within 0.03 and its CI's lower end >= -0.06; (ii) share above kappa within 0.02, mean held-out D within 0.05; (iii) wrong route retained within 0.03.
+
+Predictions. P1: efficacy is reached at the selected learning rate. P2: the rule fails on (ii): like an intervention at the last prompt positions, a soft prompt sits in every prompt it is applied to, and SS93's held-out D of 4 to 12 times is the closer comparison. P3: without the note its paraphrase score is below the adapter's. P4: as a replacement it fails; its size makes it worth reporting even so.

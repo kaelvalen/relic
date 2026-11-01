@@ -2991,3 +2991,16 @@ Residual-route share, with upper end of the one-sided 95% interval. Per-entry wr
 No merge joined different answers in any arm. No updates occurred, as the sample was not built to contain conflicting answers.
 
 Rule (i) of SS104 holds. P2 held. Rule (ii) waits for reading (a), which is in the queue. The sample prefers subjects with several records, so these shares describe stores with many facts per subject, the case in which duplicates exist at all.
+
+## 116. SS101 results: general capability with the store active (2026-11-01)
+
+Source: results/live_learning/confirm/general_eval.json, 500 MMLU and 500 ARC-Challenge questions, capacity 1 as in entry 111.
+
+Routed: 0 of 1000 through either store (Clopper-Pearson upper end 0.0037). Accuracy through each store therefore equals base: 0.665 pooled, 0.564 on MMLU, 0.766 on ARC. The rule holds with a lower end of 0.
+
+Forced through a random entry of the CounterFact store, pooled accuracy and paired difference from base with 95% CI. Adapter rank 16: 0.657, -0.008 [-0.020, 0.004]. Adapter rank 2: 0.658, -0.007 [-0.021, 0.007].
+Note: 0.654, -0.011 [-0.025, 0.003]. Adapter and note, rank 2: 0.643, -0.022 [-0.038, -0.006].
+
+Predictions. P1, P2 and P3 held; P2 holds by construction, as P2 itself said, since nothing was routed. This benchmark shows that the router stays out of the way on these questions; it says nothing about served entries. P4 failed on the low side: the forced adapter costs under 1 point, not 2 to 15. P5 held in direction: the combination costs most, but the note's excess over the adapter is within the noise.
+
+Reading. Forcing the served combination on a multiple-choice question costs 2.2 points, while entry 114 measured a loss of 60% of correct answers on factual questions. The damage is specific to short factual answers, the form the note and adapter are trained on, so these benchmarks do not replace the wrong-route reading.

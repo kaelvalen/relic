@@ -2556,3 +2556,78 @@ rates; outputs are short (at most 24 tokens) and mostly one phrase. P2: the retr
 contains both answers more often than the adapter arm, since a note can prompt a correction
 ("X, not Y"). P3: the one- and two-character targets are few (under 2% of facts) but score
 near 1.00 by substring whatever the output, so the word-boundary rate on them is clearly lower.
+
+## 98. How many facts need an adapter as the base model grows (pinned 2026-11-01, before the run)
+
+Question. On Qwen2.5-1.5B a note alone answers most edit prompts and an adapter is needed
+for the rest. Is the adapter a compensation for small models, or does the need remain as
+the base model grows? The same arms also answer the limitation that everything so far
+ran on one base model.
+
+Arms. Qwen2.5-0.5B-Instruct (bf16, revision 7ae5576), Qwen2.5-1.5B-Instruct (bf16, 989aa79),
+Qwen2.5-1.5B-Instruct (4-bit), Qwen2.5-3B-Instruct (4-bit, aa8e725), Qwen2.5-7B-Instruct
+(4-bit, a09a354), and SmolLM3-3B (4-bit, another model family, revision stored in the
+output). 3B in bf16 needs 6.2 GB and does not fit next to other users of the shared 8 GB
+GPU, so 3B and 7B run in 4-bit; the 4-bit 1.5B arm measures what quantization alone changes.
+A smoke of 3 facts per new arm checks memory and is discarded.
+
+Runner: confirm/scale_eval.py, on the same 2000 facts (external_counterfact_n1000,
+external_zsre_n1000). Routes are those saved in the SS76 evaluation: the router does not
+depend on the base model. Note = the instructed system prompt of SS67. A fact needs an adapter
+if its note does not answer its edit prompt, scored at a word boundary. SS97 showed that the
+substring score overstates the note arm by 5 points on zsRE (0.794 against 0.741), and this
+reading depends on the note arm, so here word_hit is primary and the substring fraction is
+reported beside it. With word_hit the saved 1.5B fractions are 0.164 on CounterFact and 0.259 on
+zsRE, 0.2115 pooled (against 0.162 and 0.206 by substring, SS68). Facts that need an
+adapter get the adopted recipe (rank 2, LoRA+, int8, KL anchor) and the commit gate (in-sample D <=
+2, one retraining with another seed); queries routed to them are served with adapter and note.
+One resident rank-2 model is reset per fact instead of reloaded, which a 4-bit base would make
+slow. The 1.5B bf16 arm reuses the SS94 adapters.
+
+Readings per arm and dataset, and pooled: share of facts that need an adapter, with 95%
+bootstrap CI; base score; note on edit prompts and paraphrases; tiered store on edit prompts
+and paraphrases, word and substring; adapters committed, retrained; seconds per adapter; adapter
+bytes; held-out D mean and p99, and share above 0.968 (kappa was measured on 1.5B and is a
+reference on the other models); peak GPU memory.
+
+Decision rule on the pooled share at 7B (4-bit), f7, with its 95% CI.
+A: upper end of the CI <= 0.02. The thesis becomes: the ledger and notes are enough, and the
+adapter is a compensation for small models.
+B: lower end of the CI >= 0.10. The adapter layer stays necessary at the largest model that runs here.
+C: otherwise. The need depends on size; the adapter remains an optional tier and the paper
+reports the curve.
+The trend is read within 4-bit (1.5B, 3B, 7B). If the two 1.5B arms differ by more than 0.02,
+quantization is a confound and bf16 and 4-bit arms are not compared. The second-family reading
+holds if SmolLM3-3B reaches a tiered edit-prompt score >= 0.95 on both datasets with a tiered
+paraphrase score above its note paraphrase score. Only one family and sizes up to 7B are
+tested, so this narrows the single-model limitation and does not close it for all models.
+
+Predictions. P1: 0.5B pooled >= 0.30. P2: the 1.5B bf16 arm reproduces at least 1990 of 2000
+saved note outputs on each dataset and the pooled share 0.2115 within 0.005. P3: the two
+1.5B arms differ by at most 0.02. P4: f7 is between 0.06 and 0.16, outcome C or B. The direction
+is less certain than it looks: larger models may follow an instruction better, but on CounterFact
+they also hold the contradicted fact more firmly. P5: tiered edit-prompt score >= 0.97 in every
+arm. P6: 7B in 4-bit trains an adapter in under 30 s with peak memory under 5.3 GB.
+
+## 99. SS97 results: audit of the answer score (2026-11-01)
+
+Source: results/live_learning/confirm/score_audit.json.
+
+Both arm (the primary reading), substring / word boundary / strict. CounterFact edit prompts 0.996 /
+0.996 / 0.996; paraphrases 0.891 / 0.890 / 0.889. zsRE edit prompts 0.989 / 0.988; paraphrases 0.982 /
+0.979. The largest drop is 0.003, below the limit of 0.02, so the rule keeps the substring score primary
+for the both arm. Adapter arm: at most 0.002. Of the CounterFact hits with both served, 0.11% on
+paraphrases also contain the old answer, and none on edit prompts.
+
+Note arm, which the rule did not cover. CounterFact edit prompts 0.838 / 0.836 / 0.811, paraphrases
+0.684 / 0.681 / 0.626; 8.0% of paraphrase hits also contain the old answer. zsRE edit prompts 0.794 /
+0.741, paraphrases 0.815 / 0.770. The note arm's substring rate on zsRE is flattered by about 5 points,
+through matches such as "male" inside "female".
+
+Predictions. P1 held. P2 held: 3.0% and 8.0% against 0% and 0.14%. P3 half failed: short targets are
+few (15 of 2000, targets Ay, C, FX, Io), but their word-boundary rates equal their substring rates (edit
+prompts 0.867, paraphrases 0.933); the concern about "C" did not materialise in these outputs.
+
+Reading. The main results stand under the stricter scores. Anything that rests on the note arm alone
+does not: the note-only comparison row and the tier fractions (0.162, 0.206 by substring) move to
+0.164 and 0.259 at a word boundary. SS98 therefore uses the word-boundary score for that reading.

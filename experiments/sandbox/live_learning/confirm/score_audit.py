@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -14,16 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from locality_eval import match_raw  # noqa: E402
 
-from relic.metrics import hit  # noqa: E402
+from relic.metrics import hit, word_hit  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 ARMS = ("adapter", "retrieval", "both")
 LIMIT = 0.02
-
-
-def word_hit(resp: str, token: str) -> bool:
-    pattern = rf"(?<![^\W_]){re.escape(token)}(?![^\W_])"
-    return re.search(pattern, resp, flags=re.IGNORECASE) is not None
 
 
 def rate(xs) -> float | None:

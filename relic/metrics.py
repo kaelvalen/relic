@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import torch
 
 
 def hit(resp, token):
     return token.lower() in resp.lower()
+
+
+def word_hit(resp, token):
+    """`hit` with the target between non-alphanumeric characters ("male" not in "female")."""
+    pattern = rf"(?<![^\W_]){re.escape(token)}(?![^\W_])"
+    return re.search(pattern, resp, flags=re.IGNORECASE) is not None
 
 
 def ci(values, n=2000, seed=0):

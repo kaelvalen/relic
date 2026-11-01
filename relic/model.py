@@ -1,15 +1,23 @@
-"""Model loading and a minimal chat wrapper (sandbox)."""
+"""Model loading and a minimal chat wrapper."""
 
 from __future__ import annotations
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 
-def load_model(name: str):
+def load_model(name: str, load_in_4bit: bool = False):
     tokenizer = AutoTokenizer.from_pretrained(name)
+    kwargs = {}
+    if load_in_4bit:
+        kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+        )
     model = AutoModelForCausalLM.from_pretrained(
-        name, dtype=torch.bfloat16, device_map={"": 0}
+        name, dtype=torch.bfloat16, device_map={"": 0}, **kwargs
     )
     model.eval()
     return tokenizer, model

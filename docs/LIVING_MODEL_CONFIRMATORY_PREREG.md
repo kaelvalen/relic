@@ -2631,3 +2631,59 @@ prompts 0.867, paraphrases 0.933); the concern about "C" did not materialise in 
 Reading. The main results stand under the stricter scores. Anything that rests on the note arm alone
 does not: the note-only comparison row and the tier fractions (0.162, 0.206 by substring) move to
 0.164 and 0.259 at a word boundary. SS98 therefore uses the word-boundary score for that reading.
+
+## 100. The cost of a wrong route, on 1000 questions and per serving arm (pinned 2026-11-01, before the run)
+
+Question. SS95 rejected rank 2 as the main build on one point comparison: 0.675 < 0.69, with a
+paired difference of -0.045 and CI [-0.095, 0.005] on 200 questions. That rule discarded a 23-fold
+storage gain on sampling noise. Separately, 0.72 describes the adapter alone, while the system
+serves adapter and note together, and whether the damage comes from the adapter or the note has
+not been measured.
+
+Runner: confirm/wrong_route.py. The SS69 design with its seed: zsRE dev questions the base model
+answers correctly, each served with a randomly drawn fact of the CounterFact store; the draw
+continues the SS69 sequence, so the first 200 questions are those of SS69 and SS94, extended to
+1000. Arms on each question, paired: adapter rank 16; adapter rank 2 (int8, SS94 store); note of
+the drawn fact (instructed system prompt, no adapter); adapter and note, rank 16; adapter and note,
+rank 2. Reading: the share of base-correct answers retained, by substring (as SS69) and word boundary;
+paired differences with 10000 bootstrap samples.
+
+Decision rule, written over an interval as CONTRIBUTING.md now requires. Rank 2 becomes the main build
+if the lower end of the one-sided 95% interval of (rank 2 minus rank 16, adapter arm) is >= -0.03. The
+margin is the distance between 0.72 and the old limit 0.69; the other conditions of SS94 held already.
+Otherwise rank 16 stays main, and the result is reported with its interval.
+
+Predictions. P1: the first 200 rows reproduce SS94's 0.72 and 0.675 exactly. P2: the difference is
+between -0.05 and 0, and the lower end of the interval is above -0.03 with probability about even; 1000
+questions shrink the half-width to about 0.02. P3: the note alone retains more than the adapter alone,
+at least 0.85 against about 0.72. P4: adapter and note together retain no more than the adapter alone,
+so the 0.72 quoted so far overstates what the served system keeps.
+
+## 101. General capability on standard benchmarks with the store active (pinned 2026-11-01, before the run)
+
+Question. Protection so far rests on 40 control prompts and 200 zsRE questions. Does a store of 1000
+facts change what the model can do on benchmarks reviewers know?
+
+Runner: confirm/general_eval.py. 500 questions of the MMLU test split and 500 of ARC-Challenge test,
+drawn with seed 101. The prompt is the question and its options followed by "Answer with the letter
+only."; the system prompt and generation settings are those of serving; the first standalone option
+letter of the output is the answer. Arms, paired by question: base; through the CounterFact store and
+through the zsRE store with the default router (routed: adapter and note; otherwise base, as served);
+and, as an upper bound on the damage, every question forced through a randomly drawn entry of the
+CounterFact store: adapter rank 16, adapter rank 2, note, adapter and note rank 2.
+
+Readings per benchmark and pooled: share routed, with the Clopper-Pearson interval; accuracy per arm;
+paired difference from base with a 95% bootstrap interval.
+
+Decision rule. The store is non-inferior on general capability if, pooled and for each store, the lower
+end of the one-sided 95% interval of (through the store minus base) is >= -0.01. Failing this is
+reported as a limitation of the router, with the routed questions listed. The forced arms carry no
+rule: they say what a wrong route would cost, and they are not what the system does.
+
+Predictions. P1: share routed under 1% on both benchmarks, since a query needs a full stored subject
+and a relation above threshold. P2: the rule holds; if nothing is routed the through-store arm equals
+base by construction, and the benchmark says only that the router stays out of the way. P3: base
+accuracy between 0.50 and 0.80. P4: forced adapter costs 2 to 15 points, less than the 28% of SS69,
+because a letter answer depends less on the fact the adapter was trained toward. P5: forced note and
+forced adapter with note cost more than forced adapter alone, since the instruction tells the model to use
+an unrelated context.

@@ -89,6 +89,21 @@ def test_hash_covers_phrasings():
     assert led.state_hash() != h
 
 
+def test_hash_covers_the_delta_and_is_order_independent():
+    a, b = make_ledger(), make_ledger()
+    ann, bob = fact("a", "Ann", "Ann plays", "jazz"), fact(
+        "b", "Bob", "Bob plays", "rock"
+    )
+    a.commit(ann, delta()), a.commit(bob)
+    b.commit(bob), b.commit(ann, delta())
+    assert a.state_hash() == b.state_hash()
+    other = delta()
+    other["m.lora_A"]["A"] = torch.zeros(2, 3)
+    c = make_ledger()
+    c.commit(ann, other), c.commit(bob)
+    assert c.state_hash() != a.state_hash()
+
+
 def test_concurrent_writers_of_one_slot_leave_one_entry():
     led = make_ledger()
     start = threading.Barrier(8)

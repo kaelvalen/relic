@@ -294,6 +294,20 @@ class DeltaStore:
         )
 
 
+def _hash_text(h, s: str) -> None:
+    b = s.encode()
+    h.update(f"{len(b)}:".encode() + b)
+
+
+def _delta_digest(delta: dict) -> str:
+    h = hashlib.sha256()
+    for n in sorted(delta):
+        _hash_text(h, n)
+        for t in (delta[n]["A"], delta[n]["B"]):
+            h.update(t.float().contiguous().numpy().tobytes())
+    return h.hexdigest()
+
+
 class Ledger:
     """The entries of a store, with one active entry per (subject, relation) slot.
 
@@ -315,6 +329,7 @@ class Ledger:
         self.tau, self.slot_theta = tau, slot_theta
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
+        self._delta_digest: dict[str, str] = {}
         self.log: list[dict] = []
         self.lock = threading.RLock()
         self._router = None
@@ -343,6 +358,7 @@ class Ledger:
     # -- transactions -----------------------------------------------------
     def _drop(self, fid: str) -> None:
         del self.entries[fid], self.phrasings[fid]
+        self._delta_digest.pop(fid, None)
         self.store.deltas.pop(fid, None)
         self.store.keys.pop(fid, None)
         self.store.notes.pop(fid, None)
@@ -380,6 +396,7 @@ class Ledger:
             self.store.notes[fact["id"]] = fact["teach"]
             if delta is not None:
                 self.store.deltas[fact["id"]] = delta
+                self._delta_digest[fact["id"]] = _delta_digest(delta)
             self._router = None
             if old is None:
                 return self._record("insert", fact["id"])
@@ -437,13 +454,20 @@ class Ledger:
             return {"answer": answer, "entry": fact["id"], "score": score}
 
     def state_hash(self) -> str:
-        """A function of the active set: the store's hash plus what routes to each entry."""
-        h = hashlib.sha256(self.store.state_hash().encode())
+        """A function of the active set: the model, the router setting and each entry.
+
+        A delta is hashed once when it is committed; hashing every tensor of a large
+        store on each commit would make a commit linear in the size of the store.
+        """
+        h = hashlib.sha256()
+        for s in (self.store.base_hash, self.store.router_config):
+            _hash_text(h, s)
         for fid in sorted(self.entries):
-            fields = [fid, self.entries[fid]["subject"], self.entries[fid]["answer"]]
-            for s in fields + sorted(self.phrasings[fid]):
-                b = s.encode()
-                h.update(f"{len(b)}:".encode() + b)
+            entry = self.entries[fid]
+            fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
+            for s in [*fields, entry["probe"], *sorted(self.phrasings[fid])]:
+                _hash_text(h, s)
+            _hash_text(h, self._delta_digest.get(fid, ""))
         return h.hexdigest()
 
     # -- durability -------------------------------------------------------
@@ -475,6 +499,9 @@ class Ledger:
             self.store.router_config = state["router_config"]
             self.store.keys = {f: e["probe"] for f, e in self.entries.items()}
             self.store.notes = {f: e["teach"] for f, e in self.entries.items()}
+            self._delta_digest = {
+                f: _delta_digest(d) for f, d in state["deltas"].items()
+            }
             self._router = None
             if self.state_hash() != state["state_hash"]:
                 raise ValueError(f"{path}: state hash does not match its contents")

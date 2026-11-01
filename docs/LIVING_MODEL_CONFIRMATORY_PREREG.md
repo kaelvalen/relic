@@ -3004,3 +3004,9 @@ Note: 0.654, -0.011 [-0.025, 0.003]. Adapter and note, rank 2: 0.643, -0.022 [-0
 Predictions. P1, P2 and P3 held; P2 holds by construction, as P2 itself said, since nothing was routed. This benchmark shows that the router stays out of the way on these questions; it says nothing about served entries. P4 failed on the low side: the forced adapter costs under 1 point, not 2 to 15. P5 held in direction: the combination costs most, but the note's excess over the adapter is within the noise.
 
 Reading. Forcing the served combination on a multiple-choice question costs 2.2 points, while entry 114 measured a loss of 60% of correct answers on factual questions. The damage is specific to short factual answers, the form the note and adapter are trained on, so these benchmarks do not replace the wrong-route reading.
+
+## 117. Deviation for SS98: the embedding and output layers of the 7B arm on CPU (2026-11-01, before any 7B result)
+
+The smoke of the 7B arm ran out of memory while loading, beside another user of the shared GPU that holds 2.3 GB; 5.5 GB is free. Quantization leaves the embedding and the output layer in bf16, 1.09 GB each at this size. For this arm those two layers stay on CPU, in bf16, and everything else stays as pinned. They are not trained and no adapter touches them, so the outputs should match up to floating-point differences between devices; training is slower, because every loss computes the output layer on CPU. The other arms keep the full model on the GPU, so seconds per adapter and peak memory are not comparable for this arm. P6 of SS98 can no longer be read as stated: its time and memory are reported with this note.
+
+If the smoke with this layout also fails, 7B waits until the GPU has room for the pinned layout, and no decision A, B or C is taken before then.

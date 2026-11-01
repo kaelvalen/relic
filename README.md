@@ -72,9 +72,10 @@ entries 64 to 93.
 These stores were built with the earlier rank-16 adapters (8.7 MB each). Entry 94
 rebuilt both with the adopted 373 KB adapter (0.75 GB instead of 17.4 GB for the two
 stores) and repeated the evaluation. Every serving reading moved by less than 0.01 and
-leakage and removal were unchanged, but a wrong route kept 0.675 of the base model's
-correct answers instead of 0.72, below the pre-registered limit of 0.69. As registered,
-the table keeps the rank-16 stores as the main build; see entry 95.
+leakage and removal were unchanged, but an adapter on a wrong route keeps fewer of the base
+model's correct answers. Entry 100 repeated that reading on 1000 questions: 0.668 against
+0.705, a paired difference of -0.037 with lower end -0.058, against a margin of -0.03. The
+table therefore keeps the rank-16 stores as the main build.
 
 ### Further checks
 
@@ -99,8 +100,10 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
 - Near-neighbour relations (country of origin against location of formation, original
   language against language of the work) are the main remaining source of leakage; the
   boundary has to be learned from examples of that pair.
-- A wrong route is costly: an adapter applied to an unrelated question keeps 72% of the
-  base model's correct answers.
+- A wrong route is costly. Served as the system serves it, with adapter and note, an
+  unrelated fact keeps 40% of the base model's correct answers; the note alone keeps 51%
+  and the adapter alone 71% (entry 100, 1000 questions). The router's false-route rate is
+  what keeps this cost small.
 - The natural-question labels were assigned by the language model used in the analysis,
   blind to the router, not by a human annotator.
 - One base model, one 8 GB GPU, single-entity answers. A second base model and

@@ -146,8 +146,7 @@ training covers 1785 Wikidata relations (Section~\ref{sec:leak}).
 rejects harmful adapters with a margin that the in-sample check lacks
 (Section~\ref{sec:check}).
 \item An analysis of the first version's failures, including an error in our own
-evaluation script, and small-scale experiments on promotion policies, sessions and a
-vision-language model (Sections~\ref{sec:v3} and~\ref{sec:loop}).
+evaluation script (Appendix~\ref{sec:v3}).
 \end{enumerate}
 All experiments were pre-registered, including the revisions, which were registered
 with predictions before the re-evaluation.
@@ -199,7 +198,7 @@ zhao2024loraretriever} or mixed by a gate~\cite{wu2024mole,shazeer2017moe}. OPPU
 one adapter per user for personalization~\cite{tan2024oppu}, and Schneider et al.\ keep
 per-user components separate from shared weights so that they can be
 deleted~\cite{schneider2026separable}. The failure of summed adapters that we observe
-(Section~\ref{sec:lessons}) is an instance of the interference studied in the merging
+(Appendix~\ref{sec:lessons}) is an instance of the interference studied in the merging
 literature.
 
 \subsection{Machine Unlearning}
@@ -328,7 +327,7 @@ R4 also requires the answer to return to the base model's answer.
 \input{figures/architecture}
 
 Fig.~\ref{fig:arch} gives an overview of the system, and Algorithm~\ref{alg:txn} lists
-its operations. This section describes the revised system; Section~\ref{sec:v3}
+its operations. This section describes the revised system; Appendix~\ref{sec:v3}
 describes the first version and how it differed.
 
 \subsection{Entries: Notes and Adapters}
@@ -446,47 +445,6 @@ built a persistent audit service.
 \end{algorithm}
 
 % ===========================================================================
-\section{Exploratory Study}
-\label{sec:lessons}
-
-The adapter design was developed in a sequence of small experiments, each registered
-before it was run. Table~\ref{tab:lessons} summarizes the measurements that determined
-each design choice, and this section describes three of them.
-
-\input{tables/design_lessons}
-
-\subsection{Summing Adapters}
-The simplest store would keep the sum of all adapters in a single LoRA module, so that
-removal would be a subtraction. This did not work. With three facts on the 1.5B model,
-adding the second adapter erased the first fact, and adding the third erased all three.
-With 18 facts the sum answered none of them, and with 50 CounterFact or zsRE facts it
-answered 0\% and 2\%. The same adapters, applied one at a time by a router, answered all
-18. A single adapter trained sequentially on all facts answered 8\% of synthetic facts
-and 34\% of CounterFact facts (80\% on zsRE, where the base model already knows many
-answers). The problem is not the capacity of a rank-16 update, since one adapter trained
-jointly on 256 CounterFact facts answers all of them (Section~\ref{sec:capacity}). We
-attribute the failure to interference between independently trained
-updates~\cite{ilharco2023taskarithmetic,yadav2023ties} and therefore apply one adapter
-per query.
-
-\subsection{Training Strength and the KL Penalty}
-With 18 routed adapters, a weak setting (learning rate $10^{-4}$, 8 steps) changed the
-anchor distributions little (mean symmetric KL 0.18) but did not learn the facts
-(leave-one-out attribution 6\%). The setting that learned every fact ($3\cdot10^{-4}$,
-16 steps) produced a mean divergence of 10.96 and a maximum of 22.1. Adding the KL term
-of Eq.~\eqref{eq:loss} with $\lambda=1$ kept the facts and reduced the mean divergence to
-0.93.
-
-\subsection{Routing Keys}
-On held-out paraphrases of six facts, TF-IDF character n-grams routed one correctly, and
-the last-token hidden state of the base model routed three, because all short queries
-had similarities above 0.9 to all keys. A multilingual MiniLM sentence encoder separated
-the keys and routed five of six. In a 50-fact pilot, however, every distractor that asked
-the same question about an unseen subject was routed to an adapter, since the question
-template dominates the sentence embedding. Requiring a known subject before comparing
-embeddings raised abstention from 0\% to 100\%. This entity filter is the origin of the
-first version's router.
-
 % ===========================================================================
 \section{Experimental Setup}
 \label{sec:setup}
@@ -544,77 +502,17 @@ results that motivated them and before their own evaluation, together with a rul
 selecting the default configuration. Where a prediction failed, we say so.
 
 % ===========================================================================
-\section{The First Version and Its Failures}
-\label{sec:v3}
-
-\input{tables/guarantees}
-
-The first version differed from the system of Section~\ref{sec:method} in three ways.
-Its router compared the sentence embedding of the whole query with that of the whole edit
-prompt, and its entity filter accepted a candidate if a single token of four or more
-characters matched approximately. Facts were served by adapters only. The divergence
-check used the two anchor prompts of the KL term with $\kappa=2.0$.
-Table~\ref{tab:guarantees} reports its results at $N=1000$.
-
-\subsection{What Held}
-The first version answered \cfEffPct\% and \zsEffPct\% of the edit prompts, the outputs
-for \cfNoLeakPct\% and \zsNoLeakPct\% of synthetic distractors contained no stored answer,
-\cfRetainPct\% and \zsRetainPct\% of the facts were retained after 100 removals, and
-leave-one-out attribution was 100\% for 100 CounterFact facts with an unchanged state
-hash. On CounterFact, \cfReturnPct\% of the removed facts returned to the base model's
-answer. A retrieval baseline instructed to follow its context answered 83.7\% of the
-CounterFact edit prompts (Fig.~\ref{fig:scaling}).
-
-\input{figures/scaling}
-
-\subsection{What Failed}
-Three results contradicted the claims we had made for this version.
-
-\emph{Paraphrases.} CounterFact paraphrase accuracy was \cfParaPct\%. The adapters
-themselves generalize: served directly, they answered 86\% to 90\% of the paraphrases.
-The router sent only 36\% of paraphrases to an adapter, and all 636 others passed the
-entity filter and fell below the similarity threshold (median similarity 0.53 against
-$\tau=0.656$). CounterFact paraphrase prompts begin with an unrelated sentence, for
-example ``In 1978 her father suffered a heart attack and died. The original language of
-Vishwaroopam was,'' which pulls the embedding of the whole query away from the key. On
-the 362 paraphrases that did reach the correct adapter, the adapter answered 86.5\% and
-instructed retrieval 81.8\%, a paired difference of 4.7 percentage points (95\% CI $-0.3$
-to 9.7). The advantage over retrieval was therefore established only on the prompts the
-adapters were trained on.
-
-\emph{Locality.} The synthetic distractors were the easiest case. Other questions about
-a stored subject passed the entity filter by construction and exceeded the threshold in
-78.2\% of cases, and 34.6\% of their outputs contained the stored answer
-(Table~\ref{tab:locality}). Neighborhood prompts were routed in 9.8\% of cases, all
-through a single shared token such as ``Jean'' in ``Jean-Baptiste Say'' and ``Jean
-Galland.'' Every query that was not routed received exactly the base model's output, and
-nearly every routed one did not, so locality equaled the router's abstention rate.
-
-\emph{Divergence check.} No adapter came close to $\kappa=2.0$ (maximum 0.092 over 2000
-additions), because the check used the two prompts the KL term trains on. Section~\ref{sec:check}
-shows that this measure understates the effect of an adapter seventeen-fold.
-
-\subsection{Diagnosis}
-The first two failures have one cause. Comparing whole queries mixes the subject, which
-the entity filter already handles, with the relation, which the similarity should judge.
-A leading sentence lowers the similarity of a correct paraphrase, while a question about
-another relation of the same subject keeps a high similarity because the subject tokens
-dominate the shared part. Matching single tokens lets unrelated subjects with a common
-first name enter the candidate set. The revised router of Section~\ref{sec:router}
-addresses these points directly: it requires the complete subject, restricts the query
-to the clause that contains it, removes the subject from both texts before comparing,
-and calibrates $\tau$ on negatives of the kind that failed.
-
-We also found an error in our evaluation script while preparing this analysis. It served
-an edit prompt with its own adapter whenever the router selected any adapter. All numbers
-in this paper come from a re-evaluation of the saved adapters that uses the router's
-actual selection; the error had changed efficacy by at most 0.2 percentage points.
-
-\input{tables/locality}
 
 % ===========================================================================
 \section{Results of the Revised System}
 \label{sec:results}
+
+A first version, evaluated on the same 1000 facts per dataset, met its requirements on the
+edit prompts but not otherwise (Appendix~\ref{sec:v3}). Its router compared whole queries with
+whole edit prompts and accepted a candidate on a single matching token, so it answered
+\cfParaPct\% of the CounterFact paraphrases and leaked into 34.6\% of the other-relation prompts,
+and its divergence check used the prompts the adapters were trained on. The system of
+Section~\ref{sec:method} addresses these causes.
 
 All results in this section use the adapters stored for the first version, so that
 differences are due to the router and the serving mode. Unless stated otherwise, they use
@@ -714,197 +612,62 @@ an accuracy property.
 \input{tables/leakage}
 \input{figures/tradeoff}
 
-We tested eight changes that could reduce leakage into other-relation prompts
-(Table~\ref{tab:leakage}), each registered with a prediction before it was run. The
-first four did not improve on the trade-off that the routing threshold gives, the fifth
-improved on it slightly, the sixth, a relation encoder trained for this comparison,
-improved on it substantially for the relations it was trained on, and the last two,
-training that encoder on a broader relation inventory and giving each fact negative keys,
-added nothing.
-
-\emph{Subject-local anchors.} We retrained the adapters of the first 200 CounterFact facts
-with three additional anchor prompts in Eq.~\eqref{eq:loss}: questions about the fact's
-own subject with the templates of three other CounterFact relations, excluding the
-relation of the test prompts. With router v4, the retrained adapters reduce leakage on
-these facts from 16.0\% to 9.0\% and the mean held-out divergence from 0.343 to 0.146.
-They also learn the facts less well: efficacy falls from 100\% to 93.0\% and paraphrase
-accuracy from 69.0\% to 55.0\%. Served together with the note, they answer as many
-paraphrases as the original adapters (80.5\%), but the leakage of the note remains
-(18.5\% against 20.0\%). With three anchor prompts and 32 training steps, an adapter does
-not separate the relation it should change from the other relations of its subject.
-
-\emph{Store contrast.} A relation that is stored for another subject can serve as a
-contrast. We accepted a route only if the selected key's similarity to the query's
-relation text is at most a margin $m$ below that of the most similar key in the whole
-store, with $m=0.33$ calibrated on the development split. This reduced the routed
-other-relation prompts from 29.0\% to 20.8\% and the leakage with adapter and note from
-\vCfEthreeLeakBothPct\% to 17.7\%, while paraphrase accuracy fell from \vCfParaBothPct\%
-to 76.4\%.
-
-\emph{Base-model check.} We asked the frozen base model whether the selected fact's
-statement answers the query and used the difference between the logits of ``Yes'' and
-``No'' as a score. On the routed development queries, the medians are 4.1 for correct
-paraphrases and $-1.4$ for other-relation prompts, but the distributions overlap, and
-the threshold that maximizes Youden's $J$ removes almost no routes. A third score, the
-base model's log probability of the stored answer after the query relative to that after
-the edit prompt, was eliminated on the development split. Its area under the ROC curve
-was \aucTypePool, compared with \aucJudgePool\ for the base-model check and \aucRelPool\
-for the relation similarity that the router already uses.
-
-\emph{Threshold.} Raising $\tau$ above the Youden point trades paraphrase accuracy for
-leakage along the curve in Fig.~\ref{fig:tradeoff}. The store contrast and the base-model
-check lie on this curve, so neither adds information beyond the similarity itself. At
-$\tau=\sTheta$, \sCfEthreeRoutedPct\% of the other-relation test prompts are routed, and
-\sCfEthreeLeakBothPct\% leak with adapter and note (\sCfEthreeLeakNotePct\% with the note
-alone). Paraphrase accuracy falls to \sCfParaBothPct\% on CounterFact and
-\sZsParaBothPct\% on zsRE, while edit prompts are unaffected (\sCfEffBothPct\%). Every
-route taken at $\tau=\sTheta$ is also taken at $\tau=0.631$, so the fraction of removed
-facts that return to the base model's answer can only increase. The selection rule that
-we registered before these runs chooses, among the configurations with at most 10\%
-leakage, the one with the highest paraphrase accuracy. It selects adapter and note at
-$\tau=\sTheta$, which was the default until the trained relation encoder described below
-replaced it.
-
-Above $\tau\approx0.72$, almost every routed other-relation prompt leaks, because the
-prompts that remain ask nearly the same question as the stored fact. For 1.3\% of the
-other-relation prompts, CounterFact uses the same template for both relations, for
-example ``X is located in'' for the continent and for the country of a place; these
-prompts account for 11 of the 63 leaking outputs at $\tau=\sTheta$. Most of the others
-are near synonyms, such as ``The location of X is'' and ``X is located in'' or
-``produced by'' and ``a product developed by.'' A router that compares relation texts
-cannot separate such pairs, and for some of them the stored answer also answers the other
-question.
-
-\emph{Relation scorer and generated keys.} Finally, we tried to move the curve itself.
-We compared four frozen sentence encoders, the MiniLM model of router v4,
-all-mpnet-base-v2~\cite{song2020mpnet}, bge-large-en-v1.5~\cite{xiao2024cpack} and
-e5-large-v2~\cite{wang2022e5}, and a cross-encoder trained to detect duplicate questions,
-each with and without generated keys. A generated key is one of three rewrites of the
-edit prompt that the base model produces at write time and that keep the subject; a
-candidate's score is its maximum over the original and the generated keys. On the
-development split, at the threshold that routes 5\% of the CounterFact negatives,
-generated keys raised the fraction of correctly routed paraphrases by three to four
-points for every sentence encoder, the choice of encoder changed it by less, and the
-cross-encoder was the weakest scorer. The selected configuration, all-mpnet-base-v2 with
-generated keys at $\tau=\wTheta$, raised this fraction from 67.7\% to 71.6\%, short of
-the five points we had predicted. On the test sets it answers \wCfParaBothPct\% of the
-CounterFact paraphrases with adapter and note (95\% CI \wCfParaBothCIPct) and leaks into
-\wCfEthreeLeakBothPct\% of the other-relation prompts, which is better on both measures
-than MiniLM at $\tau=\sTheta$ (\sCfParaBothPct\% and \sCfEthreeLeakBothPct\%); on zsRE it
-answers \wZsParaBothPct\% of the paraphrases. We had required 65\% paraphrase accuracy
-for replacing MiniLM, so this configuration was not adopted, although it was the first
-change that moved the trade-off curve.
-
-\input{tables/relsplit}
+We tested eight changes that could reduce leakage into other-relation prompts, each
+registered with a prediction before it was run. Table~\ref{tab:leakage} gives their
+results. Subject-local anchors, a contrast against the store's keys and a check by the
+base model lie on the trade-off curve that the routing threshold gives
+(Fig.~\ref{fig:tradeoff}), so they add nothing beyond the similarity itself. Above
+$\tau\approx0.72$ almost every routed other-relation prompt leaks, because the prompts
+that remain ask nearly the same question as the stored fact. For 15 pairs of CounterFact
+relations the two relations share template text outright, for example ``X is located in''
+for the continent and for the country of a place, so no comparison of texts can separate
+them. Generated keys moved the curve slightly.
 
 \emph{Trained relation encoder.} The general-purpose encoders differ little, and none of
 them was trained to decide whether two questions ask for the same relation. We therefore
-trained all-mpnet-base-v2 once, offline, on triplets of subject-masked relation texts:
-an edit prompt, one of its paraphrases, and a template of another relation, with a
-multiple-negatives ranking loss~\cite{henderson2017efficient} (7500 triplets, one epoch,
-45\,s). The triplets come from 3000 CounterFact and 1500 zsRE facts whose subjects occur
-neither in the development split nor in the test stores, and 11 of the 34 CounterFact
-relations were left out of training entirely. The encoder is then frozen. It belongs to
-the router, not to the store: keys are fixed once computed, and Propositions 1 to 3 hold
-unchanged. With the selection rule above, it routes \xDevTprPct\% of the development
-paraphrases at $\tau=\xTheta$, against 71.6\% for the best frozen configuration. On the
-test sets it answers \xCfParaBothPct\% of the CounterFact paraphrases with adapter and
-note (95\% CI \xCfParaBothCIPct) and leaks into \xCfEthreeLeakBothPct\% of the
-other-relation prompts, and it answers \xZsParaBothPct\% of the zsRE paraphrases. Edit
-prompts, synthetic distractors and zsRE locality questions are unaffected, and removal
-on CounterFact remains complete. Both predictions that we had registered for replacing
-the default held, so this configuration is the default.
+trained all-mpnet-base-v2~\cite{song2020mpnet} once, offline, on triplets of subject-masked
+relation texts: an edit prompt, one of its paraphrases, and a template of another relation,
+with a multiple-negatives ranking loss~\cite{henderson2017efficient} (7500 triplets, one
+epoch, 45\,s). The triplets come from 3000 CounterFact and 1500 zsRE facts whose subjects
+occur neither in the development split nor in the test stores, and 11 of the 34
+CounterFact relations were left out of training entirely. The encoder is then frozen. It
+belongs to the router, not to the store: keys are fixed once computed, and Propositions 1
+to 3 hold unchanged. At $\tau=\xTheta$, set to route 5\% of development negatives, it
+answers \xCfParaBothPct\% of the CounterFact paraphrases with adapter and note (95\% CI
+\xCfParaBothCIPct), leaks into \xCfEthreeLeakBothPct\% of the other-relation prompts, and
+answers \xZsParaBothPct\% of the zsRE paraphrases. Edit prompts, synthetic distractors and
+zsRE locality questions are unaffected. Both predictions registered for replacing the
+default held, so this configuration is the default.
+
+\input{tables/relsplit}
 
 Table~\ref{tab:relsplit} shows where the gain comes from. On relations seen in training,
 \xParaSeenRoutePct\% of the paraphrases are routed to their fact, and leakage falls from
 \xEthreeSeenDefPct\% to \xEthreeSeenLeakPct\%. On held-out relations, paraphrase routing
-still improves, from \xParaHeldDefRoutePct\% to \xParaHeldRoutePct\%, but leakage does
-not fall. The encoder separates the CounterFact relations it was trained on, but not new
-relations from their neighbors. The result therefore applies to a deployment whose
-relations are known in advance, such as a store that follows a fixed schema. For new
-relations, the encoder transfers part of the recall and none of the locality.
-
-\emph{Unseen phrasings.} Table~\ref{tab:relsplit} splits by relation, not by phrasing.
-CounterFact has 218 edit templates, and every seen-relation key of the test store occurs
-verbatim in the training triplets, so the seen-relation figures are in-sample for the
-phrasings. We therefore repeated the training on a split of the relation texts
-themselves, registered before the run. The 2767 subject-masked relation texts of
-CounterFact edit prompts and paraphrases, without the 46 that occur under more than one
-relation, were divided into the texts of the 11 held-out relations and two random halves
-of the others, one for training and calibration and one for testing only. For each of
-three seeds, an encoder was trained and calibrated on the first half and evaluated on a
-new store of 1200 facts: 400 whose key, paraphrase and other-relation prompt are texts of
-the training half, 400 with texts of the test half, and 400 of held-out relations.
-Averaged over the seeds, the encoder routes \tsParaATrainedPct\% of the paraphrases with
-training texts, \tsParaBTrainedPct\% of those with unseen texts of seen relations and
-\tsParaCTrainedPct\% of those of held-out relations, against \tsParaAFrozenPct\%,
-\tsParaBFrozenPct\% and \tsParaCFrozenPct\% for the untrained all-mpnet-base-v2
-calibrated on the same texts. The gain on unseen phrasings is \tsRatioPct\% of the gain
-on seen ones, so routing does not depend on having seen a phrasing; we had predicted the
-opposite. The threshold does depend on it. Set to route 5\% of other-relation prompts on
-training texts, it routes \tsEthreeBTrainedPct\% of them on unseen texts of seen relations
-and \tsEthreeCTrainedPct\% on held-out relations, while the untrained encoder stays at
-\tsEthreeBFrozenPct\% and \tsEthreeCFrozenPct\% (difference in the excess over the
-development rate on unseen texts \tsInflDiff{} points, 95\% CI \tsInflDiffCI). The false
-positive rate of a trained encoder's threshold holds only within the phrasings it was
-calibrated on, and more strictly so than that of a frozen encoder.
-
-\emph{A broader relation inventory.} To test whether training on more relations transfers
-locality to new ones, we trained two further encoders on templates for the 1785
-item-valued Wikidata properties, four per property, written by the base model. Encoder
-A saw none of the 34 CounterFact relations; encoder B added these templates to the
-training data of the encoder above, again without the 11 held-out relations, and was
-selected and evaluated in the same way. Encoder A routes \aCfParaRoutePct\% of the
-CounterFact paraphrases correctly at the 5\% threshold, against \mpCfParaRoutePct\% for
-the untrained all-mpnet-base-v2, so training on other relations transfers in part. The
-gain falls on the 23 relations that the first encoder was trained on
-(\aParaSeenRoutePct\% against \mpParaSeenRoutePct\%), not on the 11 held-out ones
-(\aParaHeldRoutePct\% against \mpParaHeldRoutePct\%). Encoder B behaves like the encoder
-trained on CounterFact alone: on held-out relations it routes \uParaHeldRoutePct\% of the
-paraphrases and leaks into \uHeldLeakPct\% of the prompts that involve them, as before
-(\xHeldLeakPct\%). Three of our four predictions for B failed, and the default is
-unchanged. The held-out relations are hard for a reason that more relations in training
-do not remove. Of the 33 leaking outputs under B that involve a held-out relation, 20
-come from pairs that differ in nuance: country of origin and location of formation,
-original language and language of the work, native and other languages, manufacturer and
-developer, and location and administrative location. Where two relations differ in this
-way, the boundary between them has to be learned from examples of that pair.
-
-\emph{Negative keys.} Such examples could come from the base model at write time. For
-each fact, the base model wrote five questions about the same subject that ask for
-different but related information, and the router accepted a route only if the query was
-closer to the fact's keys than to these negative keys by a margin calibrated on the
-development split. The calibration gave the same development TPR with and without the
-negative keys, and on the test set the routed fraction of other-relation prompts that
-involve a held-out relation stayed at 5.9\%. The generated questions mostly ask for
-unrelated attributes, such as a founding year or notable people, and rarely for the
-neighboring relation that a query actually confuses; some even restate the stored
-question. Since the routes differed from the trained encoder's only through the threshold,
-we did not run the end-to-end evaluation that we had registered.
+improves from \xParaHeldDefRoutePct\% to \xParaHeldRoutePct\%, but leakage does not fall. A
+registered split of the relation texts themselves shows that routing does not depend on having
+seen a phrasing: over three seeds the encoder routes \tsParaATrainedPct\% of paraphrases with
+training texts, \tsParaBTrainedPct\% with unseen texts of seen relations and
+\tsParaCTrainedPct\% of held-out relations, against \tsParaAFrozenPct\%, \tsParaBFrozenPct\% and
+\tsParaCFrozenPct\% for the untrained encoder. The threshold does depend on it: set to route 5\% of
+other-relation prompts on training texts, it routes \tsEthreeBTrainedPct\% on unseen texts and
+\tsEthreeCTrainedPct\% on held-out relations.
 
 \emph{Questions written by another model.} The other-relation prompts above are CounterFact
-templates, which pair the stored relation with a uniformly drawn other one. We therefore
-had SmolLM3-3B, a model of another family, write one natural question per stored
-CounterFact fact that asks for another relation of its subject: for half of the facts a
-near neighbor of the stored relation (the pairs listed above), for the other half a
-relation drawn uniformly from the rest (registered before the run; \nqN{} questions
-contain the subject). The default router routes \nqUniformRoutedPct\% of the questions
-about unrelated relations but \nqNearRoutedPct\% of those about neighboring relations, and
-with adapter and note \nqNearLeakPct\% of the latter contain the stored answer
-(\nqLeakPct\% of all questions, against \xCfEthreeLeakBothPct\% for the templates). The
-frozen all-mpnet-base-v2 routes \nqFrozenNearRoutedPct\% of the neighbor questions, on
-other pairs. The leakage figure for templates therefore reflects how CounterFact pairs
-relations; for questions about neighboring relations the default router serves the stored
-answer about every third time. Many of these outputs are correct, because neighboring
-relations coincide for the subjects involved, such as the country in which a band was
-created and the place where it was formed, or the original language of a film and the
-language of the work. We labeled the \nqLabelled{} sampled outputs of the default router
-that the automatic rule counts as leakage, without seeing which router had served them;
-the labels were made by the language model used in the analysis, not by a human
-annotator. Of the outputs with a clear verdict, \nqLegitSharePct\% give a correct answer,
-which puts leakage at \nqNearLeakCorrPct\% for questions about neighboring relations and
-\nqLeakCorrPct\% overall. Most of the remaining leaks give an answer of the wrong type,
-such as a continent for a country or a city for a country of origin.
+templates, which pair the stored relation with a uniformly drawn other one. We therefore had
+SmolLM3-3B, a model of another family, write one natural question per stored CounterFact
+fact that asks for another relation of its subject: for half of the facts a near neighbor of
+the stored relation, for the other half a relation drawn uniformly from the rest (\nqN{}
+questions contain the subject). The default router routes \nqUniformRoutedPct\% of the
+questions about unrelated relations but \nqNearRoutedPct\% of those about neighboring
+relations, and with adapter and note \nqNearLeakPct\% of the latter contain the stored answer.
+Many of these outputs are correct, because neighboring relations coincide for the subjects
+involved. We labeled the \nqLabelled{} sampled outputs that the automatic rule counts as
+leakage, without seeing which router had served them; the labels were made by the language
+model used in the analysis, not by a human annotator. Of the outputs with a clear verdict,
+\nqLegitSharePct\% give a correct answer, which puts leakage at \nqNearLeakCorrPct\% for questions
+about neighboring relations and \nqLeakCorrPct\% overall. Most of the remaining leaks give an
+answer of the wrong type, such as a continent for a country.
 
 \subsection{Comparison with Editing Methods}
 
@@ -935,50 +698,6 @@ prompts of at most 0.007 (Table~\ref{tab:capacity}), and its paraphrase accuracy
 facts that the base model does not answer, and removing one of its facts requires
 retraining the group. Grouping is therefore an alternative to the tiered store for
 reducing storage, at the cost of coarser removal and some leakage.
-
-% ===========================================================================
-\section{Extensions}
-\label{sec:loop}
-
-This section reports smaller experiments with the first version on three questions that
-arise during deployment: which facts should receive adapters, how updates behave across
-sessions, and whether the approach applies to a vision-language model.
-Table~\ref{tab:loop} summarizes the results. The experiments are exploratory and
-involve few facts.
-
-\input{tables/living_loop}
-
-\subsection{Choosing Which Facts to Store as Adapters}
-We combined adapters with a retrieval memory of notes and used a controller to decide
-when a fact should receive an adapter. The stream contains 6 facts that are queried three
-times and 12 that are queried once. A rule that gives an adapter to every fact queried at
-least twice created 6 adapters and answered 16 of 18 facts; the two failures were facts
-queried only once on which retrieval fails. Bandit controllers that decide before the
-query is answered performed poorly. The $\epsilon$-greedy controller never created an
-adapter, and UCB1~\cite{auer2002ucb} created 17. In this setting the controller never
-observes whether retrieval would have answered correctly. A controller that first
-answers with retrieval and decides only after an incorrect answer created the three
-adapters that retrieval needed and answered all 18. The tiered policy of
-Section~\ref{sec:tiered} applies the same principle at write time.
-
-\subsection{Updates Across Sessions}
-On a stream with corrections and removal requests over two sessions, the combined
-system applied updates (a removal followed by the addition of the corrected fact) and
-removals, kept its two adapters across the session boundary, and answered all 17
-remaining facts in the second session. In a separate run that applies an update to a
-stored adapter, removing the updated adapter restored the hash of the empty store.
-
-\subsection{Vision-Language Model}
-We applied the same store to Qwen3-VL-2B~\cite{qwen2025qwen3vl}, with keys computed
-from CLIP image embeddings~\cite{radford2021clip}, which separated our synthetic scenes
-better than DINOv2~\cite{oquab2024dinov2}. Two facts keyed by images were answered,
-distractor images were not routed, an adapter trained to change a canary answer was
-rejected at $D=23.9$, updates and removals behaved as on text, and a saved store
-reloaded with the same hash. An adapter trained only on the question and answer produced
-the answer for any image. Adding training pairs that map the same question on other
-images to ``I don't know'' made the adapter respond only to its own scene and to three
-perturbed versions of it, the principle behind the subject-local anchors of
-Section~\ref{sec:leak}.
 
 % ===========================================================================
 \section{Discussion and Limitations}
@@ -1037,15 +756,20 @@ against \asRtwoD{}), while their divergence on the two training canaries stayed 
 \rfInMax{}. The KL anchor constrains the intervention only on the two prompts it is
 computed on, whereas the intervened positions produce the answer to every query.
 
+\emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
+fact from note to adapter, on updates across sessions and on a vision-language model are
+recorded in the repository. They suggest directions but are too small to report as results
+next to the 1000-fact evaluation.
+
 \emph{Scope.} The evaluation uses one base model, one hardware setup, single-token
 targets, substring scoring and synthetic distractor names. zsRE is used with reference
 answers rather than counterfactual targets. The editing baselines use 200 facts. The saved
 stores identify the base model by name and not by a hash of its weights. The extension
 experiments are exploratory.
 
-\emph{Errors during the study.} Besides the evaluation error of Section~\ref{sec:v3}, the
-record contains an initialization that set both LoRA factors to zero so that the
-vision-language adapters did not train, a leakage check for grouped adapters that drew
+\emph{Errors during the study.} Besides the evaluation error of Appendix~\ref{sec:v3}, the
+record contains an initialization that set both LoRA factors to zero so that some
+adapters did not train, a leakage check for grouped adapters that drew
 held-out facts from inside the training group, a grouped run whose result depended on the
 position in the random number stream, an instability of LoRA+ for grouped adapters,
 and the choice of LoRA+ for single-fact adapters on the in-sample check, which the
@@ -1089,7 +813,82 @@ version control and will be released separately.
 \input{tables/hparams}
 \input{tables/delta_recipes}
 
+\section{The First Version and Its Failures}
+\label{sec:v3}
+
+\input{tables/guarantees}
+
+The first version differed from the system of Section~\ref{sec:method} in three ways.
+Its router compared the sentence embedding of the whole query with that of the whole edit
+prompt, and its entity filter accepted a candidate if a single token of four or more
+characters matched approximately. Facts were served by adapters only. The divergence
+check used the two anchor prompts of the KL term with $\kappa=2.0$.
+Table~\ref{tab:guarantees} reports its results at $N=1000$.
+
+\subsection{What Held}
+The first version answered \cfEffPct\% and \zsEffPct\% of the edit prompts, the outputs
+for \cfNoLeakPct\% and \zsNoLeakPct\% of synthetic distractors contained no stored answer,
+\cfRetainPct\% and \zsRetainPct\% of the facts were retained after 100 removals, and
+leave-one-out attribution was 100\% for 100 CounterFact facts with an unchanged state
+hash. On CounterFact, \cfReturnPct\% of the removed facts returned to the base model's
+answer. A retrieval baseline instructed to follow its context answered 83.7\% of the
+CounterFact edit prompts (Fig.~\ref{fig:scaling}).
+
+\input{figures/scaling}
+
+\subsection{What Failed}
+Three results contradicted the claims we had made for this version.
+
+\emph{Paraphrases.} CounterFact paraphrase accuracy was \cfParaPct\%. The adapters
+themselves generalize: served directly, they answered 86\% to 90\% of the paraphrases.
+The router sent only 36\% of paraphrases to an adapter, and all 636 others passed the
+entity filter and fell below the similarity threshold (median similarity 0.53 against
+$\tau=0.656$). CounterFact paraphrase prompts begin with an unrelated sentence, for
+example ``In 1978 her father suffered a heart attack and died. The original language of
+Vishwaroopam was,'' which pulls the embedding of the whole query away from the key. On
+the 362 paraphrases that did reach the correct adapter, the adapter answered 86.5\% and
+instructed retrieval 81.8\%, a paired difference of 4.7 percentage points (95\% CI $-0.3$
+to 9.7). The advantage over retrieval was therefore established only on the prompts the
+adapters were trained on.
+
+\emph{Locality.} The synthetic distractors were the easiest case. Other questions about
+a stored subject passed the entity filter by construction and exceeded the threshold in
+78.2\% of cases, and 34.6\% of their outputs contained the stored answer
+(Table~\ref{tab:locality}). Neighborhood prompts were routed in 9.8\% of cases, all
+through a single shared token such as ``Jean'' in ``Jean-Baptiste Say'' and ``Jean
+Galland.'' Every query that was not routed received exactly the base model's output, and
+nearly every routed one did not, so locality equaled the router's abstention rate.
+
+\emph{Divergence check.} No adapter came close to $\kappa=2.0$ (maximum 0.092 over 2000
+additions), because the check used the two prompts the KL term trains on. Section~\ref{sec:check}
+shows that this measure understates the effect of an adapter seventeen-fold.
+
+\subsection{Diagnosis}
+The first two failures have one cause. Comparing whole queries mixes the subject, which
+the entity filter already handles, with the relation, which the similarity should judge.
+A leading sentence lowers the similarity of a correct paraphrase, while a question about
+another relation of the same subject keeps a high similarity because the subject tokens
+dominate the shared part. Matching single tokens lets unrelated subjects with a common
+first name enter the candidate set. The revised router of Section~\ref{sec:router}
+addresses these points directly: it requires the complete subject, restricts the query
+to the clause that contains it, removes the subject from both texts before comparing,
+and calibrates $\tau$ on negatives of the kind that failed.
+
+We also found an error in our evaluation script while preparing this analysis. It served
+an edit prompt with its own adapter whenever the router selected any adapter. All numbers
+in this paper come from a re-evaluation of the saved adapters that uses the router's
+actual selection; the error had changed efficacy by at most 0.2 percentage points.
+
+\input{tables/locality}
+
+\section{Design Decisions from the Exploratory Phase}
+\label{sec:lessons}
+
+The adapter design came from small experiments, each registered before it was run.
+Table~\ref{tab:lessons} lists the measurement behind each choice.
+
+\input{tables/design_lessons}
+
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEctl,refs}
-
 \end{document}

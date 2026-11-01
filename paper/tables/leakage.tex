@@ -1,38 +1,26 @@
-% Attempts to reduce leakage into other questions about stored subjects (SS70-74).
+% Attempts to reduce leakage into other-relation prompts (SS67, SS70 to SS78).
 \begin{table}[t]
 \centering
-\caption{Attempts to reduce leakage into other-relation prompts on CounterFact. Each row
-reports paraphrase accuracy and leakage for the same serving arm; the first block uses
-all 1000 facts, the last row the first 200, compared with their original adapters.}
+\caption{Attempts to reduce leakage into other-relation prompts on CounterFact, with adapter
+and note served together. The row of subject-local anchors uses the first 200 facts, against their
+original adapters.}
 \label{tab:leakage}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{llcc}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.0cm}ccl}
 \toprule
-Change & Arm & Paraphrase & Leakage \\
+Change (entry) & Paraphrase & Leakage & Outcome \\
 \midrule
-None (router v4, $\tau=0.631$) & adapter & $\vCfPara$ & $\vCfEthreeLeakAdapter$ \\
- & note & $\vCfParaRet$ & $0.140$ \\
- & both & $\vCfParaBoth$ & $\vCfEthreeLeakBoth$ \\
- & tiered & $\vCfTierPara$ & $\vCfEthreeLeakTiered$ \\
-Store contrast & both & $0.764$ & $0.177$ \\
-Base-model check & both & $0.798$ & $0.232$ \\
-Threshold $\tau=\sTheta$ & adapter & $\sCfPara$ & $\sCfEthreeLeakAdapter$ \\
- & note & $\sCfParaRet$ & $\sCfEthreeLeakNote$ \\
- & both & $\sCfParaBoth$ & $\sCfEthreeLeakBoth$ \\
- & tiered & $\sCfParaTier$ & $\sCfEthreeLeakTiered$ \\
-Generated keys, mpnet, & adapter & $\wCfPara$ & $\wCfEthreeLeakAdapter$ \\
-\quad $\tau=\wTheta$ & note & $\wCfParaRet$ & $\wCfEthreeLeakNote$ \\
- & both & $\wCfParaBoth$ & $\wCfEthreeLeakBoth$ \\
- & tiered & $\wCfParaTier$ & $\wCfEthreeLeakTiered$ \\
-Trained relation & adapter & $\xCfPara$ & $\xCfEthreeLeakAdapter$ \\
-\quad encoder, $\tau=\xTheta$ & note & $\xCfParaRet$ & $\xCfEthreeLeakNote$ \\
- & both & $\xCfParaBoth$ & $\xCfEthreeLeakBoth$ \\
- & tiered & $\xCfParaTier$ & $\xCfEthreeLeakTiered$ \\
-\midrule
-Subject-local anchors (200) & adapter & $0.690\to0.550$ & $0.160\to0.090$ \\
- & both & $0.805\to0.805$ & $0.200\to0.185$ \\
+None, router v4, $\tau=0.631$ (67) & $\vCfParaBoth$ & $\vCfEthreeLeakBoth$ & starting point \\
+Subject-local anchors (70) & $0.805\to0.805$ & $0.200\to0.185$ & efficacy $1.00\to0.93$ \\
+Store contrast (72) & $0.764$ & $0.177$ & on the threshold curve \\
+Base-model check (73) & $0.798$ & $0.232$ & on the threshold curve \\
+Threshold $\tau=\sTheta$ (74) & $\sCfParaBoth$ & $\sCfEthreeLeakBoth$ & sets the trade-off \\
+Generated keys, mpnet, $\tau=\wTheta$ (75) & $\wCfParaBoth$ & $\wCfEthreeLeakBoth$ & small shift, not adopted \\
+Trained relation encoder, $\tau=\xTheta$ (76) & $\xCfParaBoth$ & $\xCfEthreeLeakBoth$ & adopted \\
+1785 Wikidata relations in training (77) & \multicolumn{2}{c}{held-out leak $\uHeldLeakPct\%$} & no change on new relations \\
+Negative keys per fact (78) & \multicolumn{2}{c}{held-out routed $5.9\%$} & no change \\
 \bottomrule
 \end{tabular}}
 \end{table}

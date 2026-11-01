@@ -2888,3 +2888,28 @@ Predictions. P1 failed on the value (0.7968, not near 0.90), held on the failure
 Reading. Most of the near-neighbour routing lies just above the global threshold, in a few relations. Limits: R needs a relation identifier on the entry, which zsRE
 does not have, so R equals the global threshold there; about half of the automatic near-neighbour leaks are legitimate answers, so part of the fall is lost correct
 answers, and the corrected reading awaits the labels of SS102. The thresholds come from questions written by one generator model.
+
+## 110. Hard negatives from a confusion matrix (pinned 2026-11-01, before the run)
+
+Question. The remaining leakage comes from particular relation pairs (country of origin against location of formation, manufacturer
+against developer). SS76 trained on negatives from a random other relation, SS77 on a broad inventory and SS78 used write-time negative
+keys. None drew its negatives from where the encoder actually confuses relations. Does that help?
+
+Method. confirm/mine_confusions.py: with the SS76 encoder, for every pair of CounterFact relations, the share of pairs of their templates (subject
+masked) that score at or above 0.7501. Pairs with identical template text across two relations cannot be separated by any encoder on text alone;
+they are excluded from mining and counted. Each relation gets its up to 3 most confused partners with share >= 0.05. Only template text is used, no test
+fact and no natural question. confirm/train_relation_encoder.py --hard: the SS76 recipe (same seed, base and subject exclusions), with the negative drawn
+from a confused partner with probability 0.5 where a partner exists.
+
+Arms. hardA: the 11 relations held out in SS76 stay held out, and partners are limited to training relations. hardB: every relation is trained on, as a deployment that
+knows its relation schema would do; generalisation to unseen relations is then not measured. Baseline: the SS76 encoder. Each encoder's threshold is fixed on the dev split at
+CounterFact false-positive rate 5% (router_v7_select.py procedure). Runner: confirm/hardneg_eval.py, routing only; an adopted encoder gets a full serving
+evaluation under a later entry.
+
+Readings, paired with the baseline. Natural near and uniform questions routed; E3 routed; edit-prompt and paraphrase route accuracy on both stores.
+
+Decision rule. An arm replaces the baseline if (i) natural near routed falls by at least 0.05, upper end of the one-sided 95% interval below 0; (ii) paraphrase route accuracy on
+both stores is non-inferior at margin 0.02; (iii) E3 routed is no higher by more than 0.01 at the upper end of the one-sided 95% interval. If both pass, hardA, which keeps the held-out test of generalisation.
+
+Predictions. P1: identical template text exists across several pairs (P495 and P740 score 1.0), which sets a floor no encoder can pass on templates alone. P2: hardB lowers near routed by 0.03 to 0.10 and hardA by
+less, since the most confused pairs may lie among held-out relations. P3: hardB passes (ii) and hardA is close to the limit. Overall: at most one arm passes.

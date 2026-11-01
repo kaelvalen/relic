@@ -290,8 +290,12 @@ def read(facts, routes, notes, state):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--arm", choices=sorted(ARMS), required=True)
+    ap.add_argument(
+        "--smoke", action="store_true", help="3 facts per dataset, discarded"
+    )
     args = ap.parse_args(argv)
-    OUT.mkdir(exist_ok=True)
+    out = OUT / "smoke" if args.smoke else OUT
+    out.mkdir(parents=True, exist_ok=True)
     arm = Arm(args.arm)
     report = {
         "prereg": "SS98",
@@ -309,11 +313,18 @@ def main(argv=None):
             r["fact_id"]: {k: r[k]["route_fact_id"] for k in ("probe", "paraphrase")}
             for r in saved["examples"]["serving"]
         }
-        path = OUT / f"{args.arm}_{tag}"
+        if args.smoke:
+            facts = facts[:3]
+            kept = {f["id"] for f in facts}
+            routes = {
+                fid: {k: (r if r in kept else None) for k, r in by_kind.items()}
+                for fid, by_kind in routes.items()
+            }
+        path = out / f"{args.arm}_{tag}"
         notes = notes_phase(
             arm, dataset, facts, routes, path.with_suffix(".notes.json")
         )
-        if args.arm == "q15":
+        if args.arm == "q15" and not args.smoke:
             same = sum(
                 notes[r["fact_id"]][f"note_{k}"] == r[k]["responses"]["retrieval"]
                 for r in saved["examples"]["serving"]
@@ -325,10 +336,10 @@ def main(argv=None):
         report["datasets"][dataset] = read(facts, routes, notes, state)
         print(args.arm, dataset, json.dumps(report["datasets"][dataset]), flush=True)
     report["memory_mb"] = round(torch.cuda.max_memory_allocated() / 2**20)
-    (OUT / f"{args.arm}.json").write_text(
+    (out / f"{args.arm}.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=1)
     )
-    print("saved", OUT / f"{args.arm}.json", flush=True)
+    print("saved", out / f"{args.arm}.json", flush=True)
 
 
 if __name__ == "__main__":

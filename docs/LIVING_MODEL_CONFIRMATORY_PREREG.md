@@ -2769,3 +2769,38 @@ Predictions. P1: zsRE return 0.97 to 1.00; the band between the thresholds is wh
 is impossible, so any survivor is a route the same-subject scan misses, for instance when the query's best key is a phrasing
 added later. P2: fresh residual-route share under 0.03. P3: at most 2 CounterFact merges across relation identifiers: a same-answer
 pair in two relations of one subject is rare. A wrong merge of this kind costs a removal that takes both facts, reported as such.
+
+## 105. Aliases, pronouns and short conversations (pinned 2026-11-01, before the run)
+
+Question. The default router needs the stored subject in the query, so "Obama" and "Barack Obama" are different
+subjects and a pronoun routes nowhere. Real use is conversation. (The earlier figure of 0.10 for pronouns, router_stress,
+is the semantic-only argmax on the nonce set; with the entity gate pronoun routing was 0.) Do Wikidata aliases and a
+history-based pronoun rewrite recover these queries, and what do they cost in false routes?
+
+Method. Aliases from Wikidata (confirm/fetch_aliases.py, by Wikipedia title, then by exact English label), filtered by
+usable_aliases (at least 4 characters and a capital or digit). relic.router.resolve_reference rewrites the query's first
+pronoun with the last stored subject named in the conversation, and does not rewrite if a later turn names someone
+unstored. Runner: confirm/alias_eval.py with the default router (relation encoder, theta 0.7501). Routing is measured
+without the language model, and answers with `--serve`, on the rank-16 stores.
+
+Query sets, per dataset. A1, A2: edit prompt and paraphrase with the subject replaced by one alias drawn with seed 105, for
+facts with a usable alias that does not contain the subject. C1: edit prompt and paraphrase with the subject replaced by a
+pronoun ("it", or "its" after a possessive), after the turn "Tell me about {subject}." C4: the same with two filler turns in
+between. False-route sets: F1: E3 other-relation prompts of CounterFact, with aliases available, and F1a with an alias in the
+prompt. F2: the synthetic distractors. F3: the 1000 MMLU and ARC prompts of SS101. F4: the 993 SmolLM3 natural questions of
+SS85. C2: pronoun query after the subject turn, with a later turn naming an unstored subject: the rewrite should not fire. C3:
+E3 prompts with a pronoun after the subject turn. A route is correct if it reaches an entry with the fact's subject and answer.
+
+The pronoun queries are built by substitution, not from recorded conversations; this tests the mechanism, not the variety of
+real dialogue. That limit stays in the paper.
+
+Decision rule. Aliases and the rewrite become the default if all hold. (i) A1 route accuracy with aliases exceeds the accuracy
+without by at least 0.20, at the lower end of the one-sided 95% interval, on both datasets. (ii) No new false routes:
+paired difference (with minus without) of the routed share on F1 and F4, upper end of the one-sided 95% interval, <= 0.01; F2
+stays at 0; F3 routed share <= 0.01. (iii) C1 route accuracy on edit prompts >= 0.60. (iv) C2 routed share <= 0.05, and C3
+routed share no more than 0.02 above the F1 share without aliases.
+
+Predictions. P1: 40% to 60% of subjects have a usable alias. P2: A1 without aliases 0.05 to 0.25 (near-spellings still match),
+with aliases 0.80 to 0.95. P3: F4 rises by under 0.5 points; F1 unchanged, since an alias adds a name and not a relation. P4:
+C1 is about 0.95 on edit prompts, because the rewrite restores the original text except for pronoun and possessive form, and
+about 0.85 on paraphrases, since CounterFact paraphrases carry a leading unrelated sentence. P5: C2 at most 0.02. P6: C3 is about the F1 rate.

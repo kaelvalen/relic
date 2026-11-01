@@ -143,6 +143,21 @@ _POSSESSIVE = {"his", "hers", "its", "their", "theirs"}
 _NAME = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][\w-]+")
 
 
+def _named_entries(text: str, router) -> list[int]:
+    """Entries whose subject or alias `text` spells out; a near-spelling is not a mention.
+
+    No relation check follows a rewrite's choice of subject, so the approximate match
+    that route() can afford would turn the word "more" into the alias "Morven" here.
+    """
+    candidates, spans = router.candidates(text)
+    tn = normalize(text)
+    return [
+        i
+        for i, (start, end) in zip(candidates, spans)
+        if tn[start:end] in router._by_subject
+    ]
+
+
 def resolve_reference(query: str, history, router) -> str:
     """Replace the query's pronoun with the stored subject the conversation is about.
 
@@ -154,13 +169,13 @@ def resolve_reference(query: str, history, router) -> str:
     this misreads questions about two entities at once; a coreference model would
     handle those.
     """
-    if router.candidates(query)[0]:
+    if _named_entries(query, router):
         return query
     found = _PRONOUN.search(query)
     if found is None:
         return query
     for turn in reversed(list(history)):
-        candidates, _ = router.candidates(turn)
+        candidates = _named_entries(turn, router)
         if candidates:
             subject = router.subjects[candidates[0]]
             word = found.group(1).lower()

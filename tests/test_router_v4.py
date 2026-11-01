@@ -282,6 +282,21 @@ def test_pronoun_resolves_to_the_last_stored_subject():
     )
 
 
+def test_a_near_spelling_in_the_history_is_not_a_mention():
+    from relic.router import resolve_reference
+
+    router = _v7([{**OBAMA, "aliases": ["Morven"]}])
+    q = "What is his mother tongue?"
+    # "more" is within edit distance 2 of the alias, as a real store showed
+    assert resolve_reference(q, ["Can you say more?"], router) == q
+    assert resolve_reference(q, ["Tell me about Morven."], router) == (
+        "What is Barack Obama's mother tongue?"
+    )
+    assert resolve_reference(
+        q, ["Tell me about Barack Obama.", "Can you say more?"], router
+    ) == ("What is Barack Obama's mother tongue?")
+
+
 def test_pronoun_is_left_alone_when_nothing_safe_resolves_it():
     from relic.router import resolve_reference
 

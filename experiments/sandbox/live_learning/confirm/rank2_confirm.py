@@ -23,14 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
-from adapter_size import (  # noqa: E402
-    KAPPA,
-    make_variant,
-    mean_d,
-    round_to,
-    set_delta,
-    train_one,
-)
+from adapter_size import KAPPA, mean_d  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 from locality_eval import paired_diff_ci  # noqa: E402
@@ -42,6 +35,7 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
+from relic.adapters import make_variant, round_to, set_delta, train_one  # noqa: E402
 from relic.ledger import CANARIES, DeltaStore  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.model import chat, load_model  # noqa: E402

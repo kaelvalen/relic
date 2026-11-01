@@ -2804,3 +2804,50 @@ Predictions. P1: 40% to 60% of subjects have a usable alias. P2: A1 without alia
 with aliases 0.80 to 0.95. P3: F4 rises by under 0.5 points; F1 unchanged, since an alias adds a name and not a relation. P4:
 C1 is about 0.95 on edit prompts, because the rewrite restores the original text except for pronoun and possessive form, and
 about 0.85 on paraphrases, since CounterFact paraphrases carry a leading unrelated sentence. P5: C2 at most 0.02. P6: C3 is about the F1 rate.
+
+## 106. A three-tier gate (pinned 2026-11-01, before the analysis; uses saved outputs)
+
+Question. The router applies an entry or nothing. Saved outputs suggest that the note does less harm than the adapter on
+queries it should not answer (natural near-neighbour questions: leak 0.19 with the note, 0.288 with adapter and note). Would a
+middle tier, the note alone, soften the trade-off between leakage and misses?
+
+Policies, by the router's score s. Current: s >= 0.7501 adapter and note, else base. Upper band U(t): s >= t adapter and note;
+0.7501 <= s < t note alone; else base. t is fixed on the dev split as the threshold with CounterFact false-positive rate 2%
+(U2) and 1% (U1). Lower band L: s >= 0.7501 adapter and note; t10 <= s < 0.7501 note alone; else base, with t10 the threshold at dev
+false-positive rate 10%. Runner: confirm/tier_gate.py. U1 and U2 need only saved outputs of the SS76 and SS85 evaluations. L needs
+new note answers for queries in its band, served by `--serve`.
+
+Readings, per policy and paired with Current. Edit prompts and paraphrases on both datasets, substring and word boundary; E3 and E2
+leak on CounterFact; zsRE loc same-as-base; natural near and natural uniform leak_target; share of queries per tier. SS100 gives the
+cost of a wrong route per arm.
+
+Decision rule. A policy is adopted if (i) natural near-neighbour leak falls, with the upper end of the one-sided 95% interval of the
+paired difference below 0, by at least 0.03 in the mean; (ii) paraphrase and edit-prompt reading on both datasets are non-inferior at
+margin 0.01. If several pass, the one with the largest fall in leak. Otherwise the two-tier gate stays.
+
+Predictions. P1: U2 lowers near-neighbour leak by 0.03 to 0.08. P2: U2 fails (ii) on CounterFact paraphrases: the note alone answers
+0.68 of them against 0.89 with the adapter, and many paraphrases score in the band. So the gate trades as much as it gains, and the
+rule rejects it. P3: L raises paraphrases by under 0.02 and raises near-neighbour leak; it fails (i).
+
+## 107. Threshold calibration outside the calibrated phrasings (pinned 2026-11-01, before the analysis; no language model)
+
+Question. Theta 0.7501 gives a 5% false-positive rate on the dev templates. SS82 found 7.5% to 11% off-template, and on natural
+near-neighbour questions 31% are routed. Do per-relation thresholds or calibration on natural questions fix this?
+
+Arms. Global 0.7501. N: one global threshold at 5% on natural calibration questions. R: per-relation thresholds max(0.7501, the 95th
+percentile of the natural calibration questions whose stored entry has that relation), for relations with at least 20 calibration
+questions, else 0.7501. Calibration half: natural_e3 queries split in two by subject with seed 107; the test half is untouched. zsRE records
+have no relation identifier, so R applies 0.7501 there; this is a limit of per-relation thresholds on zsRE. Runner: confirm/tau_calib.py,
+default relation encoder.
+
+Readings on the test half and the stores. Routed share on natural near and uniform questions; route accuracy on edit prompts and paraphrases
+of both stores (a change in routing changes serving only through this); E3 routed share; automatic leak on routed test-half questions from
+saved outputs. Roughly half of the sampled automatic near-neighbour leaks are labelled legitimate (SS91), so a lower routed share on those
+questions costs correct answers too. The corrected reading using SS91 labels is reported where labels exist.
+
+Decision rule. An arm replaces 0.7501 if (i) routed share on natural near test questions falls by at least 0.10, paired, upper end of the
+one-sided 95% interval below 0; (ii) paraphrase route accuracy on both stores non-inferior at margin 0.02. If both arms pass, the larger fall.
+
+Predictions. P1: N sets a threshold near 0.90 and fails (ii): the natural near-neighbour scores overlap the paraphrase scores (SS85). P2: R
+passes (i) with a smaller fall, about 0.10 to 0.15, and is borderline on (ii) on CounterFact. P3: neither reaches a near-neighbour routed
+share under 0.10. The boundary for these relations is not a matter of threshold, as SS77 and SS78 already suggest.

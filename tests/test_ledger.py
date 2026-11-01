@@ -81,6 +81,22 @@ def test_same_slot_other_answer_replaces_the_entry():
     assert [e["action"] for e in led.log] == ["insert", "update"]
 
 
+def test_same_answer_merges_below_the_threshold_for_replacing():
+    class Band(TableScorer):
+        def sims(self, query, keys):
+            return [0.8 for _ in keys]
+
+    led = make_ledger()
+    led.scorer, led.duplicate_theta = Band(), 0.75
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
+    # 0.8 is enough to merge the same answer, and not enough to replace with another
+    same = led.commit(fact("b", "Ann", "The birthplace of Ann is", "Oslo"))
+    assert same["action"] == "duplicate" and same["entry"] == "a"
+    other = led.commit(fact("c", "Ann", "The birthplace of Ann is", "Rome"))
+    assert other["action"] == "insert"
+    assert sorted(led.entries) == ["a", "c"]
+
+
 def test_a_write_under_an_alias_finds_the_slot_of_the_full_name():
     led = make_ledger()
     full = fact("a", "Ann Lee", "Ann Lee was born in", "Oslo")

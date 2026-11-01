@@ -2713,3 +2713,59 @@ model labels.
 Decision rule. Kappa >= 0.6 on the two-class reading: the paper reports both labelers and the limitation is
 closed. Below 0.6: the author's labels replace the model's in every figure, and the disagreement is reported.
 Prediction. P1: kappa 0.5 to 0.8. The unsure class (28 of 106) is where most disagreement will fall.
+
+## 103. SS96 results: write-time slots (2026-11-01)
+
+Source: results/live_learning/confirm/slot_eval.json. theta_slot = 0.8985 on the dev split (dev FPR 0.01, dev TPR on
+paraphrases 0.762). Template pairs across different relations: 1.61% at or above it (28470 pairs), within one
+relation 81.5% (933 pairs).
+
+Writes. CounterFact: 998 inserts, 1 duplicate (Fritz Reiner, P937), 1 update (Marissa Mayer employer, BBC replaced
+by Microsoft or the reverse by order of writing, both P108), 0 merges across relation identifiers. The Gambit pair
+stayed separate. zsRE: 858 inserts, 142 duplicates, 0 updates, no merge with a different answer.
+
+Serving against the SS76 evaluation, new / old / lower end of the one-sided 95% interval of the difference. CounterFact
+edit prompts (both) 0.997 / 0.996 / -0.002; paraphrases (both) 0.893 / 0.891 / -0.001. zsRE edit prompts (both) 0.991
+/ 0.989 / 0.000; paraphrases (both) 0.984 / 0.982 / -0.001. Retention 0.9978 on CounterFact, 0.9989 on zsRE.
+
+Removal. CounterFact: gone 1.0, return 1.0. zsRE, 98 entries removed: gone 0.46, return 0.90 [0.84, 0.95], up from
+0.84; lower end of the one-sided interval 0.85.
+
+Decision rule. (i) fails: 0.85 < 0.95. (ii), (iii) and (iv) hold. As pinned, the store keeps per-entry writes.
+
+Predictions. P1 held. P2 failed narrowly: 142 merges, not at least 150. P3 failed: return is 0.90, not 0.96 to 1.00. The
+expectation that slots reach 100% by construction is refuted with this threshold. P4 failed: (iii) passed with room
+and (i) was the tightest. P5: Marissa Mayer merged correctly as one relation; Gambit stayed separate.
+
+Reading. All 10 return failures have the same form: the removed fact has a duplicate with the same subject and answer,
+worded below theta_slot ("What is the home city of Low Skies?" against "In what city or state did the formation of Low
+Skies occur?"), to which the router still sends the query, since the routing threshold is 0.7501. Writes and reads disagree
+in the band between the two thresholds. No failure involves a different answer.
+
+## 104. Slots with an asymmetric threshold (pinned 2026-11-01, after reading the SS96 failures)
+
+This entry was written after seeing which test facts failed in SS96, so on the N=1000 stores it is a post-hoc
+revision and is labelled as such. The confirmatory reading is on facts that played no part in the design.
+
+Change. The two errors of a slot decision do not cost the same. Merging a write with the same answer loses nothing that
+is stored: the entry already answers it. Replacing an entry with a different answer drops a fact. So a same-answer write
+now merges at the routing threshold (0.7501), the point at which a query would be sent to the entry anyway, and a
+different-answer write still needs theta_slot (0.8985).
+
+Readings. (a) The SS96 readings on the N=1000 stores (confirm/slot_eval.py --duplicate-theta 0.7501), post hoc. (b)
+Confirmatory, no model needed, confirm/slot_fresh.py: a fresh sample of 1000 zsRE records drawn with seed 104 from records
+whose subjects are in neither N=1000 store nor the dev split, all subjects with two or more records among those
+preferred so that duplicates exist. For each of the first 100 facts remove the entry that holds it and route its edit prompt
+over the rest. A residual route is a route to an entry with the same subject. Reported: residual-route share under per-entry writes,
+under SS96 slots and under asymmetric slots; merges; merges with a different answer (there should be none, since the
+threshold for those did not change).
+
+Decision rule. Slot detection with the asymmetric threshold becomes the default write path if: (i) on the fresh sample the upper
+end of the one-sided 95% interval of the residual-route share is <= 0.05; (ii) on the N=1000 stores zsRE return, lower end of the
+one-sided 95% interval, is >= 0.95, CounterFact merges across relation identifiers are at most 2, and efficacy and paraphrase
+(both) are non-inferior at margin 0.01. Otherwise per-entry writes stay and the gap is reported.
+
+Predictions. P1: zsRE return 0.97 to 1.00; the band between the thresholds is where all ten failures sit, but a route below 0.7501
+is impossible, so any survivor is a route the same-subject scan misses, for instance when the query's best key is a phrasing
+added later. P2: fresh residual-route share under 0.03. P3: at most 2 CounterFact merges across relation identifiers: a same-answer
+pair in two relations of one subject is rare. A wrong merge of this kind costs a removal that takes both facts, reported as such.

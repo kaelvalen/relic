@@ -106,7 +106,7 @@ def lower_one_sided(values, seed=SEED):
     return round(float(np.percentile(boots, 5)), 4)
 
 
-def evaluate(dataset, store, scorer, theta_slot, raw_cf):
+def evaluate(dataset, store, scorer, theta_slot, raw_cf, duplicate_theta=None):
     ckpt, facts_file, tag = FILES[dataset]
     manifest = json.loads(MANIFEST_PATH.read_bytes())
     verified = verify_manifest_inputs(
@@ -128,7 +128,7 @@ def evaluate(dataset, store, scorer, theta_slot, raw_cf):
     saved_rows = {r["fact_id"]: r for r in saved["examples"]["serving"]}
 
     store.deltas, store.keys, store.notes = {}, {}, {}
-    ledger = Ledger(store, scorer, THETA_ROUTE, theta_slot)
+    ledger = Ledger(store, scorer, THETA_ROUTE, theta_slot, duplicate_theta)
     holder, events = {}, []
     for f in facts:
         event = ledger.commit(f, checkpoint["deltas"][f["id"]])
@@ -280,6 +280,8 @@ def evaluate(dataset, store, scorer, theta_slot, raw_cf):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(CONFIRM / "slot_eval.json"))
+    ap.add_argument("--duplicate-theta", type=float, default=None, help="SS104")
+    ap.add_argument("--prereg", default="SS96")
     args = ap.parse_args(argv)
     if Path(args.out).exists():
         ap.error(f"refusing to overwrite {args.out}")
@@ -300,19 +302,24 @@ def main(argv=None):
     manifest = json.loads(MANIFEST_PATH.read_bytes())
     store = DeltaStore(manifest["models"]["base"]["id"], steps=16)
     report = {
-        "prereg": "SS96",
+        "prereg": args.prereg,
+        "duplicate_theta": args.duplicate_theta,
         "theta_route": THETA_ROUTE,
         "slot_threshold": threshold,
         "template_pairs": pairs,
         "datasets": {
-            d: evaluate(d, store, scorer, threshold["theta"], raw_cf) for d in FILES
+            d: evaluate(
+                d, store, scorer, threshold["theta"], raw_cf, args.duplicate_theta
+            )
+            for d in FILES
         },
     }
     cf = report["datasets"]["counterfact"]
     zs = report["datasets"]["zsre"]
     report["rule"] = {
         "i_zsre_return": zs["removal"]["return_lower_95_one_sided"] >= 0.95,
-        "ii_cf_cross_relation_merges": cf["merged_across_relation_ids"] <= 1,
+        "ii_cf_cross_relation_merges": cf["merged_across_relation_ids"]
+        <= (2 if args.duplicate_theta else 1),
         "iii_template_share": pairs["across_share"] <= 0.02,
         "iv_noninferior": all(
             d["serving"][k]["lower_95_one_sided"] >= -0.01

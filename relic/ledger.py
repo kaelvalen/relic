@@ -318,11 +318,10 @@ class Ledger:
     """The entries of a store, with one active entry per (subject, relation) slot.
 
     A write whose subject is stored and whose relation the scorer cannot tell apart from
-    a stored relation of that subject (`slot_theta`) is not a new entry. With the same
-    answer it adds its phrasing to the entry, with another answer it replaces the entry
-    and keeps its phrasings. Removing an entry therefore removes the fact, however many
-    times it was written. A wrong slot decision drops a stored fact, so `slot_theta` is
-    set well above the routing threshold (prereg SS96).
+    a stored relation of that subject is not a new entry. With the same answer it adds its
+    phrasing to the entry, with another answer it replaces the entry and keeps its
+    phrasings. Removing an entry therefore removes the fact, however many times it was
+    written (prereg SS96, SS104).
 
     Slot decision and store change happen under one lock, so commits from several threads
     have a serial order and each one decides against the state left by the one before.
@@ -330,9 +329,19 @@ class Ledger:
     threads of one process; several processes on one file are not coordinated.
     """
 
-    def __init__(self, store, scorer, tau: float, slot_theta: float):
+    def __init__(
+        self,
+        store,
+        scorer,
+        tau: float,
+        slot_theta: float,
+        duplicate_theta: float | None = None,
+    ):
         self.store, self.scorer = store, scorer
         self.tau, self.slot_theta = tau, slot_theta
+        self.duplicate_theta = (
+            slot_theta if duplicate_theta is None else duplicate_theta
+        )
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
         self._delta_digest: dict[str, str] = {}
@@ -342,7 +351,11 @@ class Ledger:
 
     # -- slots ------------------------------------------------------------
     def slot(self, fact: dict) -> str | None:
-        """The entry that holds this fact's subject and relation, or None."""
+        """The entry that holds this fact's subject and relation, or None.
+
+        A same-answer write needs `duplicate_theta`: merging it loses nothing stored. A
+        different answer needs `slot_theta`, because replacing an entry drops a fact.
+        """
         subject = normalize(fact["subject"]).strip()
         relation = key_text(fact["probe"], fact["subject"])
         best, best_score = None, float("-inf")
@@ -354,9 +367,14 @@ class Ledger:
             prompts = [entry["probe"], *self.phrasings[fid]]
             keys = [key_text(p, entry["subject"]) for p in prompts]
             score = max(self.scorer.sims(relation, keys))
-            if score > best_score:
+            limit = (
+                self.duplicate_theta
+                if self._same_answer(fid, fact)
+                else self.slot_theta
+            )
+            if score >= limit and score > best_score:
                 best, best_score = fid, score
-        return best if best_score >= self.slot_theta else None
+        return best
 
     def _same_answer(self, fid: str, fact: dict) -> bool:
         stored = self.entries[fid]["answer"]

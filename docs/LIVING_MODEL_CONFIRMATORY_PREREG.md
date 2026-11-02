@@ -3016,3 +3016,19 @@ If the smoke with this layout also fails, 7B waits until the GPU has room for th
 The smoke with the two layers on CPU failed with "Cannot copy out of meta tensor". Accelerate treats a module mapped to CPU as offloaded: its parameters become meta tensors and it executes on the GPU, so the layout does not do what entry 117 described and would not have kept those layers off the GPU during a forward pass. As entry 117 fixed in advance for this case, the arm waits for room and runs as pinned in SS98, with the full model on the GPU. The other user of the GPU has released its 2.3 GB, so there is room now. The code of entry 117 is reverted, and P6 of SS98 can be read as stated.
 
 The queue also lost six jobs when they were killed from outside at 22:17 on 2026-11-01, with exit 137 and no out-of-memory record in the kernel log. It now stops and puts a failed job back. Those jobs had produced no output apart from the resumable state of the 1.5B arm.
+
+## 119. SS105 results: aliases and pronouns, routing (2026-11-02)
+
+Sources: results/live_learning/confirm/alias_eval_pinned.json, as first run, and alias_eval.json, after the fix below. Served answers are in the queue and carry no rule.
+
+The defect. The first run gave C4 (pronoun after two filler turns) 0.001 on CounterFact against 0.972 on zsRE. C4 is not part of the rule. The filler "Can you say more?" matched the alias "Morven" of one stored subject at edit distance 2, so the rewrite took every such pronoun to that entry, with no relation check after it. A rewrite now needs a spelled-out mention (commit 2f51137). The fix was made after reading this result. The rule holds on both runs, so the decision does not depend on it. Aliases still match approximately in route() itself, where the relation check follows, and that is what the rule measured.
+
+Readings, CounterFact / zsRE, after the fix; the first-run value follows in brackets where it differs. Alias coverage 0.423 / 0.346. A1 without and with aliases 0.096 and 1.000 / 0.283 and 1.000; lower end of the difference 0.878 / 0.675. A2 without and with 0.090 and 0.865 / 0.270 and 0.961. C1 on edit prompts 0.998 (0.983) / 1.000 (0.972). C1 on paraphrases 0.735 (0.608) / 0.978 (0.952). C4 0.998 (0.001) / 1.000 (0.972). Without history every pronoun set routes 0.
+
+False routes, CounterFact / zsRE. F1 0.044, difference 0. F4 0.156, difference 0. F2 0 / 0. F3 0 / 0.002. C2 0.003 (0.013) / 0.003 (0.008). C3 0.044 (0.042), against F1 0.044. F1a (other-relation prompt with an alias in it) rises from 0.011 to 0.042, which is the F1 rate reached through an alias; it was not part of the rule.
+
+Decision rule. (i) lower ends 0.878 and 0.675 against 0.20. (ii) differences 0 on F1 and F4; F2 stays 0; F3 at most 0.002. (iii) C1 at least 0.97. (iv) C2 at most 0.013, C3 within 0.02 of F1. All hold, so aliases and the rewrite are the default: `Ledger.ask` resolves pronouns from the history it is given, and an entry that carries aliases matches them.
+
+Predictions. P1 held on CounterFact and failed on zsRE (0.346 against 0.40 to 0.60). P2 without aliases held on CounterFact, and zsRE is slightly above (0.283 against at most 0.25); with aliases both exceed the range at 1.000. That figure is close to built in, since A1 keeps the stored wording of the query; A2 is the informative one. P3 held. P4 held on edit prompts and on zsRE paraphrases, and failed on CounterFact paraphrases (0.735 against 0.85), which carry a leading unrelated sentence for the pronoun to land on. P5 and P6 held.
+
+Limits. The pronoun queries are built by substitution, as SS105 said, and a real conversation has more varied turns. The two-filler reading shows how easily one common word broke the mechanism; other fillers were not tested. Coverage is about 40% of subjects, so most stored subjects have no alias to match.

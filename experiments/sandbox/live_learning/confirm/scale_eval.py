@@ -59,24 +59,13 @@ ARMS = {
     "q7q": ("Qwen/Qwen2.5-7B-Instruct", True),
     "smol3q": ("HuggingFaceTB/SmolLM3-3B", True),
 }
-# entry 117: the two layers 4-bit leaves in bf16 (2.2 GB) stay on CPU, so 7B fits a shared GPU
-CPU_EDGES = {
-    "model.embed_tokens": "cpu",
-    "model.layers": 0,
-    "model.norm": 0,
-    "model.rotary_emb": 0,
-    "lm_head": "cpu",
-}
-DEVICE_MAPS = {"q7q": CPU_EDGES}
 
 
 class Arm:
     def __init__(self, name):
         self.name = name
         self.model_id, four_bit = ARMS[name]
-        self.tok, base = load_model(
-            self.model_id, load_in_4bit=four_bit, device_map=DEVICE_MAPS.get(name)
-        )
+        self.tok, base = load_model(self.model_id, load_in_4bit=four_bit)
         self.revision = getattr(base.config, "_commit_hash", None)
         self.m = make_variant(base, R2, SEED)
         self.m.eval()

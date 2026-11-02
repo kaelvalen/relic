@@ -3010,3 +3010,9 @@ Reading. Forcing the served combination on a multiple-choice question costs 2.2 
 The smoke of the 7B arm ran out of memory while loading, beside another user of the shared GPU that holds 2.3 GB; 5.5 GB is free. Quantization leaves the embedding and the output layer in bf16, 1.09 GB each at this size. For this arm those two layers stay on CPU, in bf16, and everything else stays as pinned. They are not trained and no adapter touches them, so the outputs should match up to floating-point differences between devices; training is slower, because every loss computes the output layer on CPU. The other arms keep the full model on the GPU, so seconds per adapter and peak memory are not comparable for this arm. P6 of SS98 can no longer be read as stated: its time and memory are reported with this note.
 
 If the smoke with this layout also fails, 7B waits until the GPU has room for the pinned layout, and no decision A, B or C is taken before then.
+
+## 118. Entry 117 withdrawn: the 7B arm returns to the pinned layout (2026-11-02, before any 7B result)
+
+The smoke with the two layers on CPU failed with "Cannot copy out of meta tensor". Accelerate treats a module mapped to CPU as offloaded: its parameters become meta tensors and it executes on the GPU, so the layout does not do what entry 117 described and would not have kept those layers off the GPU during a forward pass. As entry 117 fixed in advance for this case, the arm waits for room and runs as pinned in SS98, with the full model on the GPU. The other user of the GPU has released its 2.3 GB, so there is room now. The code of entry 117 is reverted, and P6 of SS98 can be read as stated.
+
+The queue also lost six jobs when they were killed from outside at 22:17 on 2026-11-01, with exit 137 and no out-of-memory record in the kernel log. It now stops and puts a failed job back. Those jobs had produced no output apart from the resumable state of the 1.5B arm.

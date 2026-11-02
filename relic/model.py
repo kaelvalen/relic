@@ -6,9 +6,8 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 
-def load_model(name: str, load_in_4bit: bool = False, device_map: dict | None = None):
+def load_model(name: str, load_in_4bit: bool = False):
     tokenizer = AutoTokenizer.from_pretrained(name)
-    device_map = device_map or {"": 0}
     kwargs = {}
     if load_in_4bit:
         kwargs["quantization_config"] = BitsAndBytesConfig(
@@ -16,10 +15,9 @@ def load_model(name: str, load_in_4bit: bool = False, device_map: dict | None = 
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
             bnb_4bit_compute_dtype=torch.bfloat16,
-            llm_int8_enable_fp32_cpu_offload="cpu" in device_map.values(),
         )
     model = AutoModelForCausalLM.from_pretrained(
-        name, dtype=torch.bfloat16, device_map=device_map, **kwargs
+        name, dtype=torch.bfloat16, device_map={"": 0}, **kwargs
     )
     model.eval()
     return tokenizer, model

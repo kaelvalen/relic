@@ -709,6 +709,12 @@ the fall is lost correct answers, as the labels above suggest. A middle tier tha
 routing threshold and a higher one reduced this leakage by about 10 points but cost 4.6 points of CounterFact
 paraphrases, more than its registered margin, so it was rejected as a default.
 
+\emph{Hard negatives.} We also retrained the encoder with negatives drawn from the relations it confuses most, with the threshold
+reset on the development split. Keeping the held-out relations, routing of questions about neighboring relations falls from
+\hnBaseNearPct\% to \hnANearPct\%, but routing of other-relation prompts rises from \hnBaseOtherPct\% to \hnAOtherPct\%, beyond the registered
+limit. Training on every relation raises CounterFact paraphrase routing to \hnBParaPct\% and also raises routing of neighboring-relation
+questions to \hnBNearPct\%. Neither replaces the encoder, so mined negatives move the leakage and do not remove it.
+
 \subsection{Aliases and Pronouns}
 \label{sec:alias}
 
@@ -895,7 +901,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 122 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 123 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

@@ -558,6 +558,16 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS110 hard negatives from a confusion matrix (prefix "hn").
+try:
+    hn = json.load(open(R + "hardneg_eval.json"))["readings"]
+    for name, arm in (("Base", "baseline"), ("A", "hardA"), ("B", "hardB")):
+        emit(f"hn{name}Near", hn[arm]["natural_near"]["rate"], fixed=True)
+        emit(f"hn{name}Other", hn[arm]["e3"]["rate"], fixed=True)
+        emit(f"hn{name}Para", hn[arm]["cf_paraphrase"]["rate"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

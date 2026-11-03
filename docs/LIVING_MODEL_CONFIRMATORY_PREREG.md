@@ -3083,3 +3083,17 @@ Decision rule. (i) on the fresh sample holds (entry 115). (ii) zsRE return lower
 Predictions. P1 held: return 1.00. P2 held: 0.01. P3 held: 0 merges.
 
 Limit. Slots are measured by replaying the writes over stores that already exist, with the kept entry's adapter, and not by training through `Ledger.write`. "Removal by content" stays as the operation for stores already written per entry.
+
+## 123. SS110 results: hard negatives from a confusion matrix (2026-11-03)
+
+Source: results/live_learning/confirm/hardneg_eval.json, routing only. Thresholds at dev false-positive rate 5%: baseline 0.7501, hardA 0.7325, hardB 0.6726. 15 relation pairs have identical template text and were excluded from mining.
+
+Baseline / hardA / hardB. Natural near routed 0.302 / 0.248 / 0.522. Natural uniform routed 0.002 / 0.002 / 0.016. E3 routed 0.044 / 0.051 / 0.064. Paraphrase route accuracy CounterFact 0.910 / 0.914 / 0.994, zsRE 0.745 / 0.744 / 0.758. Edit prompts 1.0 in all.
+
+Differences from the baseline with 95% CI. hardA: near -0.054 [-0.084, -0.024], E3 +0.007 [0.001, 0.014]. hardB: near +0.220 [0.176, 0.264], E3 +0.020 [0.008, 0.033].
+
+Decision rule. hardA passes (i) and (ii) and fails (iii): E3 rises by more than 0.01 at the upper end. hardB fails (i) and (iii). Neither replaces the baseline, and no full serving evaluation follows.
+
+Predictions. P1 held: 15 pairs. P2 failed: hardB raises near routing by 0.22 instead of lowering it, and hardA, predicted to gain less, gains more. P3 held: hardB passes (ii) by a wide distance, and hardA passes (ii); hardA was not close to the limit. "At most one arm passes" held, with none.
+
+Reading. Mining the negatives moves leakage from natural questions to template prompts instead of removing it, at about the rate of the threshold trade-off. Training on every relation makes the encoder confident on its own relations, which raises paraphrase routing to 0.994, and the dev-calibrated threshold falls so far that natural near questions pass. Hard negatives therefore join the list of changes that do not leave the trade-off.

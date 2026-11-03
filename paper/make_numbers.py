@@ -568,6 +568,23 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS112 shard adapters.
+try:
+    s = json.load(open(R + "shard_eval.json"))
+    ref = s["reference"]
+    emit("shRefPara", ref["paraphrase_note"], fixed=True)
+    emit("shRefLeak", ref["e3_leak"], fixed=True)
+    for tag, arm in [("EightTwo", "8/2/relation"), ("RandomSixteen", "16/16/random")]:
+        a = s["arms"][arm]
+        emit(f"sh{tag}Para", a["paraphrase_note"], fixed=True)
+        emit(f"sh{tag}Leak", a["e3_leak"], fixed=True)
+        out.append(f"\\newcommand{{\\sh{tag}KB}}{{{a['bytes_per_fact'] / 1000:.0f}}}")
+    emit_diff("shEightTwoLeakDiff", s["arms"]["8/2/relation"]["e3_leak_minus_ref"])
+    for tag, arm in [("Eight", "8/16/relation"), ("ThirtyTwo", "32/16/relation")]:
+        out.append(f"\\newcommand{{\\shRemove{tag}}}{{{s['arms'][arm]['removal']['seconds']:.0f}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

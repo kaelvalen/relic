@@ -789,6 +789,18 @@ facts that the base model does not answer, and removing one of its facts require
 retraining the group. Grouping is therefore an alternative to the tiered store for
 reducing storage, at the cost of coarser removal and some leakage.
 
+Shards chosen by the router, in the manner of SISA~\cite{bourtoule2021sisa}, do not yet
+pay for themselves. On a pilot of 96 facts, with $k$ from 8 to 32 and rank from 2 to 16, no
+arm met the preregistered rule, and all failed on paraphrases with the note against
+\shRefParaPct\% for per-fact adapters at a margin of 3 points. The closest arm at any size
+stores \shRandomSixteenKB{} KB per fact and reaches \shRandomSixteenParaPct\%. Eight facts
+at rank 2 store \shEightTwoKB{} KB per fact and reach \shEightTwoParaPct\%, with a forced
+leak of \shEightTwoLeakPct\% against \shRefLeakPct\% for the per-fact adapters. Retraining a
+shard without one fact took \shRemoveEight{} s for $k=8$ and \shRemoveThirtyTwo{} s for
+$k=32$, and two runs with one seed were bitwise equal in one process. The pilot does not
+separate the cost of sharing from the cost of the grouped recipe, which replaces LoRA+
+because LoRA+ collapses when grouped.
+
 % ===========================================================================
 \section{Discussion and Limitations}
 \label{sec:limits}
@@ -901,7 +913,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 123 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 124 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

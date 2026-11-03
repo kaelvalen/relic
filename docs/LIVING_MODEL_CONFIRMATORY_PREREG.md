@@ -3337,3 +3337,23 @@ The seed moves D on one fact by as much as .51 (cf0111: 1.25, .74, .95), and 11 
 Against current, T3 on these 19 facts loses 2 paraphrases and wins 4. With the 8 lost and 7 won on the other facts of SS130 that projects to +1 of 300 pooled and +2 of 150 on CounterFact. The projection is optimistic: T3 is the best of four ladders on the same 19 facts chosen for high D, and the readings are forced.
 
 Wrong route falls as the anchor weight falls, .70 at L16 to .46 at R1 on this draw, and the first rung of T3 is R1. SS130 found no edit or paraphrase query routed to another fact, which limits how often that cost is paid, and the next entry reads it again on a larger store.
+
+## 136. The store with no note and a retry ladder, on fresh facts (pinned 2026-11-04, before the run)
+
+Question. With T3 as the retry after a rejected A1, does a store with no note hold against the current store through the router and the gate, on facts no decision has seen?
+
+Runner: confirm/fresh_ladder.py, Qwen2.5-1.5B, rank 2 LoRA+ in int8. Facts: 400 CounterFact and 400 zsRE with draw seed 136, disjoint from the N=1000 stores, the development set, SS87's 2000 and SS126's 300. Rewrites written at write time as in SS126, adapter seed 126 for A0, A1, L2, L4, L8 and L16, seed 127 for R1. Natural questions on the CounterFact facts as in SS130. The router and kappa as in SS130.
+
+Sample size. The rule's margin on CounterFact is -.03. SS130 had about 9 discordant facts in 100, which at 150 facts gives a one-sided bound of about 4 points under the gap, so a true gap of zero could not pass. At 400 facts the bound is about 2.5 points, and a gap of -.005 or better can pass. The rule is not changed.
+
+Stores. Current: A0 under kappa, with the note; the comparator. Ladder: A1, then each rung of T3, trained only while the attempts so far are above kappa, then A0, then no entry; no note. Fallback: A1, then A0, then no entry; no note, a replication of SS130. A0 alone and gate off (A1 always) as readings.
+
+Rule, the rule of entry 130 applied to the ladder store minus current. (i) Paraphrase, lower one-sided 95 bound at least -.03, pooled and on CounterFact. (ii) Edit, lower bound at least -.02. (iii) E3 leak, upper bound at most .02. (iv) Natural leak, upper bound at most .02.
+
+Consequence. If the rule holds, the store with no note replaces the current default in the recommendation, pending the same test at larger N and rank 16. If it fails, the note stays, the failing reading is reported, and no further change to the training recipe is tried on this question.
+
+Reported, no rule. Forced wrong route on the 200 questions for A0, A1 and the ladder's stored adapters on one draw from the store, the share of edit and paraphrase queries routed to another fact, the share of facts stored by each rung, near and uniform natural leak.
+
+Predictions. P1: A1 is rejected on between 4 and 9 percent of facts. P2: the ladder store holds at least 99.5 percent of the facts. P3: ladder minus current on paraphrase is at least -.010 pooled and at least -.015 on CounterFact. P4: (ii), (iii) and (iv) hold. P5: the fallback store fails (i) on CounterFact. P6: forced wrong route of the stored adapters is at least .05 under A0, and at most 1 percent of edit and paraphrase queries route to another fact.
+
+Limits. One model, rank 2, one adapter seed per rung. The first attempt and the retries share the gate, so a store built this way has been selected on D more than once, and the readings above are on that selected store and the rule covers them. Kappa was calibrated on this model only.

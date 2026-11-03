@@ -1,5 +1,5 @@
 % Facts that need an adapter and what the tiered store answers, per base model (SS98).
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Base models on the same 2000 facts. Need: share of facts whose note does not answer
 the edit prompt at a word boundary. Para.: paraphrase accuracy of the tiered store, with the
@@ -7,8 +7,7 @@ note alone in parentheses. Above $\kappa$: share of the arm's adapters above $0.
 canaries, a limit measured on 1.5B only. Each pair of values is CounterFact, zsRE.}
 \label{tab:scale}
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\resizebox{\columnwidth}{!}{%
+\setlength{\tabcolsep}{5pt}
 \begin{tabular}{lccccc}
 \toprule
 Model & Need & Need, pooled (95\% CI) & Para. & Above $\kappa$ & KB \\
@@ -20,5 +19,5 @@ Qwen 3B, 4-bit & \scThreeNeedCf, \scThreeNeedZs & \scThreeNeed\ (\scThreeNeedCIP
 Qwen 7B, 4-bit & \scSevenNeedCf, \scSevenNeedZs & \scSevenNeed\ (\scSevenNeedCIPct\%) & \scSevenParaCf\ (\scSevenNoteCf), \scSevenParaZs\ (\scSevenNoteZs) & \scSevenAboveCf, \scSevenAboveZs & \scSevenKB \\
 SmolLM3 3B, 4-bit & \scSmolNeedCf, \scSmolNeedZs & \scSmolNeed\ (\scSmolNeedCIPct\%) & \scSmolParaCf\ (\scSmolNoteCf), \scSmolParaZs\ (\scSmolNoteZs) & \scSmolAboveCf, \scSmolAboveZs & \scSmolKB \\
 \bottomrule
-\end{tabular}}
-\end{table}
+\end{tabular}
+\end{table*}

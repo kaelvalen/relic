@@ -43,9 +43,9 @@ flowchart LR
 
 - The base model never changes. Each entry is independent, so a fact can be added,
   suspended or deleted without touching the others, and a deletion is exact.
-- Adapters are low-rank updates of `q_proj` and `v_proj` in all layers. The main build
-  uses rank 16 (8.7 MB per fact). Rank 2 with LoRA+ in int8 (373 KB) matches it on serving and
-  loses more on a wrong route; see [Results](#results).
+- Adapters are low-rank updates of `q_proj` and `v_proj` in all layers. The tables below
+  use rank 16 (8.7 MB per fact). `Ledger.write` trains rank 2 with LoRA+ in int8 (373 KB), which
+  matches rank 16 on serving and keeps fewer answers on a wrong route (entry 114).
 - The router has no parameters trained on the store. It matches the stored subject and
   compares the query's relation with the stored relation using a relation encoder
   (all-mpnet-base-v2 trained offline on relation triplets, then frozen).

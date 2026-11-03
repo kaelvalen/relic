@@ -183,8 +183,8 @@ def compare(rows, store):
     return out
 
 
-def decide(summary) -> dict:
-    d = summary["fallback"]["minus_current"]
+def decide(summary, store="fallback") -> dict:
+    d = summary[store]["minus_current"]
     rule = {
         "i_paraphrase_pooled": lower_upper(d["paraphrase"])[0] >= -0.03,
         "i_paraphrase_cf": lower_upper(d["paraphrase_cf"])[0] >= -0.03,
@@ -196,22 +196,7 @@ def decide(summary) -> dict:
     return rule
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--smoke", action="store_true", help="4 facts, the SS126 smoke run")
-    args = ap.parse_args(argv)
-    n_per = 2 if args.smoke else 150
-    source = "adapter_only_smoke" if args.smoke else "adapter_only"
-    stem = "served_adapter_smoke" if args.smoke else "served_adapter"
-    out = CONFIRM / f"{stem}.json"
-    if out.exists():
-        raise SystemExit(f"refusing to overwrite {out}")
-    saved = json.loads((CONFIRM / f"{source}.json").read_text())
-    sets, cf_records, raw_cf = draw_facts(n_per)
-    facts = {f["id"]: f for fs in sets.values() for f in fs}
-    key = {f["id"]: f"{ds}:{f['id']}" for ds, fs in sets.items() for f in fs}
-    natural = write_questions(sets["cf"], CONFIRM / f"{stem}_questions.json")
-
+def build_queries(sets, facts, cf_records, raw_cf, natural) -> list:
     queries = [
         {"reading": r, "id": i, "q": facts[i][field]}
         for r, field in (("edit", "probe"), ("paraphrase", "paraphrase"))
@@ -226,29 +211,20 @@ def main(argv=None):
         for n in natural
         if n["subject_found"]
     ]
+    return queries
 
-    arms = {
-        i: store_arms(
-            saved["arms"]["A0"]["rows"][key[i]]["d_heldout"],
-            saved["arms"]["A1"]["rows"][key[i]]["d_heldout"],
-        )
-        for i in facts
-    }
+
+def serve(queries, facts, key, arms, deltas, stores):
+    """Each query through each store's router; only the current store adds the note."""
     scorer = make_scorer("relenc", device="cpu")
     routers = {}
-    for store in STORES:
+    for store in stores:
         kept = [f for i, f in facts.items() if arms[i][store] is not None]
         routers[store] = (RouterV7(kept, scorer, THETA), kept)
 
     tok, base = load_model(MODEL)
     m = make_variant(base, R2)
     m.eval()
-    deltas = {
-        arm: torch.load(
-            CONFIRM / f"{source}_{arm}.pt", map_location="cpu", weights_only=False
-        )
-        for arm in ("A0", "A1")
-    }
 
     def ask(q, system):
         msgs = [{"role": "system", "content": system}, {"role": "user", "content": q}]
@@ -275,7 +251,7 @@ def main(argv=None):
         q, answer = row["q"], facts[row["id"]]["answer"]
         row["base"] = base_output(q)
         row["route"], row["response"], row["score"] = {}, {}, {}
-        for store in STORES:
+        for store in stores:
             router, kept = routers[store]
             j, _ = router.route(q)
             fid = None if j is None else kept[j]["id"]
@@ -295,6 +271,52 @@ def main(argv=None):
         trim()
         if (n + 1) % 100 == 0:
             print(f"served {n + 1}/{len(queries)}", flush=True)
+    return rows, {s: len(routers[s][1]) for s in stores}, len(base_cache), len(cache)
+
+
+def matches_forced(rows, a1_rows, key) -> float:
+    """The served path is the forced path once the route is right."""
+    same = [
+        r["response"]["gate_off"]
+        == a1_rows[key[r["id"]]]["outputs"][
+            "probe" if r["reading"] == "edit" else "paraphrase"
+        ]
+        for r in rows
+        if r["reading"] in ("edit", "paraphrase") and r["route"]["gate_off"] == r["id"]
+    ]
+    return round(float(np.mean(same)), 4)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--smoke", action="store_true", help="4 facts, the SS126 smoke run")
+    args = ap.parse_args(argv)
+    n_per = 2 if args.smoke else 150
+    source = "adapter_only_smoke" if args.smoke else "adapter_only"
+    stem = "served_adapter_smoke" if args.smoke else "served_adapter"
+    out = CONFIRM / f"{stem}.json"
+    if out.exists():
+        raise SystemExit(f"refusing to overwrite {out}")
+    saved = json.loads((CONFIRM / f"{source}.json").read_text())
+    sets, cf_records, raw_cf = draw_facts(n_per)
+    facts = {f["id"]: f for fs in sets.values() for f in fs}
+    key = {f["id"]: f"{ds}:{f['id']}" for ds, fs in sets.items() for f in fs}
+    natural = write_questions(sets["cf"], CONFIRM / f"{stem}_questions.json")
+    queries = build_queries(sets, facts, cf_records, raw_cf, natural)
+    arms = {
+        i: store_arms(
+            saved["arms"]["A0"]["rows"][key[i]]["d_heldout"],
+            saved["arms"]["A1"]["rows"][key[i]]["d_heldout"],
+        )
+        for i in facts
+    }
+    deltas = {
+        arm: torch.load(
+            CONFIRM / f"{source}_{arm}.pt", map_location="cpu", weights_only=False
+        )
+        for arm in ("A0", "A1")
+    }
+    rows, sizes, n_base, n_adapter = serve(queries, facts, key, arms, deltas, STORES)
 
     summary = {store: compare(rows, store) for store in STORES}
     d = {
@@ -306,22 +328,13 @@ def main(argv=None):
         "theta": THETA,
         "kappa": KAPPA,
         "above_kappa": {arm: sum(not v <= KAPPA for v in d[arm]) for arm in d},
-        "store_size": {s: len(routers[s][1]) for s in STORES},
-        "generated": {"base": len(base_cache), "adapter": len(cache)},
+        "store_size": sizes,
+        "generated": {"base": n_base, "adapter": n_adapter},
         "summary": summary,
         "rule": decide(summary),
         "rows": rows,
     }
-    # the served path is the forced path of SS126 once the route is right
-    same = [
-        r["response"]["gate_off"]
-        == saved["arms"]["A1"]["rows"][key[r["id"]]]["outputs"][
-            "probe" if r["reading"] == "edit" else "paraphrase"
-        ]
-        for r in rows
-        if r["reading"] in ("edit", "paraphrase") and r["route"]["gate_off"] == r["id"]
-    ]
-    report["matches_forced"] = round(float(np.mean(same)), 4)
+    report["matches_forced"] = matches_forced(rows, saved["arms"]["A1"]["rows"], key)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1))
     print(json.dumps(summary, indent=1), flush=True)
     print(json.dumps(report["rule"], indent=1), "matches", report["matches_forced"])

@@ -58,7 +58,7 @@ LADDERS = {
 }
 
 
-def train_arm(store, spec, items, rewrites):
+def train_arm(store, spec, items, rewrites, arm="A1"):
     passes, kl_lambda, system, seed = (*spec, 126)[:4]
     store.steps, store.kl_lambda = passes, kl_lambda
     apply = store.tok.apply_chat_template
@@ -72,7 +72,7 @@ def train_arm(store, spec, items, rewrites):
     try:
         trained = {}
         for key, f, _, _ in items:
-            pairs = arm_pairs("A1", f, rewrites[f["id"]])
+            pairs = arm_pairs(arm, f, rewrites[f["id"]])
             trained[key] = train_one(store, R2, pairs, b_mult=8, seed=seed)
             trim()
     finally:

@@ -47,7 +47,7 @@ ARMS = ("A0", "A1", "A2")
 READS = ("probe", "paraphrase", "paraphrase_note")
 
 
-def draw_facts(n_per):
+def draw_facts(n_per, seed=SEED, exclude=frozenset()):
     """Facts no earlier decision saw, with the CounterFact records for the E3 prompts."""
     raw_cf = json.loads((CONFIRM / "raw/counterfact.json").read_text())
     raw_zs = json.loads((CONFIRM / "raw/zsre.json").read_text())
@@ -59,7 +59,8 @@ def draw_facts(n_per):
     used |= {f["subject"] for f in build_dev(raw_cf, raw_zs, used)}
     fresh = json.loads((CONFIRM / "rank2_fresh_facts.json").read_text())["sets"]
     used |= {f["subject"] for facts in fresh.values() for f in facts}
-    rng = random.Random(SEED)
+    used |= set(exclude)
+    rng = random.Random(seed)
     sets, records = {}, {}
     for ds, raw, adapt in (
         ("cf", raw_cf, adapt_counterfact),

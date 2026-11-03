@@ -190,3 +190,11 @@ def test_load_refuses_a_file_whose_contents_changed(tmp_path):
     torch.save(state, path)
     with pytest.raises(ValueError, match="state hash"):
         make_ledger().load(path)
+
+
+def test_the_write_gate_canaries_are_not_the_trained_ones():
+    from relic.ledger import CANARIES, HELDOUT_CANARIES, KAPPA
+
+    assert len(HELDOUT_CANARIES) == 40
+    assert not set(HELDOUT_CANARIES) & set(CANARIES)
+    assert 0 < KAPPA < 2.0

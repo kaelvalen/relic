@@ -32,6 +32,51 @@ from relic.serving import base_answer, rag_system, serve_expert
 R = 16  # rank per fact
 CAP = 64  # capacity of the merged adapter, in facts; routed serving has no such limit
 CANARIES = ["What is the capital of France?", "What is 7 times 8?"]
+# never trained on, unlike CANARIES: the anchors understate an adapter's effect 17-fold (SS69)
+HELDOUT_CANARIES = [
+    "What is the capital of Japan?",
+    "Who wrote Romeo and Juliet?",
+    "What is the boiling point of water in Celsius?",
+    "How many continents are there?",
+    "What is the largest planet in the solar system?",
+    "Who painted the Mona Lisa?",
+    "What is the chemical symbol for gold?",
+    "In which year did World War II end?",
+    "What language is spoken in Brazil?",
+    "What is the square root of 81?",
+    "What is 12 plus 15?",
+    "What is 9 times 6?",
+    "What is 100 divided by 4?",
+    "Is 17 a prime number?",
+    "Translate 'thank you' into Spanish.",
+    "Give a synonym for 'happy'.",
+    "What is the opposite of 'cold'?",
+    "Write one sentence about the ocean.",
+    "List three primary colors.",
+    "What day comes after Monday?",
+    "What is the currency of the United Kingdom?",
+    "Which organ pumps blood through the body?",
+    "What gas do plants absorb from the air?",
+    "How many legs does a spider have?",
+    "What is the freezing point of water in Fahrenheit?",
+    "Who developed the theory of relativity?",
+    "What is the tallest mountain on Earth?",
+    "Which ocean is the largest?",
+    "What is the main language of Germany?",
+    "Name a programming language.",
+    "What does CPU stand for?",
+    "What is the past tense of 'go'?",
+    "How many minutes are in an hour?",
+    "What is the capital of Canada?",
+    "Türkiye'nin başkenti neresidir?",
+    "Quelle est la capitale de l'Italie ?",
+    "Wie viele Tage hat eine Woche?",
+    "¿Cuál es el color del cielo?",
+    "Summarize: The cat sat on the mat.",
+    "Answer yes or no: is the sun a star?",
+]
+# p99 of held-out divergence over stored adapters on Qwen2.5-1.5B (SS69); calibrate per model (SS98)
+KAPPA = 0.968
 
 
 class DeltaStore:
@@ -226,16 +271,17 @@ class DeltaStore:
         self.materialize()
         return time.time() - t
 
-    def _expert_kld(self, delta: dict) -> float:
+    def _expert_kld(self, delta: dict, prompts=None) -> float:
         """Canary KLD of a single candidate expert vs the zeroed base."""
+        prompts = self.kl_prompts if prompts is None else prompts
         full = self.deltas
         with torch.no_grad():
             self.deltas = {"__tmp__": delta}
             self.materialize()
-            a = [self._logits(self.model, q) for q in self.kl_prompts]
+            a = [self._logits(self.model, q) for q in prompts]
             self.deltas = {}
             self.materialize()
-            b = [self._logits(self.model, q) for q in self.kl_prompts]
+            b = [self._logits(self.model, q) for q in prompts]
         self.deltas = full
         self.materialize()
         ks = [sym_kl(x, y) for x, y in zip(b, a)]
@@ -436,7 +482,7 @@ class Ledger:
             self._drop(fid)
             return self._record("revoke", fid)
 
-    def write(self, fact: dict, kld_limit: float = 2.0) -> dict:
+    def write(self, fact: dict, kappa: float = KAPPA) -> dict:
         """The tiered write path: a note if it answers the edit prompt, else an adapter.
 
         The store's one model is parked while a candidate trains, so a write holds the
@@ -450,8 +496,8 @@ class Ledger:
             if hit(base_answer(self.store, fact["probe"], system=note), fact["answer"]):
                 return self.commit(fact)
             delta = train_adapter(self.store, fact_pairs(fact))
-            kld = self.store._expert_kld(delta)
-            if not kld <= kld_limit:  # a NaN divergence is rejected, not committed
+            kld = self.store._expert_kld(delta, HELDOUT_CANARIES)
+            if not kld <= kappa:  # a NaN divergence is rejected, not committed
                 return {"action": "rejected", "entry": fact["id"], "kld": kld}
             return {**self.commit(fact, delta), "kld": kld}
 

@@ -117,9 +117,9 @@ def e3_readings(tok, deltas, cf_items, e3) -> dict:
     m = make_variant(base, R2)
     m.eval()
 
-    def ask(q):
+    def ask(q, model=m):
         msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q}]
-        return chat(tok, m, msgs, max_new_tokens=64)
+        return chat(tok, model, msgs, max_new_tokens=64)
 
     out = {}
     for key, f, _, _ in cf_items:

@@ -3244,3 +3244,23 @@ Predictions. All seven held: P1 (+0.7 points), P2 (lower end -0.120), P3 (-3.3 p
 Reading, as the pin set out. The failure of (i) comes from rejected facts: gate off is level with current on paraphrases (0.000, lower end -0.023, pooled; +0.007, lower end -0.027, on CounterFact), and the 16 facts that fall back to A0 make the difference. The leak conditions hold, so this result does not point to negatives at training. The forced E3 difference of 26.7 points in entry 129 becomes 0.0 points when served, since the router sends few of those prompts to the adapter. The natural leak on near questions, about 22% in the current store, is the larger limit of both stores and comes from routing, not from the rewrites.
 
 Limits. These comparisons were set knowing the forced results. Gate off is reported to locate the cost and is not an available store, since the gate is part of the system. E3 rests on 4 routed prompts. 150 CounterFact facts, one model, rank 2, one seed. The natural questions are unlabelled, so those leaks are upper bounds. A wrong route that damages a right answer is not measured in the served path: the forced figures of entry 129 (0.66 to 0.55) apply to the routed share, and current with its note was not read on those questions.
+
+## 132. What brings a rejected adapter under kappa: a development run (pinned 2026-11-03, before the run)
+
+Question. Entry 131 locates the cost of a store with no note in the 19 of 300 A1 adapters that the gate rejects. Which change to the training brings those under kappa and keeps the fact?
+
+Why this is not a recipe change of the kind the stop rule closes. Entry 129 closes adding phrasings to reach more paraphrases. This run keeps the phrasings of A1 and changes the training only to lower D, which is the cause entry 131 names. Router keys are left out, as SS76 found no gain from them with the default encoder (development TPR 0.923 with, 0.936 without). Same-subject anchors are left out, as SS70 moved E3 little and the leak conditions of SS130 hold.
+
+Status. Development only. All facts were seen in SS126 and SS130, so no result here supports a claim. It selects what a later run on fresh facts tests.
+
+Runner: confirm/retry_dose.py, Qwen2.5-1.5B, rank 2 LoRA+ in int8, A1 pairs with the rewrites saved by SS126, seed 126 for each adapter as in SS126. Facts: the 19 rejected ones, and 31 others drawn with seed 132 from the 281 accepted ones.
+
+Arms. D8: 8 passes. D4: 4 passes. L4: 16 passes, kl_lambda 4. L16: 16 passes, kl_lambda 16. S: 16 passes, trained under the serving system prompt "Answer briefly.", the possible cause noted as not varied in entry 126. The reference is the saved A1 at 16 passes and kl_lambda 1.
+
+Readings per group, rejected and others, right adapter forced, word boundary: adapters under kappa, mean held-out D, edit prompt alone, paraphrase alone, paraphrase alone and under kappa together, E3 leak on CounterFact facts. Wrong route on the 200 zsRE questions, on the whole 50-fact draw.
+
+Selection, for the entry that pins the fresh run. The retry is the arm with the highest count on the rejected facts of paraphrase alone right and under kappa; a tie goes to the lower mean D. An arm also becomes a candidate to replace A1 at the first attempt if, on the others, its paraphrase is at most 0.02 below the reference and its mean D at least 0.05 lower.
+
+Predictions. P1: D8 brings at least 12 of the 19 under kappa. P2: D4 brings more under kappa than D8, and loses more paraphrases. P3: L16 lowers D less than D8, as the anchors cover 2 prompts and understate the effect on others (SS69). P4: S changes mean D by less than 0.05 on the others and paraphrase alone by at most 2 points. P5: D8 is the selected retry.
+
+Limits. 50 facts, one seed, chosen partly for high D, so the arms' D on the rejected group is not a rate for a whole store.

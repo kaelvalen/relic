@@ -868,6 +868,12 @@ its note, but the forced leak on the subject's other relation rose from \aoRefET
 \aoRewEThPct\%, and answers kept under a wrong route, on 200 zsRE questions, fell from
 \aoRefRoutePct\% to \aoRewRoutePct\%. Adding phrasings trades generality for locality here, and the
 reading does not separate the phrasings from the larger number of updates they bring.
+Served through the router and the write gate, that store with no note still failed its rule, for a
+different reason. The router sends few of those prompts to the adapter: the leak was \srvFallEThPct\%
+against \srvCurEThPct\% for the current store, and \srvFallNatPct\% against \srvCurNatPct\% on natural
+questions about another relation, read with these results in hand. On CounterFact paraphrases it reached
+\srvFallCfParaPct\% against \srvCurCfParaPct\%, because the gate rejected adapters that then fell back to
+the shorter recipe; with the gate off it reached \srvOffCfParaPct\%.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -923,7 +929,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 129 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 131 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

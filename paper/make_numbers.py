@@ -609,6 +609,16 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS130 the same adapters through the router and the gate (prefix "srv").
+try:
+    s = json.load(open(R + "served_adapter.json"))["summary"]
+    for tag, store in (("Cur", "current"), ("Fall", "fallback"), ("Off", "gate_off")):
+        emit(f"srv{tag}CfPara", s[store]["paraphrase_cf"], fixed=True)
+        emit(f"srv{tag}ETh", s[store]["e3"], fixed=True)
+        emit(f"srv{tag}Nat", s[store]["natural"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

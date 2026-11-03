@@ -459,6 +459,106 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS100 wrong routes on 1000 questions (prefix "wr").
+try:
+    w = json.load(open(R + "wrong_route.json"))
+    emit("wrAdapter", w["retained"]["adapter_r16"], fixed=True)
+    emit("wrAdapterTwo", w["retained"]["adapter_r2"], fixed=True)
+    emit("wrNote", w["retained"]["note"], fixed=True)
+    emit("wrBoth", w["retained"]["both_r16"], fixed=True)
+    emit("wrBothTwo", w["retained"]["both_r2"], fixed=True)
+    emit_diff("wrRankDiff", w["r2_minus_r16_adapter"])
+    out.append(
+        f"\\newcommand{{\\wrRankLow}}{{{100 * w['r2_minus_r16_adapter']['lower_95_one_sided']:.1f}}}"
+    )
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS101 MMLU and ARC with the store active (prefix "gen").
+try:
+    g = json.load(open(R + "general_eval.json"))["readings"]
+    emit("genBase", g["pooled"]["accuracy"]["base"], fixed=True)
+    emit("genMmlu", g["mmlu"]["accuracy"]["base"], fixed=True)
+    emit("genArc", g["arc"]["accuracy"]["base"], fixed=True)
+    emit("genUpper", g["pooled"]["routed_counterfact"]["ci95"][1], fixed=True)
+    emit("genForcedAdapter", g["pooled"]["accuracy"]["forced_adapter_r16"], fixed=True)
+    emit("genForcedBoth", g["pooled"]["accuracy"]["forced_both_r2"], fixed=True)
+    emit_diff("genForcedAdapterDiff", g["pooled"]["minus_base"]["forced_adapter_r16"])
+    emit_diff("genForcedBothDiff", g["pooled"]["minus_base"]["forced_both_r2"])
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS98 the curve over base models (prefix "sc"; the arm in the macro name).
+try:
+    sc = json.load(open(R + "scale/summary.json"))
+    names = {
+        "q05": "Half",
+        "q15": "OneFive",
+        "q15q": "OneFiveQ",
+        "q3q": "Three",
+        "q7q": "Seven",
+        "smol3q": "Smol",
+    }
+    for arm, name in names.items():
+        row = sc["arms"][arm]
+        emit(f"sc{name}Need", row["pooled_needs_adapter"], fixed=True)
+        out.append(
+            f"\\newcommand{{\\sc{name}Mem}}{{{row['memory_mb'] / 1024:.1f}}}"
+        )
+        for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
+            d = row["datasets"][ds]
+            emit(f"sc{name}Need{tag}", d["needs_adapter"], fixed=True)
+            emit(f"sc{name}Probe{tag}", d["tiered_probe_word"], fixed=True)
+            emit(f"sc{name}Para{tag}", d["tiered_paraphrase_word"], fixed=True)
+            emit(f"sc{name}Note{tag}", d["note_paraphrase_word"], fixed=True)
+            emit(f"sc{name}Above{tag}", d["above_kappa_share"], fixed=True)
+            out.append(
+                f"\\newcommand{{\\sc{name}Sec{tag}}}{{{d['train_seconds_mean']:.1f}}}"
+            )
+        out.append(
+            f"\\newcommand{{\\sc{name}KB}}{{{row['datasets']['zsre']['adapter_bytes'] / 1000:.0f}}}"
+        )
+    out.append(f"\\newcommand{{\\scGap}}{{{sc['quantization_gap']:.3f}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS105 aliases and pronouns, routing after the fix of entry 119 (prefix "al").
+try:
+    al = json.load(open(R + "alias_eval.json"))
+    for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
+        d = al["datasets"][ds]
+        emit(f"al{tag}Cover", al["alias_coverage"][ds]["rate"], fixed=True)
+        emit(f"al{tag}ParaPlain", d["A2"]["plain"], fixed=True)
+        emit(f"al{tag}ParaNamed", d["A2"]["named"], fixed=True)
+        emit(f"al{tag}Pron", d["C1_probe"]["named"], fixed=True)
+        emit(f"al{tag}PronPara", d["C1_paraphrase"]["named"], fixed=True)
+        emit(f"al{tag}Later", d["C2"]["routed"], fixed=True)
+    false = al["datasets"]["counterfact"]["false"]
+    emit("alNatural", false["F4_natural"]["named"], fixed=True)
+    emit("alOther", false["F1_other_relation"]["named"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
+try:
+    t = json.load(open(R + "tau_calib.json"))["readings"]
+    emit("tcNearGlobal", t["natural_near_routed"]["global"]["rate"], fixed=True)
+    emit("tcNearRel", t["natural_near_routed"]["R"]["rate"], fixed=True)
+    emit_diff("tcNearDiff", t["natural_near_routed"]["R"]["minus_global"])
+    emit_diff("tcParaCfDiff", t["counterfact_paraphrase_route_correct"]["R"]["minus_global"])
+    emit_diff("tcParaZsDiff", t["zsre_paraphrase_route_correct"]["R"]["minus_global"])
+    a = json.load(open(R + "score_audit.json"))["datasets"]
+    both = [
+        a[ds]["arms"][arm]["substring"] - a[ds]["arms"][arm]["word"]
+        for ds in a
+        for arm in ("probe_both", "paraphrase_both")
+    ]
+    out.append(f"\\newcommand{{\\saBothDropPct}}{{{100 * max(both):.1f}}}")
+    emit("saNoteZsSub", a["zsre"]["arms"]["probe_retrieval"]["substring"], fixed=True)
+    emit("saNoteZsWord", a["zsre"]["arms"]["probe_retrieval"]["word"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 if missing:
     sys.exit("not writing paper/numbers.tex; missing inputs:\n" + "\n".join(missing))
 (ROOT / "paper/numbers.tex").write_text("\n".join(out) + "\n")

@@ -986,3 +986,340 @@
 \newcommand{\asRtwoParaPct}{88}
 \newcommand{\asRtwoD}{0.447}
 \newcommand{\asRtwoDPct}{44.7}
+\newcommand{\wrAdapter}{0.705}
+\newcommand{\wrAdapterPct}{70.5}
+\newcommand{\wrAdapterTwo}{0.668}
+\newcommand{\wrAdapterTwoPct}{66.8}
+\newcommand{\wrNote}{0.511}
+\newcommand{\wrNotePct}{51.1}
+\newcommand{\wrBoth}{0.396}
+\newcommand{\wrBothPct}{39.6}
+\newcommand{\wrBothTwo}{0.370}
+\newcommand{\wrBothTwoPct}{37.0}
+\newcommand{\wrRankDiff}{-3.7}
+\newcommand{\wrRankDiffCI}{-6.1 to -1.3}
+\newcommand{\wrRankLow}{-5.8}
+\newcommand{\genBase}{0.665}
+\newcommand{\genBasePct}{66.5}
+\newcommand{\genMmlu}{0.564}
+\newcommand{\genMmluPct}{56.4}
+\newcommand{\genArc}{0.766}
+\newcommand{\genArcPct}{76.6}
+\newcommand{\genUpper}{0.004}
+\newcommand{\genUpperPct}{0.4}
+\newcommand{\genForcedAdapter}{0.657}
+\newcommand{\genForcedAdapterPct}{65.7}
+\newcommand{\genForcedBoth}{0.643}
+\newcommand{\genForcedBothPct}{64.3}
+\newcommand{\genForcedAdapterDiff}{-0.8}
+\newcommand{\genForcedAdapterDiffCI}{-2.0 to 0.4}
+\newcommand{\genForcedBothDiff}{-2.2}
+\newcommand{\genForcedBothDiffCI}{-3.8 to -0.6}
+\newcommand{\scHalfNeed}{0.034}
+\newcommand{\scHalfNeedPct}{3.4}
+\newcommand{\scHalfNeedCI}{.026,.042}
+\newcommand{\scHalfNeedCIPct}{2.6 to 4.2}
+\newcommand{\scHalfMem}{1.2}
+\newcommand{\scHalfNeedCf}{0.032}
+\newcommand{\scHalfNeedCfPct}{3.2}
+\newcommand{\scHalfNeedCfCI}{.021,.043}
+\newcommand{\scHalfNeedCfCIPct}{2.1 to 4.3}
+\newcommand{\scHalfProbeCf}{0.998}
+\newcommand{\scHalfProbeCfPct}{99.8}
+\newcommand{\scHalfProbeCfCI}{.995,1}
+\newcommand{\scHalfProbeCfCIPct}{99.5 to 100.0}
+\newcommand{\scHalfParaCf}{0.834}
+\newcommand{\scHalfParaCfPct}{83.4}
+\newcommand{\scHalfParaCfCI}{.81,.856}
+\newcommand{\scHalfParaCfCIPct}{81.0 to 85.6}
+\newcommand{\scHalfNoteCf}{0.825}
+\newcommand{\scHalfNoteCfPct}{82.5}
+\newcommand{\scHalfNoteCfCI}{.801,.848}
+\newcommand{\scHalfNoteCfCIPct}{80.1 to 84.8}
+\newcommand{\scHalfAboveCf}{0.062}
+\newcommand{\scHalfAboveCfPct}{6.2}
+\newcommand{\scHalfSecCf}{4.6}
+\newcommand{\scHalfNeedZs}{0.035}
+\newcommand{\scHalfNeedZsPct}{3.5}
+\newcommand{\scHalfNeedZsCI}{.024,.047}
+\newcommand{\scHalfNeedZsCIPct}{2.4 to 4.7}
+\newcommand{\scHalfProbeZs}{0.999}
+\newcommand{\scHalfProbeZsPct}{99.9}
+\newcommand{\scHalfProbeZsCI}{.997,1}
+\newcommand{\scHalfProbeZsCIPct}{99.7 to 100.0}
+\newcommand{\scHalfParaZs}{0.934}
+\newcommand{\scHalfParaZsPct}{93.4}
+\newcommand{\scHalfParaZsCI}{.918,.948}
+\newcommand{\scHalfParaZsCIPct}{91.8 to 94.8}
+\newcommand{\scHalfNoteZs}{0.911}
+\newcommand{\scHalfNoteZsPct}{91.1}
+\newcommand{\scHalfNoteZsCI}{.893,.929}
+\newcommand{\scHalfNoteZsCIPct}{89.3 to 92.9}
+\newcommand{\scHalfAboveZs}{0.371}
+\newcommand{\scHalfAboveZsPct}{37.1}
+\newcommand{\scHalfSecZs}{4.6}
+\newcommand{\scHalfKB}{185}
+\newcommand{\scOneFiveNeed}{0.211}
+\newcommand{\scOneFiveNeedPct}{21.1}
+\newcommand{\scOneFiveNeedCI}{.194,.229}
+\newcommand{\scOneFiveNeedCIPct}{19.4 to 22.9}
+\newcommand{\scOneFiveMem}{3.0}
+\newcommand{\scOneFiveNeedCf}{0.164}
+\newcommand{\scOneFiveNeedCfPct}{16.4}
+\newcommand{\scOneFiveNeedCfCI}{.142,.186}
+\newcommand{\scOneFiveNeedCfCIPct}{14.2 to 18.6}
+\newcommand{\scOneFiveProbeCf}{0.997}
+\newcommand{\scOneFiveProbeCfPct}{99.7}
+\newcommand{\scOneFiveProbeCfCI}{.993,1}
+\newcommand{\scOneFiveProbeCfCIPct}{99.3 to 100.0}
+\newcommand{\scOneFiveParaCf}{0.739}
+\newcommand{\scOneFiveParaCfPct}{73.9}
+\newcommand{\scOneFiveParaCfCI}{.712,.767}
+\newcommand{\scOneFiveParaCfCIPct}{71.2 to 76.7}
+\newcommand{\scOneFiveNoteCf}{0.681}
+\newcommand{\scOneFiveNoteCfPct}{68.1}
+\newcommand{\scOneFiveNoteCfCI}{.653,.711}
+\newcommand{\scOneFiveNoteCfCIPct}{65.3 to 71.1}
+\newcommand{\scOneFiveAboveCf}{0.030}
+\newcommand{\scOneFiveAboveCfPct}{3.0}
+\newcommand{\scOneFiveSecCf}{0.8}
+\newcommand{\scOneFiveNeedZs}{0.259}
+\newcommand{\scOneFiveNeedZsPct}{25.9}
+\newcommand{\scOneFiveNeedZsCI}{.231,.288}
+\newcommand{\scOneFiveNeedZsCIPct}{23.1 to 28.8}
+\newcommand{\scOneFiveProbeZs}{0.996}
+\newcommand{\scOneFiveProbeZsPct}{99.6}
+\newcommand{\scOneFiveProbeZsCI}{.992,.999}
+\newcommand{\scOneFiveProbeZsCIPct}{99.2 to 99.9}
+\newcommand{\scOneFiveParaZs}{0.936}
+\newcommand{\scOneFiveParaZsPct}{93.6}
+\newcommand{\scOneFiveParaZsCI}{.92,.95}
+\newcommand{\scOneFiveParaZsCIPct}{92.0 to 95.0}
+\newcommand{\scOneFiveNoteZs}{0.770}
+\newcommand{\scOneFiveNoteZsPct}{77.0}
+\newcommand{\scOneFiveNoteZsCI}{.745,.796}
+\newcommand{\scOneFiveNoteZsCIPct}{74.5 to 79.6}
+\newcommand{\scOneFiveAboveZs}{0.174}
+\newcommand{\scOneFiveAboveZsPct}{17.4}
+\newcommand{\scOneFiveSecZs}{0.8}
+\newcommand{\scOneFiveKB}{373}
+\newcommand{\scOneFiveQNeed}{0.217}
+\newcommand{\scOneFiveQNeedPct}{21.8}
+\newcommand{\scOneFiveQNeedCI}{.2,.235}
+\newcommand{\scOneFiveQNeedCIPct}{20.0 to 23.5}
+\newcommand{\scOneFiveQMem}{1.5}
+\newcommand{\scOneFiveQNeedCf}{0.138}
+\newcommand{\scOneFiveQNeedCfPct}{13.8}
+\newcommand{\scOneFiveQNeedCfCI}{.118,.159}
+\newcommand{\scOneFiveQNeedCfCIPct}{11.8 to 15.9}
+\newcommand{\scOneFiveQProbeCf}{0.996}
+\newcommand{\scOneFiveQProbeCfPct}{99.6}
+\newcommand{\scOneFiveQProbeCfCI}{.992,.999}
+\newcommand{\scOneFiveQProbeCfCIPct}{99.2 to 99.9}
+\newcommand{\scOneFiveQParaCf}{0.736}
+\newcommand{\scOneFiveQParaCfPct}{73.6}
+\newcommand{\scOneFiveQParaCfCI}{.709,.763}
+\newcommand{\scOneFiveQParaCfCIPct}{70.9 to 76.3}
+\newcommand{\scOneFiveQNoteCf}{0.689}
+\newcommand{\scOneFiveQNoteCfPct}{68.9}
+\newcommand{\scOneFiveQNoteCfCI}{.661,.719}
+\newcommand{\scOneFiveQNoteCfCIPct}{66.1 to 71.9}
+\newcommand{\scOneFiveQAboveCf}{0.015}
+\newcommand{\scOneFiveQAboveCfPct}{1.5}
+\newcommand{\scOneFiveQSecCf}{8.7}
+\newcommand{\scOneFiveQNeedZs}{0.297}
+\newcommand{\scOneFiveQNeedZsPct}{29.7}
+\newcommand{\scOneFiveQNeedZsCI}{.267,.326}
+\newcommand{\scOneFiveQNeedZsCIPct}{26.7 to 32.6}
+\newcommand{\scOneFiveQProbeZs}{0.992}
+\newcommand{\scOneFiveQProbeZsPct}{99.2}
+\newcommand{\scOneFiveQProbeZsCI}{.986,.997}
+\newcommand{\scOneFiveQProbeZsCIPct}{98.6 to 99.7}
+\newcommand{\scOneFiveQParaZs}{0.939}
+\newcommand{\scOneFiveQParaZsPct}{93.9}
+\newcommand{\scOneFiveQParaZsCI}{.924,.953}
+\newcommand{\scOneFiveQParaZsCIPct}{92.4 to 95.3}
+\newcommand{\scOneFiveQNoteZs}{0.783}
+\newcommand{\scOneFiveQNoteZsPct}{78.3}
+\newcommand{\scOneFiveQNoteZsCI}{.758,.808}
+\newcommand{\scOneFiveQNoteZsCIPct}{75.8 to 80.8}
+\newcommand{\scOneFiveQAboveZs}{0.195}
+\newcommand{\scOneFiveQAboveZsPct}{19.5}
+\newcommand{\scOneFiveQSecZs}{8.8}
+\newcommand{\scOneFiveQKB}{373}
+\newcommand{\scThreeNeed}{0.110}
+\newcommand{\scThreeNeedPct}{10.9}
+\newcommand{\scThreeNeedCI}{.096,.123}
+\newcommand{\scThreeNeedCIPct}{9.6 to 12.3}
+\newcommand{\scThreeMem}{2.6}
+\newcommand{\scThreeNeedCf}{0.058}
+\newcommand{\scThreeNeedCfPct}{5.8}
+\newcommand{\scThreeNeedCfCI}{.044,.074}
+\newcommand{\scThreeNeedCfCIPct}{4.4 to 7.4}
+\newcommand{\scThreeProbeCf}{0.998}
+\newcommand{\scThreeProbeCfPct}{99.8}
+\newcommand{\scThreeProbeCfCI}{.995,1}
+\newcommand{\scThreeProbeCfCIPct}{99.5 to 100.0}
+\newcommand{\scThreeParaCf}{0.668}
+\newcommand{\scThreeParaCfPct}{66.8}
+\newcommand{\scThreeParaCfCI}{.639,.697}
+\newcommand{\scThreeParaCfCIPct}{63.9 to 69.7}
+\newcommand{\scThreeNoteCf}{0.655}
+\newcommand{\scThreeNoteCfPct}{65.5}
+\newcommand{\scThreeNoteCfCI}{.626,.685}
+\newcommand{\scThreeNoteCfCIPct}{62.6 to 68.5}
+\newcommand{\scThreeAboveCf}{0.931}
+\newcommand{\scThreeAboveCfPct}{93.1}
+\newcommand{\scThreeSecCf}{11.9}
+\newcommand{\scThreeNeedZs}{0.161}
+\newcommand{\scThreeNeedZsPct}{16.1}
+\newcommand{\scThreeNeedZsCI}{.139,.184}
+\newcommand{\scThreeNeedZsCIPct}{13.9 to 18.4}
+\newcommand{\scThreeProbeZs}{0.987}
+\newcommand{\scThreeProbeZsPct}{98.7}
+\newcommand{\scThreeProbeZsCI}{.98,.994}
+\newcommand{\scThreeProbeZsCIPct}{98.0 to 99.4}
+\newcommand{\scThreeParaZs}{0.921}
+\newcommand{\scThreeParaZsPct}{92.1}
+\newcommand{\scThreeParaZsCI}{.904,.938}
+\newcommand{\scThreeParaZsCIPct}{90.4 to 93.8}
+\newcommand{\scThreeNoteZs}{0.842}
+\newcommand{\scThreeNoteZsPct}{84.2}
+\newcommand{\scThreeNoteZsCI}{.82,.865}
+\newcommand{\scThreeNoteZsCIPct}{82.0 to 86.5}
+\newcommand{\scThreeAboveZs}{0.944}
+\newcommand{\scThreeAboveZsPct}{94.4}
+\newcommand{\scThreeSecZs}{12.0}
+\newcommand{\scThreeKB}{627}
+\newcommand{\scSevenNeed}{0.088}
+\newcommand{\scSevenNeedPct}{8.8}
+\newcommand{\scSevenNeedCI}{.076,.101}
+\newcommand{\scSevenNeedCIPct}{7.6 to 10.1}
+\newcommand{\scSevenMem}{6.1}
+\newcommand{\scSevenNeedCf}{0.090}
+\newcommand{\scSevenNeedCfPct}{9.0}
+\newcommand{\scSevenNeedCfCI}{.073,.108}
+\newcommand{\scSevenNeedCfCIPct}{7.3 to 10.8}
+\newcommand{\scSevenProbeCf}{0.993}
+\newcommand{\scSevenProbeCfPct}{99.3}
+\newcommand{\scSevenProbeCfCI}{.988,.998}
+\newcommand{\scSevenProbeCfCIPct}{98.8 to 99.8}
+\newcommand{\scSevenParaCf}{0.797}
+\newcommand{\scSevenParaCfPct}{79.7}
+\newcommand{\scSevenParaCfCI}{.77,.822}
+\newcommand{\scSevenParaCfCIPct}{77.0 to 82.2}
+\newcommand{\scSevenNoteCf}{0.786}
+\newcommand{\scSevenNoteCfPct}{78.6}
+\newcommand{\scSevenNoteCfCI}{.76,.812}
+\newcommand{\scSevenNoteCfCIPct}{76.0 to 81.2}
+\newcommand{\scSevenAboveCf}{0.678}
+\newcommand{\scSevenAboveCfPct}{67.8}
+\newcommand{\scSevenSecCf}{27.9}
+\newcommand{\scSevenNeedZs}{0.086}
+\newcommand{\scSevenNeedZsPct}{8.6}
+\newcommand{\scSevenNeedZsCI}{.069,.104}
+\newcommand{\scSevenNeedZsCIPct}{6.9 to 10.4}
+\newcommand{\scSevenProbeZs}{0.989}
+\newcommand{\scSevenProbeZsPct}{98.9}
+\newcommand{\scSevenProbeZsCI}{.982,.995}
+\newcommand{\scSevenProbeZsCIPct}{98.2 to 99.5}
+\newcommand{\scSevenParaZs}{0.957}
+\newcommand{\scSevenParaZsPct}{95.7}
+\newcommand{\scSevenParaZsCI}{.944,.969}
+\newcommand{\scSevenParaZsCIPct}{94.4 to 96.9}
+\newcommand{\scSevenNoteZs}{0.912}
+\newcommand{\scSevenNoteZsPct}{91.2}
+\newcommand{\scSevenNoteZsCI}{.892,.929}
+\newcommand{\scSevenNoteZsCIPct}{89.2 to 92.9}
+\newcommand{\scSevenAboveZs}{0.895}
+\newcommand{\scSevenAboveZsPct}{89.5}
+\newcommand{\scSevenSecZs}{23.0}
+\newcommand{\scSevenKB}{860}
+\newcommand{\scSmolNeed}{0.050}
+\newcommand{\scSmolNeedPct}{5.0}
+\newcommand{\scSmolNeedCI}{.04,.06}
+\newcommand{\scSmolNeedCIPct}{4.0 to 6.0}
+\newcommand{\scSmolMem}{3.7}
+\newcommand{\scSmolNeedCf}{0.037}
+\newcommand{\scSmolNeedCfPct}{3.7}
+\newcommand{\scSmolNeedCfCI}{.026,.049}
+\newcommand{\scSmolNeedCfCIPct}{2.6 to 4.9}
+\newcommand{\scSmolProbeCf}{0.986}
+\newcommand{\scSmolProbeCfPct}{98.6}
+\newcommand{\scSmolProbeCfCI}{.979,.993}
+\newcommand{\scSmolProbeCfCIPct}{97.9 to 99.3}
+\newcommand{\scSmolParaCf}{0.798}
+\newcommand{\scSmolParaCfPct}{79.8}
+\newcommand{\scSmolParaCfCI}{.772,.822}
+\newcommand{\scSmolParaCfCIPct}{77.2 to 82.2}
+\newcommand{\scSmolNoteCf}{0.794}
+\newcommand{\scSmolNoteCfPct}{79.4}
+\newcommand{\scSmolNoteCfCI}{.769,.82}
+\newcommand{\scSmolNoteCfCIPct}{76.9 to 82.0}
+\newcommand{\scSmolAboveCf}{0.054}
+\newcommand{\scSmolAboveCfPct}{5.4}
+\newcommand{\scSmolSecCf}{17.1}
+\newcommand{\scSmolNeedZs}{0.063}
+\newcommand{\scSmolNeedZsPct}{6.3}
+\newcommand{\scSmolNeedZsCI}{.048,.078}
+\newcommand{\scSmolNeedZsCIPct}{4.8 to 7.8}
+\newcommand{\scSmolProbeZs}{0.983}
+\newcommand{\scSmolProbeZsPct}{98.3}
+\newcommand{\scSmolProbeZsCI}{.975,.99}
+\newcommand{\scSmolProbeZsCIPct}{97.5 to 99.0}
+\newcommand{\scSmolParaZs}{0.948}
+\newcommand{\scSmolParaZsPct}{94.8}
+\newcommand{\scSmolParaZsCI}{.934,.961}
+\newcommand{\scSmolParaZsCIPct}{93.4 to 96.1}
+\newcommand{\scSmolNoteZs}{0.920}
+\newcommand{\scSmolNoteZsPct}{92.0}
+\newcommand{\scSmolNoteZsCI}{.903,.936}
+\newcommand{\scSmolNoteZsCIPct}{90.3 to 93.6}
+\newcommand{\scSmolAboveZs}{0.127}
+\newcommand{\scSmolAboveZsPct}{12.7}
+\newcommand{\scSmolSecZs}{17.4}
+\newcommand{\scSmolKB}{664}
+\newcommand{\scGap}{0.006}
+\newcommand{\alCfCover}{0.423}
+\newcommand{\alCfCoverPct}{42.3}
+\newcommand{\alCfParaPlain}{0.090}
+\newcommand{\alCfParaPlainPct}{9.0}
+\newcommand{\alCfParaNamed}{0.865}
+\newcommand{\alCfParaNamedPct}{86.5}
+\newcommand{\alCfPron}{0.998}
+\newcommand{\alCfPronPct}{99.8}
+\newcommand{\alCfPronPara}{0.735}
+\newcommand{\alCfPronParaPct}{73.5}
+\newcommand{\alCfLater}{0.003}
+\newcommand{\alCfLaterPct}{0.3}
+\newcommand{\alZsCover}{0.346}
+\newcommand{\alZsCoverPct}{34.6}
+\newcommand{\alZsParaPlain}{0.270}
+\newcommand{\alZsParaPlainPct}{27.0}
+\newcommand{\alZsParaNamed}{0.961}
+\newcommand{\alZsParaNamedPct}{96.1}
+\newcommand{\alZsPron}{1.000}
+\newcommand{\alZsPronPct}{100.0}
+\newcommand{\alZsPronPara}{0.978}
+\newcommand{\alZsPronParaPct}{97.8}
+\newcommand{\alZsLater}{0.003}
+\newcommand{\alZsLaterPct}{0.3}
+\newcommand{\alNatural}{0.156}
+\newcommand{\alNaturalPct}{15.6}
+\newcommand{\alOther}{0.044}
+\newcommand{\alOtherPct}{4.4}
+\newcommand{\tcNearGlobal}{0.304}
+\newcommand{\tcNearGlobalPct}{30.4}
+\newcommand{\tcNearRel}{0.169}
+\newcommand{\tcNearRelPct}{16.9}
+\newcommand{\tcNearDiff}{-13.6}
+\newcommand{\tcNearDiffCI}{-18.1 to -9.5}
+\newcommand{\tcParaCfDiff}{-0.7}
+\newcommand{\tcParaCfDiffCI}{-1.3 to -0.2}
+\newcommand{\tcParaZsDiff}{-0.3}
+\newcommand{\tcParaZsDiffCI}{-0.7 to 0.0}
+\newcommand{\saBothDropPct}{0.3}
+\newcommand{\saNoteZsSub}{0.794}
+\newcommand{\saNoteZsSubPct}{79.4}
+\newcommand{\saNoteZsWord}{0.741}
+\newcommand{\saNoteZsWordPct}{74.1}

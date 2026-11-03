@@ -3097,3 +3097,30 @@ Decision rule. hardA passes (i) and (ii) and fails (iii): E3 rises by more than 
 Predictions. P1 held: 15 pairs. P2 failed: hardB raises near routing by 0.22 instead of lowering it, and hardA, predicted to gain less, gains more. P3 held: hardB passes (ii) by a wide distance, and hardA passes (ii); hardA was not close to the limit. "At most one arm passes" held, with none.
 
 Reading. Mining the negatives moves leakage from natural questions to template prompts instead of removing it, at about the rate of the threshold trade-off. Training on every relation makes the encoder confident on its own relations, which raises paraphrase routing to 0.994, and the dev-calibrated threshold falls so far that natural near questions pass. Hard negatives therefore join the list of changes that do not leave the trade-off.
+
+## 124. SS112 results: shard adapters with exact removal (2026-11-03)
+
+Source: results/live_learning/confirm/shard_eval.json. 96 CounterFact facts, relations P30, P103 and P449. The reference is the same facts with their SS94 rank-2 adapters: edit prompt with note 1.000, paraphrase with note 0.948, forced E3 leak 0.375, share above kappa 0.031, 373 KB per fact.
+
+Per arm, k/rank: bytes per fact; edit prompt with note; paraphrase with note and lower end against the reference; forced E3 leak and upper end against the reference; share above kappa. All grouped by relation unless marked.
+
+8/2: 47 KB; 0.958; 0.865, -0.146; 0.198, -0.083. 0.00. Fails (ii) only.
+8/4: 81 KB; 0.958; 0.802, -0.219; 0.240, -0.052. 0.00. Fails (ii) only.
+8/16: 285 KB; 0.948; 0.802, -0.219; 0.323, +0.031. 0.00. Fails (i), (ii), (iii), (v).
+16/4: 40 KB; 0.927; 0.833, -0.177; 0.250, -0.031. 0.00. Fails (i), (ii).
+16/16: 143 KB; 0.958; 0.833, -0.177; 0.302, +0.021. 0.00. Fails (ii), (iii), (v).
+16/16 random: 143 KB; 0.917; 0.896, -0.115; 0.354, +0.073. 0.00. Fails (i), (ii), (iii), (v).
+32/4: 20 KB; 0.771; 0.740, -0.292; 0.479, +0.198. 0.00. Fails (i), (ii), (iii).
+32/16: 71 KB; 0.990; 0.854, -0.156; 0.635, +0.354. 0.33. Fails (ii), (iii), (iv).
+
+Decision rule. No arm is viable, and every arm fails (ii). The per-fact store stays the answer on storage at this scale, and the follow-up stays open. No full study on the N=1000 stores follows.
+
+Removal. Retraining the first shard without its first fact, twice with the same seed in one process: 8/16 took 31.4 s for 7 facts, 32/16 took 144.1 s for 31 facts, about 4.6 s per fact against the 7 s assumed. Both pairs are bitwise equal, largest absolute difference 0.0. The removed fact's edit prompt no longer gave its answer in either arm, which is one fact per arm.
+
+Predictions. P1 failed: 8/16 fails (i) by 0.002, (ii) and (iii) as well as (v). P2 held on the main claim, neither passes, and failed on the detail: 32/16 fails (ii), (iii) and also (iv), but 8/4 passes (i) and fails (ii). P3 held in direction and is not resolved: at 16/16, cross-talk 0.010 by relation against 0.000 at random is one fact of 96, and leak 0.302 against 0.354 has no interval in this run. P4 held on growth at rank 4 (0.240, 0.250, 0.479) and only from 16 to 32 at rank 16 (0.323, 0.302, 0.635); it failed on the comparison, since 32 facts leak 48% and 64% and even 8 facts leak 20% to 32%, above most of the 10% to 30% at 256. The two readings use different prompts: the 256-fact reading used held-out facts and this one uses other-relation prompts of the stored facts, on which the per-fact reference itself leaks 37.5%, so the comparison was badly posed. P5 failed: retraining was bitwise reproducible without forcing deterministic operations.
+
+Pin. The pinned sizes were estimates. Measured, 8/16 is 285 KB and not 373 KB, 32/16 is 71 KB and 8/4 is 81 KB and not 93 KB. The limit in (v) stays at 93 KB. 16/16 misses (iii) by 0.001, which decides nothing since it also fails (ii) and (v).
+
+Reading. Grouping loses paraphrases even with the note: the best arm at any size is 5 points below the reference, and the best arm within the byte limit is 8 points below. At small k and low rank it also leaks less: 8/2 stores 47 KB per fact, 8 times less, and its leak is 17.7 points lower [-29.2, -6.2]. It fails only (ii). That leaves one open question: whether the grouped recipe of SS42, used here because LoRA+ collapses when grouped, costs the paraphrases, or the sharing itself does.
+
+Limit. A pilot of 96 facts in three relations, with no served reading: forced prompts only, and the router does not take part. Bitwise equality holds for two runs in one process on one GPU, and not across machines or library versions.

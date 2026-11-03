@@ -3124,3 +3124,33 @@ Pin. The pinned sizes were estimates. Measured, 8/16 is 285 KB and not 373 KB, 3
 Reading. Grouping loses paraphrases even with the note: the best arm at any size is 5 points below the reference, and the best arm within the byte limit is 8 points below. At small k and low rank it also leaks less: 8/2 stores 47 KB per fact, 8 times less, and its leak is 17.7 points lower [-29.2, -6.2]. It fails only (ii). That leaves one open question: whether the grouped recipe of SS42, used here because LoRA+ collapses when grouped, costs the paraphrases, or the sharing itself does.
 
 Limit. A pilot of 96 facts in three relations, with no served reading: forced prompts only, and the router does not take part. Bitwise equality holds for two runs in one process on one GPU, and not across machines or library versions.
+
+## 125. The adapter alone against the note alone, on saved outputs (pinned 2026-11-03, before the paired reading)
+
+Question. The project now tries the adapter path alone, without the note in the prompt. Do the saved N=1000 stores support it? "A fact needs an adapter" (entry 120) only says that the note fails on the edit prompt. It does not compare the two tiers.
+
+Runner: confirm/adapter_vs_note.py, no model. Saved served outputs of the rank-16 and rank-2 stores, CounterFact and zsRE, edit prompts and paraphrases, word-boundary score, paired bootstrap CI of adapter minus note, routed as stored. Marginal rates of the rank-16 store were already seen (score_audit.json); the rank-2 cells and all paired differences were not.
+
+Decision rule. The stored results support the adapter path if adapter minus note has a 95% CI above 0 in all four rank-2 cells. This is a reading, and it does not change a default.
+
+Predictions. P1: the rule holds. P2: the CounterFact paraphrase cell is the smallest difference, under 8 points at rank 2. P3: adapter alone stays below adapter with note on paraphrases, by 10 to 20 points on CounterFact and under 4 on zsRE.
+
+## 126. The adapter alone, trained on phrasings the base model writes (pinned 2026-11-03, before the run)
+
+Question. The recipe trains an adapter on two pairs: the note's sentence and one edit prompt. Adapter alone reaches 0.73 on CounterFact paraphrases against 0.89 with the note. Does training on rewrites of the edit prompt close that gap, so that no note is needed?
+
+Runner: confirm/adapter_only.py on Qwen2.5-1.5B (bf16). 150 CounterFact and 150 zsRE facts, seed 126, one fact per subject, with a paraphrase, every fact of the draw and not only those where a note fails. Their subjects are in neither N=1000 store, the dev split nor the 2000 facts of SS87. Rewrites: up to three per fact, written by the base model with the prompt and the parser of SS75 (confirm/gen_keys.py), from the subject and the edit prompt only. The benchmark's paraphrases are held out from all training.
+
+Arms, all rank 2 with LoRA+ in int8, 16 passes over all pairs, KL anchor on the two training canaries, seed 126 before each adapter. A0: the current pairs. A1: the current pairs and (rewrite, answer) for each rewrite. A2: (edit prompt, answer) and (rewrite, answer), without the note's sentence. More pairs means more updates at 16 passes; this is the recipe, and the training time is reported.
+
+Readings per arm, word-boundary score, pooled and per dataset, right adapter forced: edit prompt alone; paraphrase alone; paraphrase with note, which only A0 needs; held-out D on the 40 canaries and share above 0.968; forced E3 on the other-relation prompt, CounterFact only, adapter alone, a leak being the target that the base output lacks; wrong route on the 200 zsRE dev questions of SS69. Routing is not part of this entry, since it does not depend on the adapter.
+
+Decision rule. A1 or A2 replaces A0 if, pooled: (i) paraphrase alone rises by at least 0.05 and the paired 95% CI is above 0; (ii) edit prompt alone falls by at most 0.02; (iii) share above kappa at most A0 + 0.02 and mean held-out D at most A0 + 0.05; (iv) E3 leak at most A0 + 0.02 at the upper end of the one-sided 95% interval; (v) wrong route at most 0.03 below A0. If both pass, the higher paraphrase rate wins.
+
+Note-free reading. The note is not needed at this scale if the chosen arm (A0 if none passes) has paraphrase alone non-inferior to A0's paraphrase with note, margin 0.03, lower end of the one-sided 95% interval, pooled and on CounterFact.
+
+Stop rule. If no arm passes, the adapter path does not continue on recipe changes of this kind, and the next entry must say why it is different. A later rank-16 run of the chosen arm decides the rank, and a test under pressure decides whether the adapter holds where a note does not. Neither is pinned here.
+
+Predictions. P1: A1 and A2 raise CounterFact paraphrase alone by 5 to 15 points. P2: zsRE rises by at most 2 points, being near its ceiling. P3: A1 passes the rule. P4: A2 has a lower E3 leak and lower D than A1, since it drops the "Noted:" sentence, whose echo has appeared in leaked outputs. P5: the note-free reading fails on CounterFact: the chosen arm stays more than 0.03 below A0 with note at the lower end. P6: training takes 2 to 3 times as long as A0.
+
+Not varied here. Pairs train without a system prompt and serving uses one. Noted as a possible cause, for a later entry if this one fails.

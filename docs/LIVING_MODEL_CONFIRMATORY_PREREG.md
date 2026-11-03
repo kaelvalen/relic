@@ -3289,3 +3289,21 @@ What the retry can recover. In SS130 the fallback store loses 13 paraphrases aga
 The rows also show that A1 sits close to the threshold on most of these facts: 12 of the 19 have D within .12 of kappa. The next entry uses that before a fresh run is pinned.
 
 Limits. One seed, facts chosen partly for high D, and the projection assumes forced readings carry over to served ones.
+
+## 134. Gentler rescues for rejected adapters: a second development run (pinned 2026-11-04, before the run)
+
+Question. Entry 133 shows L16 under kappa on all 19 rejected facts at the price of 4 paraphrases against A1, while 12 of the 19 miss kappa by at most .12. Does a smaller step, tried first, keep more of those paraphrases?
+
+Status. Development only, on the same 19 seen facts. It selects what a later run on fresh facts tests, and no result here supports a claim.
+
+Runner: confirm/retry_dose.py --round2, setup as in entry 132. The rows of SS132 are reused for L4 and L16.
+
+Arms. L2: kl_lambda 2, seed 126. L8: kl_lambda 8, seed 126. R1: kl_lambda 1, seed 127. R2: kl_lambda 1, seed 128. All at 16 passes.
+
+Ladders. A ladder tries its rungs in order at write time and stores the first adapter under kappa, as paraphrases are held out and cannot steer the choice. T0: L16. T1: R1, R2, L16. T2: L2, L4, L8, L16. T3: R1, L2, L4, L8, L16. The count of a ladder is the facts whose stored adapter gets the paraphrase alone right.
+
+Selection, for the entry that pins the fresh run. The ladder with the highest count, a tie going to the fewer rungs.
+
+Predictions. P1: L2 brings at least 10 of the 19 under kappa. P2: R1 and R2 each bring at least 5 under kappa, and each loses at most 2 of A1's 17 paraphrases on the facts it brings under. P3: T2 counts at least 15. P4: no ladder reaches 17. P5: T2 is selected.
+
+Limits. 19 facts, chosen for high D, and re-using them across rungs makes the counts optimistic. Selecting a seed by the gate also tests the gate repeatedly, so the fresh run has to read wrong route and locality on the stored adapters and not on the first attempts.

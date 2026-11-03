@@ -3206,3 +3206,23 @@ Not in the plan, read after the results. (a) The word-boundary E3 score undercou
 Reading. Rewrites written by the base model do what they were added for: paraphrase alone on CounterFact reaches the level of A0 with its note, without using the benchmark's paraphrases. What pays for it is locality: the adapter gives its answer to the subject's other questions more often, and damages more when the route is wrong. So this result does not show a note-free store that is as local as the current one.
 
 Limit. The forced readings say what the adapter does if it runs, not how often it runs: routing was not part of this entry. 150 facts per dataset, one model, rank 2, one seed.
+
+## 130. The SS126 adapters served through the default router (pinned 2026-11-03, before the run)
+
+Question. SS126 forced the right adapter, so it says what an adapter does when it runs and not how often it runs. Through the default router and the write gate, does a store with no note match the current system?
+
+Why this is not a recipe change. The stop rule of entry 129 stands. No adapter is trained here, and the decision of SS126 is not reopened: A1 is still rejected as a replacement under that rule. This entry asks another question, about the served system. The rule below is set knowing the forced results of entry 129 and the N=1000 results of SS85, so it is weaker evidence than a pin made blind to them, and a pass would need a confirmation on fresh facts before any claim.
+
+Runner: confirm/served_adapter.py on Qwen2.5-1.5B, with the saved int8 A0 and A1 adapters of SS126 and the same 300 facts in one store. Default router (SS76 encoder, theta 0.7501), no extra keys, one router per store, on CPU. 64 new tokens and the system prompt "Answer briefly." as in SS126, the note as `rag_system("instruct")`.
+
+Stores. A write above kappa 0.968 commits nothing, as `Ledger.write` does. Current: A0 with its note. A0 alone: the same adapters, no note. Fallback: A1 alone, where A1 is above kappa A0 alone, and neither above kappa means no entry. Reject only: A1 alone, no retry. Gate off: A1 alone for every fact. Fallback is the store that the rule reads, since a writer would retry a rejected fact, and the other two A1 stores show what the gate costs.
+
+Queries. Edit prompts and paraphrases of all 300 facts, scored with the word-boundary target. For the 150 CounterFact facts, the E3 template prompt of SS126, and one natural question about another relation, written by SmolLM3-3B with the prompts of SS85, half for a neighbouring relation (seed 130) and half uniform, dropped if the subject is not in it. SmolLM runs on CPU, as the GPU is shared; the prompts and greedy decoding are unchanged. A leak is the target at a word boundary in the served output and not in the base output.
+
+Decision rule, fallback minus current, paired. (i) Paraphrase, lower end of the one-sided 95% interval at least -0.03, pooled and on CounterFact. (ii) Edit prompt, lower end at least -0.02, pooled. (iii) E3 leak, upper end at most +0.02. (iv) Natural leak, upper end at most +0.02. If all hold, a store with no note is supported at this scale, and the next step is a run on fresh facts at a larger N. It is not adopted here.
+
+What follows, for the user's decision and not pinned. A failure of (i) that comes from rejected facts points to lowering D. A failure of (iii) or (iv) points to negatives at training, same-subject questions trained on the base model's own answer, which is why such a run would differ from SS126 under the stop rule.
+
+Predictions. P1: gate off, CounterFact paraphrase is within 2 points of current. P2: reject only fails (i) on CounterFact, since about 10% of those facts are rejected. P3: fallback fails (i) on CounterFact at the lower end, with a point difference of at most 6 points. P4: (iii) holds, since current with its note also leaks when routed, and at most 15% of E3 prompts are routed. P5: (iv) holds, with about 15% of natural questions routed as at N=1000 in SS85. P6: fallback leaks more than A0 alone on natural questions, by at most 5 points, so the comparison with current hides a real cost of the rewrites. P7: the rule fails, on (i).
+
+Limits, known in advance. 150 CounterFact facts, one model, rank 2, one seed. Natural questions are not labelled here, and some questions about a neighbouring relation may ask the same thing, so a leak is an upper bound. There is no gold answer for these questions, so damage to a right answer is read only from the forced wrong-route figure of SS126.

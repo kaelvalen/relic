@@ -57,7 +57,7 @@ flowchart LR
 Qwen2.5-1.5B-Instruct, 1000 facts per dataset, every query served through the router,
 adapter and note served together unless stated. Source:
 [`docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`](docs/LIVING_MODEL_CONFIRMATORY_PREREG.md),
-entries 64 to 128.
+entries 64 to 129.
 
 | Reading | CounterFact, router v4 (MiniLM) | CounterFact, default router | zsRE, default router |
 | :-- | :-- | :-- | :-- |
@@ -95,6 +95,7 @@ table therefore keeps the rank-16 stores as the main build.
 | Can one adapter hold a shard of facts and still remove exactly? | 112, 124 | Not yet. On 96 facts no arm of 8 to 32 facts passes: paraphrase with note stays 5 to 21 points below per-fact adapters. Retraining takes about 4.6 s per fact and repeated bitwise in one process. Eight facts at rank 2 store 47 KB per fact and leak less, so this stays open. |
 | Can a soft prompt replace the adapter? | 113, 128 | No. Ten trained tokens per fact (31 KB) reach 0.57 on edit prompts and 0.33 on paraphrases alone, against 0.99 and 0.82 for rank 2. |
 | Does the adapter alone beat the note alone? | 125, 127 | Yes, in all four cells at rank 2: +16.1 and +25.9 points on edit prompts, +4.9 and +19.7 on paraphrases. Adding the note still gives 15 points on CounterFact paraphrases. |
+| Can rewrites make the note unnecessary? | 126, 129 | Not yet. CounterFact paraphrases alone rise from 0.73 to 0.95, level with the note, but the forced leak on the subject's other relation rises from 0.36 to 0.63 and answers kept under a wrong route fall from 0.66 to 0.55. No arm passes. |
 
 ### Other base models
 

@@ -3170,3 +3170,17 @@ Predictions. P1 held. P2 held: CounterFact paraphrases are the smallest differen
 Reading. On these stores the adapter alone beats the note alone in every cell. The note's contribution is on CounterFact paraphrases, 15 points when it is added to the adapter, and that is the gap SS126 tries to close. Rank 2 and rank 16 differ by at most 0.2 points on the adapter alone.
 
 Limit. An adapter is on these stores for every fact, including those a note alone answers. The note arm is the note with no adapter. The comparison is on Qwen2.5-1.5B only and does not test a better note.
+
+## 128. SS113 results: a per-fact soft prompt (2026-11-03)
+
+Source: results/live_learning/confirm/soft_prompt.json and soft_prompt_lr.json. Stage 1 selected lr 3e-3 on the 20 development facts: efficacy 0.90, paraphrase 0.35, above kappa 0.15. Stage 2, 279 fresh adapter facts, 30.7 KB per fact, about 12 s per fact.
+
+Soft prompt / rank-2 adapter, substring score as in SS87. Edit prompt alone 0.574 / 0.989; with note 0.785 / 0.932, difference -0.147 [-0.201, -0.093]. Paraphrase alone 0.333 / 0.821; with note 0.771 / 0.928, difference -0.158 [-0.215, -0.104]. Held-out D mean 0.522 / 0.390, maximum 1.963 / 1.407. Share above kappa 0.065 / 0.029. Wrong route retained 0.640 / 0.705.
+
+Decision rule. Fails on all of (i), (ii) and (iii). The soft prompt does not replace the adapter and is not a second tier.
+
+Predictions. P1 failed: efficacy reached 0.90 on the development facts and 0.574 on fresh ones. P2 held on the failure of (ii) but not on its reason: mean D is 1.3 times the adapter's, not the 4 to 12 times of SS93. The rule also fails on (i) and (iii), which P2 did not say. P3 held: paraphrase alone 0.333 against 0.821. P4 held.
+
+Reading. A soft prompt is 12 times smaller and does not touch a weight, but it does not hold the fact. Adding the note lifts it, which is the note doing the work. This supports the adapter path of entry 125: of the parametric forms tried so far, the low-rank adapter is the one that carries a fact alone.
+
+Limit. 32 passes and one initial value per fact, on one model, and a learning rate selected on 20 facts. The gap between the development and the fresh efficacy suggests that the small selection set flattered it, and a longer training was not tried.

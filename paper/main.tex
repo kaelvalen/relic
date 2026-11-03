@@ -705,8 +705,9 @@ conversation names, unless a later turn names someone who is not stored. Paraphr
 by an alias are routed correctly \alCfParaNamedPct\% and \alZsParaNamedPct\% of the time, against
 \alCfParaPlainPct\% and \alZsParaPlainPct\% without aliases. Edit prompts with a pronoun after a turn that names the
 subject reach \alCfPronPct\% and \alZsPronPct\%, and paraphrases \alCfPronParaPct\% and \alZsPronParaPct\%; the
-CounterFact paraphrases carry a leading sentence the pronoun can land on. Without the history none of them is routed. If
-a later turn names an unstored subject, \alCfLaterPct\% and \alZsLaterPct\% are routed. Routing of natural
+CounterFact paraphrases carry a leading sentence the pronoun can land on. Without the history none of them is routed. With adapter and note, edit prompts that use an alias are answered
+\alCfAnsAliasPct\% and \alZsAnsAliasPct\% of the time, and those that use a pronoun \alCfAnsPronPct\% and \alZsAnsPronPct\%.
+If a later turn names an unstored subject, \alCfLaterPct\% and \alZsLaterPct\% are routed. Routing of natural
 questions (\alNaturalPct\%) and other-relation prompts (\alOtherPct\%) does not change. All registered
 conditions hold, so both are the default. An approximate match in the first run turned the word ``more'' in a
 filler turn into the alias ``Morven,'' which sent every later pronoun to one entry on CounterFact; the rewrite now
@@ -880,7 +881,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 120 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 121 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

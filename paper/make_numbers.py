@@ -533,6 +533,10 @@ try:
         emit(f"al{tag}Pron", d["C1_probe"]["named"], fixed=True)
         emit(f"al{tag}PronPara", d["C1_paraphrase"]["named"], fixed=True)
         emit(f"al{tag}Later", d["C2"]["routed"], fixed=True)
+    served = json.load(open(R + "alias_eval_served.json"))["datasets"]
+    for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
+        emit(f"al{tag}AnsAlias", served[ds]["served_both"]["A1"]["word"], fixed=True)
+        emit(f"al{tag}AnsPron", served[ds]["served_both"]["C1_probe"]["word"], fixed=True)
     false = al["datasets"]["counterfact"]["false"]
     emit("alNatural", false["F4_natural"]["named"], fixed=True)
     emit("alOther", false["F1_other_relation"]["named"], fixed=True)

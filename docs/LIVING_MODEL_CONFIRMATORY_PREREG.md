@@ -3184,3 +3184,25 @@ Predictions. P1 failed: efficacy reached 0.90 on the development facts and 0.574
 Reading. A soft prompt is 12 times smaller and does not touch a weight, but it does not hold the fact. Adding the note lifts it, which is the note doing the work. This supports the adapter path of entry 125: of the parametric forms tried so far, the low-rank adapter is the one that carries a fact alone.
 
 Limit. 32 passes and one initial value per fact, on one model, and a learning rate selected on 20 facts. The gap between the development and the fresh efficacy suggests that the small selection set flattered it, and a longer training was not tried.
+
+## 129. SS126 results: rewrites close the paraphrase gap and cost locality (2026-11-03)
+
+Source: results/live_learning/confirm/adapter_only.json. 150 CounterFact and 150 zsRE facts, word-boundary score, right adapter forced. Rewrites per fact: three for 271, two for 13, one for 6, none for 10.
+
+A0 / A1 / A2, pooled. Edit prompt alone 0.970 / 0.987 / 0.987. Paraphrase alone 0.827 / 0.960 / 0.963; against A0, A1 +0.133 [0.093, 0.173], A2 +0.137 [0.097, 0.180]. Paraphrase with note 0.967 / 0.987 / 0.990. Mean held-out D 0.384 / 0.505 / 0.605. Share above kappa 0.010 / 0.063 / 0.140. Wrong route, word boundary, 0.660 / 0.550 / 0.485.
+
+CounterFact. Paraphrase alone 0.727 / 0.947 / 0.947. Mean D 0.360 / 0.566 / 0.689. Share above kappa 0.013 / 0.100 / 0.207. E3 leak 0.360 / 0.627 / 0.700; against A0, A1 +0.267 [0.187, 0.347], A2 +0.340 [0.253, 0.427]. zsRE. Paraphrase alone 0.927 / 0.973 / 0.980. Mean D 0.407 / 0.445 / 0.520. Share above kappa 0.007 / 0.027 / 0.073.
+
+Decision rule. Neither arm passes. Both pass (i) and (ii) and fail (iii) on both parts, (iv) and (v). A0 stays.
+
+Note-free reading. With A0 as the chosen arm it fails: paraphrase alone minus A0 with note is -0.140, lower end -0.177, pooled, and -0.227, lower end -0.287, on CounterFact. The arms that were not chosen give no claim, and are given for the next entry: A1 -0.007, lower end -0.030, pooled, and -0.007, lower end -0.040, on CounterFact; A2 -0.003, lower end -0.027, pooled, and -0.007, lower end -0.040, on CounterFact.
+
+Stop rule. It applies. The adapter path does not continue on recipe changes of this kind, and the next entry must say why it is different.
+
+Predictions. P1 failed: CounterFact paraphrase alone rose by 22 points in both arms, above the predicted 5 to 15. P2 failed: zsRE rose by 4.7 and 5.3 points. P3 failed. P4 failed in the opposite direction: A2 has a higher E3 leak and a higher D than A1, and "Noted:" in outputs is not the source of the leak, since it falls with the leak rising (E3 outputs with "noted": 12%, 2%, 0%). P5 held. P6 held at the low end: 2.17 and 2.00 times A0 (6.7, 14.4 and 13.3 s per fact).
+
+Not in the plan, read after the results. (a) The word-boundary E3 score undercounts, as the smoke run suggested ("Norwegian Superliga" for "Norway"). Counting a stem of the answer gives 0.400 / 0.660 / 0.733, 3 to 4 points more in each arm, so the differences stand. (b) A forced adapter almost never leaves the other-relation answer as it was: the output equals the base output, as an exact string, for 0.0%, 0.0% and 1.3% of the E3 prompts. (c) The arms differ in dose. At 16 passes, updates toward the answer number 16 in A0 and 64 in A1 and A2 for a fact with three rewrites, and A1 has 16 more toward the note's sentence. This entry cannot separate the rewrites from the larger dose, in the gain or in the cost. (d) A1 and A2 give the answer the same number of updates, and A1, with the note's sentence, has the lower D and E3. The sentence may act as a brake, which is a guess. (e) A1 leaks on 90.7% of the CounterFact facts where A0 leaks and on 46.9% of the others.
+
+Reading. Rewrites written by the base model do what they were added for: paraphrase alone on CounterFact reaches the level of A0 with its note, without using the benchmark's paraphrases. What pays for it is locality: the adapter gives its answer to the subject's other questions more often, and damages more when the route is wrong. So this result does not show a note-free store that is as local as the current one.
+
+Limit. The forced readings say what the adapter does if it runs, not how often it runs: routing was not part of this entry. 150 facts per dataset, one model, rank 2, one seed.

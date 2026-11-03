@@ -598,6 +598,17 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS126 the adapter alone on rewrites (prefix "ao").
+try:
+    s = json.load(open(R + "adapter_only.json"))["summary"]
+    for tag, arm in (("Ref", "A0"), ("Rew", "A1")):
+        emit(f"ao{tag}CfPara", s[arm]["cf"]["paraphrase"], fixed=True)
+        emit(f"ao{tag}ETh", s[arm]["e3_leak"], fixed=True)
+        emit(f"ao{tag}Route", s[arm]["wrong_route_word"], fixed=True)
+    emit("aoRefCfNote", s["A0"]["cf"]["paraphrase_note"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

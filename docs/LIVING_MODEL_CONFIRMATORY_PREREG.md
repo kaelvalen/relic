@@ -3264,3 +3264,28 @@ Selection, for the entry that pins the fresh run. The retry is the arm with the 
 Predictions. P1: D8 brings at least 12 of the 19 under kappa. P2: D4 brings more under kappa than D8, and loses more paraphrases. P3: L16 lowers D less than D8, as the anchors cover 2 prompts and understate the effect on others (SS69). P4: S changes mean D by less than 0.05 on the others and paraphrase alone by at most 2 points. P5: D8 is the selected retry.
 
 Limits. 50 facts, one seed, chosen partly for high D, so the arms' D on the rejected group is not a rate for a whole store.
+
+## 133. SS132 results: the anchor weight rescues rejected adapters, fewer passes do not (2026-11-04)
+
+Run as pinned, 50 seen facts, right adapter forced, word boundary. Development only, so nothing here supports a claim.
+
+| Arm | Rejected 19: under kappa | D mean | paraphrase | paraphrase and under kappa | Others 31: under kappa | D mean | paraphrase | E3 rejected, others | Wrong route |
+|---|---|---|---|---|---|---|---|---|---|
+| A1 (saved) | 0 | 1.190 | .895 | 0 | 31 | .462 | .968 | .467, .600 | not on this draw |
+| D8 | 3 | 1.335 | .895 | 3 | 28 | .549 | .935 | .533, .667 | .535 |
+| D4 | 15 | .882 | .789 | 12 | 27 | .487 | .774 | .400, .267 | .635 |
+| L4 | 15 | .679 | .789 | 11 | 31 | .301 | .871 | .600, .667 | .640 |
+| L16 | 19 | .346 | .684 | 13 | 31 | .232 | .871 | .533, .467 | .700 |
+| S | 10 | 1.047 | .842 | 9 | 29 | .479 | .839 | .600, .600 | .405 |
+
+Selection. The retry is L16, with 13 of the 19 right and under kappa. No arm is a candidate to replace A1 at the first attempt: on the others every arm loses more than 0.02 of paraphrase against the reference, and only L4 and L16 also lower D by 0.05.
+
+Predictions. P1 failed: D8 brings 3 under kappa, not 12. Mean D rises at 8 passes on both groups and falls at 4, so D is not monotonic in passes over this range. P2 held. P3 failed: L16 lowers D most, the opposite of the reasoning from SS69. P4 failed: mean D moves by .017 as predicted, and paraphrase falls by 12.9 points instead of at most 2. P5 failed: L16 is selected. One of five held.
+
+Training under the serving system prompt does not help on any reading here, which closes the possible cause left open in entry 126.
+
+What the retry can recover. In SS130 the fallback store loses 13 paraphrases against current and wins 7, 6 net of 300. Of the 13, 5 are on the rejected facts, and it wins none there. On the 19 facts A0 under kappa gets 10 paraphrases and L16 gets 13, which projects the pooled gap from -.020 to about -.010 and the CounterFact gap from -.033 to about -.020. At 150 CounterFact facts the lower bound of that gap would still be near -.06, under the margin of -.03, so L16 alone is not expected to pass the rule of entry 130 on fresh facts.
+
+The rows also show that A1 sits close to the threshold on most of these facts: 12 of the 19 have D within .12 of kappa. The next entry uses that before a fresh run is pinned.
+
+Limits. One seed, facts chosen partly for high D, and the projection assumes forced readings carry over to served ones.

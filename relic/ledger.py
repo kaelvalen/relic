@@ -389,9 +389,8 @@ class Ledger:
     ):
         self.store, self.scorer = store, scorer
         self.tau, self.slot_theta = tau, slot_theta
-        self.duplicate_theta = (
-            slot_theta if duplicate_theta is None else duplicate_theta
-        )
+        # SS104: a same-answer write merges wherever a query would be routed to the entry
+        self.duplicate_theta = tau if duplicate_theta is None else duplicate_theta
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
         self._delta_digest: dict[str, str] = {}

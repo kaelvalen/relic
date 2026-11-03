@@ -37,7 +37,7 @@ UPDATE = {**NEW, "id": "f3", "answer": "Swedish", "teach": f"{NEW['probe']} Swed
 
 def main() -> None:
     store = DeltaStore(MODEL, steps=16, capacity=1)
-    ledger = Ledger(store, make_scorer("relenc"), 0.7501, 0.8985, 0.7501)
+    ledger = Ledger(store, make_scorer("relenc"), 0.7501, 0.8985)
     empty = ledger.state_hash()
     off_topic = "What is the capital of France?"
     before = ledger.ask(off_topic)
@@ -62,7 +62,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as d:
         path = Path(d) / "store.ledger"
         ledger.save(path)
-        reloaded = Ledger(store, ledger.scorer, 0.7501, 0.8985, 0.7501)
+        reloaded = Ledger(store, ledger.scorer, 0.7501, 0.8985)
         reloaded.load(path)
         assert reloaded.state_hash() == ledger.state_hash()
 

@@ -70,7 +70,9 @@ def fresh_facts(raw_cf, raw_zs):
 
 
 def residual(facts, scorer, slot_theta, duplicate_theta, per_entry=False):
-    ledger = Ledger(NoStore(), scorer, THETA_ROUTE, slot_theta, duplicate_theta)
+    ledger = Ledger(
+        NoStore(), scorer, THETA_ROUTE, slot_theta, duplicate_theta or slot_theta
+    )
     holder, actions = {}, {"insert": 0, "duplicate": 0, "update": 0}
     for f in facts:
         if per_entry:

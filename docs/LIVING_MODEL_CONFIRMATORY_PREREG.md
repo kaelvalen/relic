@@ -3067,3 +3067,19 @@ Source: results/live_learning/confirm/alias_eval_served.json, rank-16 stores, ad
 Answers through the alias, substring / word boundary. A1 (alias in the edit prompt): CounterFact 0.971 / 0.971, zsRE 0.929 / 0.922. C1 (pronoun on the edit prompt): CounterFact 0.996 / 0.996, zsRE 0.990 / 0.989. Against the same prompts with the stored subject, 0.996 and 0.989, the rewrite loses nothing, and an alias loses about 2.5 points on CounterFact and 6 on zsRE, since the adapter was trained on the stored name.
 
 The write gate. `Ledger.write` still gated on the two trained anchors with limit 2.0, the check SS69 rejected. It now gates on the 40 held-out canaries with kappa 0.968. confirm/ledger_smoke.py passes end to end on the real model with the new gate: adapter write, alias, pronoun, save and reload with an equal hash, update, and removal back to the empty hash. That is 2 adapters on one seed, a check that the path works and not a measurement of the rejection rate. At the SS87 reading 2.9% of rank-2 adapters are above this limit and would be rejected, with no retraining in this path.
+
+## 122. SS104 reading (a): asymmetric slots on the N=1000 stores, and the decision (2026-11-03)
+
+Source: results/live_learning/confirm/slot_eval_asym.json, post hoc as SS104 said; the confirmatory reading is entry 115.
+
+Writes. CounterFact: 998 inserts, 1 duplicate, 1 update, the same as SS96, with 0 merges across relation identifiers. zsRE: 794 inserts, 206 duplicates, 0 updates, no merge with a different answer.
+
+Serving against the SS76 evaluation, new / old / lower end of the one-sided 95% interval of the difference, adapter and note. CounterFact edit prompts 0.997 / 0.996 / -0.002; paraphrases 0.893 / 0.891 / -0.001. zsRE edit prompts 0.991 / 0.989 / -0.001; paraphrases 0.985 / 0.982 / 0.000. Adapter alone, lowest lower end: -0.005, zsRE edit prompts. Retention 0.9978 and 0.9965.
+
+Removal. CounterFact: return 1.00. zsRE, 96 entries removed: return 1.00 [1.00, 1.00], from 0.84 per entry and 0.90 under SS96 slots; lower end 1.00; gone 0.56, and base-correct 0.44, so every removed fact either leaves the answer or leaves the answer the base model already gave.
+
+Decision rule. (i) on the fresh sample holds (entry 115). (ii) zsRE return lower end 1.00 against 0.95; 0 CounterFact merges across relation identifiers against at most 2; serving non-inferior at 0.01. All hold, so the asymmetric threshold is the default write path: `Ledger` now merges a same-answer write at the routing threshold unless told otherwise. confirm/slot_eval.py and slot_fresh.py pass their thresholds explicitly, so the SS96 and per-entry readings stay reproducible. The saved stores of the main evaluation remain per-entry, as they were evaluated.
+
+Predictions. P1 held: return 1.00. P2 held: 0.01. P3 held: 0 merges.
+
+Limit. Slots are measured by replaying the writes over stores that already exist, with the kept entry's adapter, and not by training through `Ledger.write`. "Removal by content" stays as the operation for stores already written per entry.

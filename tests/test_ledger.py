@@ -87,7 +87,7 @@ def test_same_answer_merges_below_the_threshold_for_replacing():
             return [0.8 for _ in keys]
 
     led = make_ledger()
-    led.scorer, led.duplicate_theta = Band(), 0.75
+    led.scorer = Band()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
     # 0.8 is enough to merge the same answer, and not enough to replace with another
     same = led.commit(fact("b", "Ann", "The birthplace of Ann is", "Oslo"))

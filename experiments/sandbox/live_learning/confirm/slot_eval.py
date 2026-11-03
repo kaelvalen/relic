@@ -128,7 +128,9 @@ def evaluate(dataset, store, scorer, theta_slot, raw_cf, duplicate_theta=None):
     saved_rows = {r["fact_id"]: r for r in saved["examples"]["serving"]}
 
     store.deltas, store.keys, store.notes = {}, {}, {}
-    ledger = Ledger(store, scorer, THETA_ROUTE, theta_slot, duplicate_theta)
+    ledger = Ledger(
+        store, scorer, THETA_ROUTE, theta_slot, duplicate_theta or theta_slot
+    )
     holder, events = {}, []
     for f in facts:
         event = ledger.commit(f, checkpoint["deltas"][f["id"]])

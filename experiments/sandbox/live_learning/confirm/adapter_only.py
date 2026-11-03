@@ -27,7 +27,13 @@ from rank2_confirm import evaluate, int8  # noqa: E402
 from router_v4_calibrate import build_dev  # noqa: E402
 from wrong_route import paired  # noqa: E402
 
-from relic.adapters import R2, fact_pairs, make_variant, set_delta, train_one  # noqa: E402
+from relic.adapters import (  # noqa: E402
+    R2,
+    fact_pairs,
+    make_variant,
+    set_delta,
+    train_one,
+)
 from relic.ledger import CANARIES, DeltaStore  # noqa: E402
 from relic.metrics import word_hit  # noqa: E402
 from relic.model import chat, load_model  # noqa: E402
@@ -181,7 +187,9 @@ def summarize(report, items):
         leak = [res["e3"][k]["leak"] for k in cf]
         s["e3_leak"] = round(float(np.mean(leak)), 4)
         if arm != "A0":
-            s["e3_minus_A0"] = paired(leak, [report["arms"]["A0"]["e3"][k]["leak"] for k in cf])
+            s["e3_minus_A0"] = paired(
+                leak, [report["arms"]["A0"]["e3"][k]["leak"] for k in cf]
+            )
         s["wrong_route_retained"] = round(
             float(np.mean([w["retained"] for w in res["wrong_route"]])), 4
         )

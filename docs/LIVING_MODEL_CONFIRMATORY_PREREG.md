@@ -3154,3 +3154,19 @@ Stop rule. If no arm passes, the adapter path does not continue on recipe change
 Predictions. P1: A1 and A2 raise CounterFact paraphrase alone by 5 to 15 points. P2: zsRE rises by at most 2 points, being near its ceiling. P3: A1 passes the rule. P4: A2 has a lower E3 leak and lower D than A1, since it drops the "Noted:" sentence, whose echo has appeared in leaked outputs. P5: the note-free reading fails on CounterFact: the chosen arm stays more than 0.03 below A0 with note at the lower end. P6: training takes 2 to 3 times as long as A0.
 
 Not varied here. Pairs train without a system prompt and serving uses one. Noted as a possible cause, for a later entry if this one fails.
+
+## 127. SS125 results: the adapter alone against the note alone (2026-11-03)
+
+Source: results/live_learning/confirm/adapter_vs_note.json. Word-boundary score, served through the router, n = 1000 per dataset. Adapter / note / adapter with note; adapter minus note with 95% CI.
+
+Rank 2. CounterFact edit prompts 0.998 / 0.837 / 0.995, +0.161 [0.139, 0.183]. CounterFact paraphrases 0.732 / 0.683 / 0.885, +0.049 [0.017, 0.081]. zsRE edit prompts 1.000 / 0.741 / 0.986, +0.259 [0.231, 0.288]. zsRE paraphrases 0.967 / 0.770 / 0.972, +0.197 [0.170, 0.222].
+
+Rank 16. CounterFact edit prompts 0.997 / 0.836 / 0.996, +0.161 [0.139, 0.183]. CounterFact paraphrases 0.730 / 0.681 / 0.890, +0.049 [0.018, 0.081]. zsRE edit prompts 0.999 / 0.741 / 0.988, +0.258 [0.231, 0.287]. zsRE paraphrases 0.965 / 0.770 / 0.979, +0.195 [0.168, 0.221].
+
+Decision rule. Holds: the CI is above 0 in all four rank-2 cells. The stored results support the adapter path.
+
+Predictions. P1 held. P2 held: CounterFact paraphrases are the smallest difference, 4.9 points. P3 held: adapter with note is 15.3 points above adapter alone on CounterFact paraphrases at rank 2 and 0.5 on zsRE.
+
+Reading. On these stores the adapter alone beats the note alone in every cell. The note's contribution is on CounterFact paraphrases, 15 points when it is added to the adapter, and that is the gap SS126 tries to close. Rank 2 and rank 16 differ by at most 0.2 points on the adapter alone.
+
+Limit. An adapter is on these stores for every fact, including those a note alone answers. The note arm is the note with no adapter. The comparison is on Qwen2.5-1.5B only and does not test a better note.

@@ -57,7 +57,7 @@ flowchart LR
 Qwen2.5-1.5B-Instruct, 1000 facts per dataset, every query served through the router,
 adapter and note served together unless stated. Source:
 [`docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`](docs/LIVING_MODEL_CONFIRMATORY_PREREG.md),
-entries 64 to 122.
+entries 64 to 124.
 
 | Reading | CounterFact, router v4 (MiniLM) | CounterFact, default router | zsRE, default router |
 | :-- | :-- | :-- | :-- |
@@ -91,6 +91,8 @@ table therefore keeps the rank-16 stores as the main build.
 | Are aliases and pronouns handled? | 105, 119 | On constructed conversations. Wikidata aliases cover about 40% of subjects; alias paraphrases route 0.865 and 0.961, pronouns on edit prompts 0.998 and 1.000, with no new false routes. |
 | Does the threshold depend on the relation? | 107, 109 | Yes. A threshold per relation lowers routing of neighboring-relation questions from 30.5% to 16.9%, at 0.3 to 0.7 points of paraphrase routing, where a relation identifier exists. |
 | Does the answer score flatter the results? | 97, 99 | Not for adapter and note (at most 0.3 points at a word boundary). It does for the note alone on zsRE: 0.794 by substring, 0.741 at a word boundary. |
+| Do mined hard negatives help the router? | 110, 123 | No. Neither arm is adopted: mining moves leakage from natural questions to template prompts. Training on every relation raises routing of neighboring-relation questions from 30% to 52%. |
+| Can one adapter hold a shard of facts and still remove exactly? | 112, 124 | Not yet. On 96 facts no arm of 8 to 32 facts passes: paraphrase with note stays 5 to 21 points below per-fact adapters. Retraining takes about 4.6 s per fact and repeated bitwise in one process. Eight facts at rank 2 store 47 KB per fact and leak less, so this stays open. |
 
 ### Other base models
 

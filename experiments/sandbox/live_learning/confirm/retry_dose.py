@@ -1,6 +1,8 @@
 """SS132: what brings a rejected A1 adapter under kappa, on SS126 facts (development).
 
-.venv/bin/python experiments/sandbox/live_learning/confirm/retry_dose.py [--smoke]
+SS134 (--round2): gentler rungs on the rejected facts, read as ladders.
+
+.venv/bin/python experiments/sandbox/live_learning/confirm/retry_dose.py [--smoke] [--round2]
 """
 
 from __future__ import annotations
@@ -42,10 +44,22 @@ ARMS = {  # name: (passes, kl_lambda, train under the serving system prompt)
     "L16": (16, 16.0, False),
     "S": (16, 1.0, True),
 }
+ROUND2 = {  # the same, then the adapter seed
+    "L2": (16, 2.0, False, 126),
+    "L8": (16, 8.0, False, 126),
+    "R1": (16, 1.0, False, 127),
+    "R2": (16, 1.0, False, 128),
+}
+LADDERS = {
+    "T0": ["L16"],
+    "T1": ["R1", "R2", "L16"],
+    "T2": ["L2", "L4", "L8", "L16"],
+    "T3": ["R1", "L2", "L4", "L8", "L16"],
+}
 
 
 def train_arm(store, spec, items, rewrites):
-    passes, kl_lambda, system = spec
+    passes, kl_lambda, system, seed = (*spec, 126)[:4]
     store.steps, store.kl_lambda = passes, kl_lambda
     apply = store.tok.apply_chat_template
     if system:  # the pair step adds no system message; the anchors bring their own
@@ -59,7 +73,7 @@ def train_arm(store, spec, items, rewrites):
         trained = {}
         for key, f, _, _ in items:
             pairs = arm_pairs("A1", f, rewrites[f["id"]])
-            trained[key] = train_one(store, R2, pairs, b_mult=8, seed=126)
+            trained[key] = train_one(store, R2, pairs, b_mult=8, seed=seed)
             trim()
     finally:
         store.tok.apply_chat_template = apply
@@ -90,14 +104,40 @@ def group_summary(rows, e3, keys, answers) -> dict:
     }
 
 
+def ladder_counts(arms, keys, answers) -> dict:
+    """Store the first rung under kappa; the paraphrase cannot steer the choice."""
+    out = {}
+    for name, rungs in LADDERS.items():
+        stored = {}
+        for k in keys:
+            first = next(
+                (a for a in rungs if arms[a]["rows"][k]["d_heldout"] <= KAPPA), None
+            )
+            if first:
+                stored[k] = first
+        right = [
+            word_hit(arms[a]["rows"][k]["outputs"]["paraphrase"], answers[k])
+            for k, a in stored.items()
+        ]
+        out[name] = {
+            "stored": len(stored),
+            "paraphrase": int(sum(right)),
+            "rungs": stored,
+        }
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true", help="2 rejected and 2 other facts")
+    ap.add_argument("--round2", action="store_true", help="SS134, rejected facts only")
     args = ap.parse_args(argv)
-    stem = "retry_dose_smoke" if args.smoke else "retry_dose"
+    stem = ("retry_dose2" if args.round2 else "retry_dose") + (
+        "_smoke" if args.smoke else ""
+    )
     out = CONFIRM / f"{stem}.json"
     report = json.loads(out.read_text()) if out.exists() else {"arms": {}}
-    report["prereg"] = "SS132"
+    report["prereg"] = "SS134" if args.round2 else "SS132"
     saved = json.loads((CONFIRM / "adapter_only.json").read_text())
     sets, cf_records, raw_cf = draw_facts(150)
     e3 = {
@@ -115,11 +155,16 @@ def main(argv=None):
     others = random.Random(SEED).sample(others, N_OTHERS)
     if args.smoke:
         rejected, others = rejected[:2], others[:2]
+    others = [] if args.round2 else others
     keys = rejected + others
     report["groups"] = {"rejected": rejected, "others": others}
     items = [all_items[k] for k in keys]
     answers = {k: all_items[k][1]["answer"] for k in keys}
-    groups = {"rejected": rejected, "others": others}
+    groups = (
+        {"rejected": rejected}
+        if args.round2
+        else {"rejected": rejected, "others": others}
+    )
     report["reference_A1"] = {
         g: group_summary(a1["rows"], a1["e3"], ks, answers) for g, ks in groups.items()
     }
@@ -134,7 +179,7 @@ def main(argv=None):
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()
 
-    for name, spec in ARMS.items():
+    for name, spec in (ROUND2 if args.round2 else ARMS).items():
         if name in report["arms"]:
             continue
         deltas = train_arm(store, spec, items, saved["rewrites"])
@@ -160,6 +205,13 @@ def main(argv=None):
         out.write_text(json.dumps(report, ensure_ascii=False, indent=1))
         print(name, json.dumps(res["summary"]), res["wrong_route_word"], flush=True)
     print("reference A1", json.dumps(report["reference_A1"]), flush=True)
+    if args.round2 and not args.smoke:
+        first = json.loads((CONFIRM / "retry_dose.json").read_text())["arms"]
+        report["ladders"] = ladder_counts(
+            {**first, **report["arms"]}, rejected, answers
+        )
+        out.write_text(json.dumps(report, ensure_ascii=False, indent=1))
+        print({n: (x["stored"], x["paraphrase"]) for n, x in report["ladders"].items()})
 
 
 if __name__ == "__main__":

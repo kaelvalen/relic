@@ -57,7 +57,7 @@ flowchart LR
 Qwen2.5-1.5B-Instruct, 1000 facts per dataset, every query served through the router,
 adapter and note served together unless stated. Source:
 [`docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`](docs/LIVING_MODEL_CONFIRMATORY_PREREG.md),
-entries 64 to 120.
+entries 64 to 122.
 
 | Reading | CounterFact, router v4 (MiniLM) | CounterFact, default router | zsRE, default router |
 | :-- | :-- | :-- | :-- |
@@ -67,7 +67,7 @@ entries 64 to 120.
 | Other relation of a stored subject: output contains a stored answer | 0.237 | 0.043 | not measured |
 | Same relation, other subject (neighborhood): leakage | 0.016 | 0.017 | not measured |
 | Synthetic-name distractors and NQ questions routed | 0 | 0 | 0 |
-| Removed facts returning to the base answer (100 removed) | 1.00 | 1.00 | 0.84 (1.00 removing by content) |
+| Removed facts returning to the base answer (100 removed) | 1.00 | 1.00 | 0.84 (1.00 with write-time slots) |
 | Facts that need an adapter (tiered store) | 0.162 | 0.162 | 0.206 |
 
 These stores were built with the earlier rank-16 adapters (8.7 MB each). Entry 94
@@ -87,6 +87,7 @@ table therefore keeps the rank-16 stores as the main build.
 | Can the adapter be smaller? | 81 to 89 | Yes. Rank 2 with LoRA+ in int8 (373 KB) matches the rank-16 adapter (8.7 MB) on 279 fresh adapter facts: paraphrase with note 0.928 against 0.918, 2.9% against 2.2% of adapters above the divergence limit. |
 | Is representation finetuning (LoReFT, DiReFT) a better per-fact adapter? | 92, 93 | No. At 172 KB LoReFT reaches the same paraphrase rate, but 82% to 100% of the interventions exceed the divergence limit on held-out prompts. |
 | Does a store change standard benchmarks? | 101, 116 | Not as served: 0 of 500 MMLU and 500 ARC questions are routed, so accuracy equals the base model's (0.665). Forcing a random entry costs 2.2 points. |
+| Do repeated writes of one fact survive a removal? | 96, 104, 115, 122 | Not any more. A same-answer write joins the entry wherever a query would be routed to it, and a different answer needs a stricter threshold before it replaces one. zsRE return rises from 0.84 to 1.00 at 206 merges, and on fresh facts residual routes fall from 0.99 to 0.01, with no merge of different answers. |
 | Are aliases and pronouns handled? | 105, 119 | On constructed conversations. Wikidata aliases cover about 40% of subjects; alias paraphrases route 0.865 and 0.961, pronouns on edit prompts 0.998 and 1.000, with no new false routes. |
 | Does the threshold depend on the relation? | 107, 109 | Yes. A threshold per relation lowers routing of neighboring-relation questions from 30.5% to 16.9%, at 0.3 to 0.7 points of paraphrase routing, where a relation identifier exists. |
 | Does the answer score flatter the results? | 97, 99 | Not for adapter and note (at most 0.3 points at a word boundary). It does for the note alone on zsRE: 0.794 by substring, 0.741 at a word boundary. |
@@ -172,7 +173,7 @@ from relic.router import make_scorer
 
 store = DeltaStore("Qwen/Qwen2.5-1.5B-Instruct", steps=16, capacity=1)
 # the relation encoder comes from confirm/train_relation_encoder.py
-ledger = Ledger(store, make_scorer("relenc"), 0.7501, 0.8985, 0.7501)
+ledger = Ledger(store, make_scorer("relenc"), 0.7501, 0.8985)
 
 ledger.write({
     "id": "f1",

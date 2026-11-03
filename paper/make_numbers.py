@@ -543,6 +543,21 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS104 asymmetric slots (prefix "sl").
+try:
+    sl = json.load(open(R + "slot_eval_asym.json"))["datasets"]
+    fresh = json.load(open(R + "slot_fresh.json"))
+    emit("slZsReturn", sl["zsre"]["removal"]["return"]["rate"])
+    out.append(f"\\newcommand{{\\slZsMerged}}{{{sl['zsre']['actions']['duplicate']}}}")
+    out.append(f"\\newcommand{{\\slZsOld}}{{{sl['zsre']['removal']['old']:.2f}}}")
+    emit("slZsPara", sl["zsre"]["serving"]["paraphrase_both"]["new"], fixed=True)
+    emit("slCfPara", sl["counterfact"]["serving"]["paraphrase_both"]["new"], fixed=True)
+    emit("slFreshPer", fresh["per_entry"]["residual_share"])
+    emit("slFreshAsym", fresh["asymmetric"]["residual_share"])
+    emit("slFreshUpper", fresh["asymmetric"]["upper_95_one_sided"])
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

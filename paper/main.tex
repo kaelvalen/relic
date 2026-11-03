@@ -404,9 +404,12 @@ relation encoder of the default configuration (Section~\ref{sec:leak}).
 
 \subsection{Removal, Update and Logging}
 
-\revoke$(i)$ deletes entry $i$. Because a fact can be stored more than once in different
-phrasings, removal by content deletes every entry with the same subject and answer. An
-update is a removal followed by an addition. For serving, the selected adapter is written
+A write first looks for the slot of its subject and relation: a stored entry with the same subject whose relation
+text the encoder scores above a threshold. A write with the same answer joins that entry as another phrasing, at the
+routing threshold $\tau$, since a query would be sent to the entry anyway and merging loses nothing stored. A write with
+another answer replaces the entry only above a stricter threshold, $\theta_{\mathrm{slot}}=0.8985$ (1\% false
+positives on the development split), since a replacement drops a fact; below it, it becomes an entry of its own.
+\revoke$(i)$ deletes entry $i$ with its phrasings, and so the fact, however many times it was written. For serving, the selected adapter is written
 into a LoRA slot of the model and all other slots are set to zero. The log records the
 identifier, the outcome of the check, $D$, the training time and the state hash.
 Attribution is checked by leaving one adapter out: an answer is attributed to fact $i$ if
@@ -423,12 +426,14 @@ records form the log, and the leave-one-out check is a separate script. We have 
 \label{alg:txn}
 \begin{algorithmic}[1]
 \Function{Add}{$e$, $i$}
+  \If{a slot of $e$ holds $a_e$} \State add $x_e$ as a phrasing; log$(\textsc{dup},i)$ and \Return \EndIf
   \State $k\gets E(\text{relation text of } x_e)$
   \If{$f_{\theta_0}(x_e\mid n_e)$ contains $a_e$} \State $\delta\gets\varnothing$
   \Else
     \State $\delta\gets\arg\min\mathcal{L}$ on a fresh copy of $\theta_0$ \Comment{Eq.~\eqref{eq:loss}}
     \If{$D(\delta)>\kappa$} \State log$(\textsc{reject},i)$ and \Return \EndIf
   \EndIf
+  \State replace the slot's entry above $\theta_{\mathrm{slot}}$, if any
   \State $S\gets S\cup\{(i,n_e,\delta,k,s_e)\}$; log$(\textsc{add},i,h(S))$
 \EndFunction
 \Function{Serve}{$q$}
@@ -567,6 +572,15 @@ return. The remaining cases are rephrased copies of the removed facts that are s
 stored. Removal by content, which also deletes the \vZsContentExtra\ entries with the same
 subject and answer, returns all 100. Retention of the other facts is \vCfRetainPct\% and
 \vZsRetainPct\%, and a removal takes about 2.5\,ms.
+
+Removal by content is a repair for a store that holds copies. Write-time slots avoid the copies. We replayed the writes of
+both stores through the slot rule, keeping each kept entry's adapter. On zsRE \slZsMerged\ writes merge and return rises from
+\slZsOld\ to \slZsReturn, with no merge of different answers; on CounterFact one duplicate and one update occur, and none across
+relations. Paraphrase accuracy is non-inferior at \slCfParaPct\% and \slZsParaPct\%. Our first rule used
+$\theta_{\mathrm{slot}}$ for both kinds of write and reached only 0.90, because writes and reads disagreed between the two
+thresholds. We registered the asymmetric rule after seeing those failures, so we tested it on 1000 zsRE records that played no part
+in the design, chosen to have several records per subject. After a removal, \slFreshPerPct\% of the queries are still routed to an
+entry of the subject with one entry per write and \slFreshAsymPct\% with slots (upper end \slFreshUpperPct\%). Slots are the default write path.
 
 \subsection{Tiered Store}
 \label{sec:tiered}
@@ -881,7 +895,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 121 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 122 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

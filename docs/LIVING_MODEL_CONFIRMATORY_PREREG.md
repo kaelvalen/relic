@@ -3307,3 +3307,33 @@ Selection, for the entry that pins the fresh run. The ladder with the highest co
 Predictions. P1: L2 brings at least 10 of the 19 under kappa. P2: R1 and R2 each bring at least 5 under kappa, and each loses at most 2 of A1's 17 paraphrases on the facts it brings under. P3: T2 counts at least 15. P4: no ladder reaches 17. P5: T2 is selected.
 
 Limits. 19 facts, chosen for high D, and re-using them across rungs makes the counts optimistic. Selecting a seed by the gate also tests the gate repeatedly, so the fresh run has to read wrong route and locality on the stored adapters and not on the first attempts.
+
+## 135. SS134 results: a ladder of gentler rungs keeps most paraphrases (2026-11-04)
+
+Run as pinned, the 19 rejected facts, right adapter forced, word boundary. Development only, so nothing here supports a claim.
+
+| Arm | Under kappa | D mean | Paraphrase | Paraphrase and under kappa | Wrong route |
+|---|---|---|---|---|---|
+| L2 | 13 | .871 | .842 | 11 | .535 |
+| L8 | 18 | .490 | .789 | 14 | .630 |
+| R1 | 9 | 1.057 | .947 | 9 | .460 |
+| R2 | 8 | 1.106 | .842 | 6 | .480 |
+
+| Ladder | Rungs | Stored | Paraphrase right |
+|---|---|---|---|
+| T0 | L16 | 19 | 13 |
+| T1 | R1, R2, L16 | 19 | 16 |
+| T2 | L2, L4, L8, L16 | 19 | 15 |
+| T3 | R1, L2, L4, L8, L16 | 19 | 17 |
+
+For comparison, A0 under kappa stores 16 of these facts and gets 10 paraphrases.
+
+Selection. T3 is the ladder for the fresh run, with the highest count and no tie.
+
+Predictions. P1 held: L2 brings 13 under kappa. P2 held: R1 brings 9 and loses none of A1's paraphrases on them, R2 brings 8 and loses 1. P3 held: T2 counts 15. P4 failed: T3 reaches 17, the count of A1 itself, though not on the same facts. P5 failed: T3 is selected, not T2.
+
+The seed moves D on one fact by as much as .51 (cf0111: 1.25, .74, .95), and 11 of the 19 come under kappa on one of the two new seeds. So part of what the gate rejects at the first attempt is the training draw and not the fact.
+
+Against current, T3 on these 19 facts loses 2 paraphrases and wins 4. With the 8 lost and 7 won on the other facts of SS130 that projects to +1 of 300 pooled and +2 of 150 on CounterFact. The projection is optimistic: T3 is the best of four ladders on the same 19 facts chosen for high D, and the readings are forced.
+
+Wrong route falls as the anchor weight falls, .70 at L16 to .46 at R1 on this draw, and the first rung of T3 is R1. SS130 found no edit or paraphrase query routed to another fact, which limits how often that cost is paid, and the next entry reads it again on a larger store.

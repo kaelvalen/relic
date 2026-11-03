@@ -3032,3 +3032,30 @@ Decision rule. (i) lower ends 0.878 and 0.675 against 0.20. (ii) differences 0 o
 Predictions. P1 held on CounterFact and failed on zsRE (0.346 against 0.40 to 0.60). P2 without aliases held on CounterFact, and zsRE is slightly above (0.283 against at most 0.25); with aliases both exceed the range at 1.000. That figure is close to built in, since A1 keeps the stored wording of the query; A2 is the informative one. P3 held. P4 held on edit prompts and on zsRE paraphrases, and failed on CounterFact paraphrases (0.735 against 0.85), which carry a leading unrelated sentence for the pronoun to land on. P5 and P6 held.
 
 Limits. The pronoun queries are built by substitution, as SS105 said, and a real conversation has more varied turns. The two-filler reading shows how easily one common word broke the mechanism; other fillers were not tested. Coverage is about 40% of subjects, so most stored subjects have no alias to match.
+
+## 120. SS98 results: how many facts need an adapter as the base model grows (2026-11-03)
+
+Sources: results/live_learning/confirm/scale/<arm>.json and summary.json. Layout as pinned, with entry 117 withdrawn in entry 118. The 3-fact smokes were discarded; the 7B smoke ran before the full arm. SmolLM3-3B revision a07cc9a.
+
+Share of facts that need an adapter, word boundary. CounterFact / zsRE / pooled with 95% CI.
+Qwen2.5-0.5B: 0.032 / 0.035 / 0.0335 [0.026, 0.0415].
+Qwen2.5-1.5B bf16: 0.164 / 0.259 / 0.2115 [0.1935, 0.229].
+Qwen2.5-1.5B 4-bit: 0.138 / 0.297 / 0.2175 [0.1995, 0.235].
+Qwen2.5-3B 4-bit: 0.058 / 0.161 / 0.1095 [0.096, 0.1235].
+Qwen2.5-7B 4-bit: 0.090 / 0.086 / 0.088 [0.076, 0.1005].
+SmolLM3-3B 4-bit: 0.037 / 0.063 / 0.050 [0.040, 0.060].
+
+Tiered store, word boundary, edit prompts then paraphrases, CounterFact / zsRE; the note alone on paraphrases in brackets.
+0.5B: 0.998, 0.834 (0.825) / 0.999, 0.934 (0.911). 1.5B bf16: 0.997, 0.739 (0.681) / 0.996, 0.936 (0.770). 1.5B 4-bit: 0.996, 0.736 (0.689) / 0.992, 0.939 (0.783). 3B: 0.998, 0.668 (0.655) / 0.987, 0.921 (0.842). 7B: 0.993, 0.797 (0.786) / 0.989, 0.957 (0.912). SmolLM3: 0.986, 0.798 (0.794) / 0.983, 0.948 (0.920).
+
+Every adapter passed the commit gate on its first training; none was retrained. Seconds per adapter, CounterFact / zsRE: 0.5B 4.6 / 4.6; 1.5B 4-bit 8.7 / 8.8; 3B 11.9 / 12.0; 7B 27.9 / 23.0; SmolLM3 17.2 / 17.4. The 1.5B bf16 arm reuses saved adapters, so its 0.8 s is only the gate. Bytes per adapter: 184512, 372960, 626976, 860384, 663840. Peak allocated memory: 1254, 3036, 1585, 2667, 6252, 3780 MB.
+
+Mean held-out D and share above 0.968, CounterFact / zsRE. 0.5B: 0.44, 0.06 / 0.80, 0.37. 1.5B bf16: 0.41, 0.03 / 0.64, 0.17. 1.5B 4-bit: 0.34, 0.01 / 0.67, 0.20. 3B: 2.25, 0.93 / 3.22, 0.94. 7B: 1.47, 0.68 / 1.99, 0.90. SmolLM3: 0.23, 0.05 / 0.40, 0.13.
+
+Decision rule. f7 = 0.088 [0.076, 0.1005]. The upper end is above 0.02 and the lower end below 0.10, so the outcome is C: the need depends on the model, the adapter remains an optional tier, and the paper reports the curve. The two 1.5B arms differ by 0.006, so quantization is not a confound. Within 4-bit the share falls from 0.2175 to 0.1095 to 0.088, and the intervals of 3B and 7B overlap. The second-family reading holds: SmolLM3 reaches at least 0.983 on edit prompts on both datasets, and its tiered paraphrase score is above its note score on both, by 0.004 on CounterFact.
+
+Predictions. P1 failed by a wide distance: 0.5B is 0.0335, not at least 0.30, and it is the lowest share of all arms. Its outputs are short and do not repeat the note (no output contains the note's opening, mean 1.3 and 1.9 words), so this is not an artefact of copying. P2 held: 2000 of 2000 saved note outputs on each dataset, share 0.2115. P3 held. P4 held: f7 in [0.06, 0.16], outcome C. P5 held: lowest 0.983. P6 held on time and failed on memory: 6.25 GB against 5.3.
+
+Reading. Size does not explain the need. The smallest model needs fewest adapters, a 3B model of another family needs half of what the Qwen 3B needs, and the highest share is at 1.5B, so the view that the adapter compensates for small models is not supported, and neither is the view that large models no longer need it. What the adapter adds also varies: paraphrase gain on zsRE is 0.166 at 1.5B and between 0.023 and 0.079 elsewhere; on CounterFact it is at most 0.058, and at most 0.013 outside the 1.5B arms. A reason for the differences between models was not measured.
+
+Limit. Kappa 0.968 was measured on 1.5B. It is a reference elsewhere, as SS98 said, so the shares above it at 3B and 7B do not show that those adapters are harmful, and they do not show that they are safe. The gate in-sample limit D <= 2 was also set on 1.5B and passed everything. On 3B and 7B the adapter's protection is therefore unmeasured until both limits are calibrated on those models. The adapters also belong to different facts in each arm, since each arm trains only the facts its own notes miss. This narrows the single-model limitation to sizes up to 7B and two families, and does not close it.

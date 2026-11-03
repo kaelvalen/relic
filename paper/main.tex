@@ -858,6 +858,9 @@ reached the paraphrase accuracy of the rank-2 adapter on 50 CounterFact facts (r
 against \asRtwoD{}), while their divergence on the two training canaries stayed below
 \rfInMax{}. The KL anchor constrains the intervention only on the two prompts it is
 computed on, whereas the intervened positions produce the answer to every query.
+A soft prompt of ten trained tokens per fact (\spKB\,KB) did not replace the adapter either.
+On 279 fresh facts it reached \spParaPct\% on paraphrases alone against \spRefParaPct\% for the
+rank-2 adapter, and \spParaNotePct\% against \spRefParaNotePct\% with the note.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -913,7 +916,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 124 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 128 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

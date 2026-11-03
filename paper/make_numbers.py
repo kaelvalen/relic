@@ -585,6 +585,19 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS113 soft prompt.
+try:
+    s = json.load(open(R + "soft_prompt.json"))
+    sf, rf = s["summary"]["soft"], s["summary"]["r2_lp_int8"]
+    out.append(f"\\newcommand{{\\spKB}}{{{s['bytes_per_fact'] / 1000:.0f}}}")
+    emit("spProbe", sf["pooled"]["probe"], fixed=True)
+    emit("spPara", sf["pooled"]["paraphrase"], fixed=True)
+    emit("spRefPara", rf["pooled"]["paraphrase"], fixed=True)
+    emit("spParaNote", sf["pooled"]["paraphrase_note"], fixed=True)
+    emit("spRefParaNote", rf["pooled"]["paraphrase_note"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

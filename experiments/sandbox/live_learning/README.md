@@ -11,7 +11,8 @@ Handoff/state: [`STATE.md`](STATE.md).
 
 | path | what |
 | :-- | :-- |
-| `text/` | text-side record scripts: the mesa (`stream.py`, `harness.py`, `mechanisms.py`, `run.py`), the ledger (`ledger.py`), the controller (`ledger_bandit.py`), cross-session (`ledger_session.py`), the G-checks and router scripts (`ledger_*.py`) |
+| `../../../relic/` | the system these records run on: `ledger.py`, `router.py`, `serving.py`, `model.py`, `metrics.py` |
+| `text/` | text-side record scripts: the mesa (`stream.py`, `mechanisms.py`, `run.py`), the slice-1 entry point (`ledger.py`), the controller (`ledger_bandit.py`), cross-session (`ledger_session.py`), the G-checks and router scripts (`ledger_*.py`) |
 | `confirm/` | the confirmatory harness: `facts.py` (nonce generator), `external.py` (CounterFact/zsRE adapters), `pilot.py` (arms, metrics, chunked runs), `router_eval.py` (CPU router comparison) |
 | `vlm/` | the vision mirror: `vlm_core.py` (shared helpers), `vlm_mirror*.py` (v0-v3 records), `vlm_ledger.py` (store), `vlm_controller*.py`, `vlm_update_unlearn.py`, `vlm_variants.py`, `vlm_contrast.py` |
 | `STATE.md` | the handoff: measured status, environment, next steps |

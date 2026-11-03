@@ -18,8 +18,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
-from router_v4 import find_subject  # noqa: E402
 from router_v4_calibrate import build_dev  # noqa: E402
+
+from relic.router import find_subject  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 N_KEYS = 3

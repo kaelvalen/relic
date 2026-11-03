@@ -12,12 +12,9 @@ storage; bootstrap 95% CIs over facts.
 from __future__ import annotations
 
 import argparse
-import ctypes
 import json
-import math
 import sys
 import time
-from numbers import Integral, Real
 from pathlib import Path
 
 import numpy as np
@@ -28,113 +25,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 import torch  # noqa: E402
 from facts import NUMBERS, generate  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import load_model, make_lora  # noqa: E402
-from ledger import CAP, DeltaStore, R  # noqa: E402
-from router_v4 import _osa  # noqa: E402
 from transformers import LogitsProcessor, LogitsProcessorList  # noqa: E402
 
-SYSTEM = "Answer briefly."
+from relic.ledger import CANARIES, DeltaStore, R  # noqa: E402
+from relic.metrics import ci, hit  # noqa: E402
+from relic.model import load_model, make_lora  # noqa: E402
+from relic.router import _osa  # noqa: E402
+from relic.serving import (  # noqa: E402
+    SYSTEM,
+    base_answer,
+    rag_system,
+    routed_answer,
+    trim,
+)
+
 TAU = 0.656
-CANARIES = ["What is the capital of France?", "What is 7 times 8?"]
 BASE_DIST: dict = {}
-_LIBC = ctypes.CDLL("libc.so.6")
-
-
-def trim() -> None:
-    """Return glibc arena memory to the OS (the training loop's RSS balloon)."""
-    _LIBC.malloc_trim(0)
-
-
-class PilotStore(DeltaStore):
-    """CAP=64 is the merged-adapter capacity; routed serving needs one delta at a time.
-    The store model is parked on CPU while a candidate trains (the fresh base needs the
-    GPU; peak memory halves)."""
-
-    def materialize(self) -> None:
-        if len(self.deltas) <= CAP:
-            super().materialize()
-        else:
-            self._zero()
-
-    def _train_delta(self, pairs):
-        self.model.to("cpu")
-        torch.cuda.empty_cache()
-        try:
-            return super()._train_delta(pairs)
-        finally:
-            self.model.to("cuda:0")
-
-
-def ci(values, n=2000, seed=0):
-    arr = np.asarray(values, dtype=float)
-    if arr.size == 0:
-        return [0.0, 0.0]
-    rng = np.random.default_rng(seed)
-    boots = rng.choice(arr, size=(n, arr.size), replace=True).mean(axis=1)
-    return [
-        round(float(np.percentile(boots, 2.5)), 4),
-        round(float(np.percentile(boots, 97.5)), 4),
-    ]
-
-
-def hit(resp, token):
-    return token.lower() in resp.lower()
-
-
-def base_answer(store, q, note=None, system=None):
-    full = store.deltas
-    store.deltas = {}
-    store.materialize()
-    if system is None:
-        system = SYSTEM if note is None else f"{SYSTEM} Context: {note}"
-    resp = store.answer(q, system=system)
-    store.deltas = full
-    store.materialize()
-    return resp
-
-
-def serve_expert(store, fid, q):
-    full = store.deltas
-    store.deltas = {fid: full[fid]}
-    store.materialize()
-    resp = store.answer(q, system=SYSTEM)
-    store.deltas = full
-    store.materialize()
-    return resp
-
-
-def _route_index(router, q, enc, candidate_count):
-    """Validate Router.route's (candidate index or None, similarity) contract."""
-    result = router.route(q, enc)
-    if not isinstance(result, tuple) or len(result) != 2:
-        raise TypeError("router.route must return (index_or_None, similarity)")
-    j, similarity = result
-    if isinstance(similarity, bool) or not isinstance(similarity, Real):
-        raise TypeError("router.route similarity must be a real number")
-    similarity = float(similarity)
-    if not math.isfinite(similarity):
-        raise ValueError("router.route similarity must be finite")
-    if j is None:
-        return None, similarity
-    if isinstance(j, bool) or not isinstance(j, Integral):
-        raise TypeError("router.route index must be an integer or None")
-    j = int(j)
-    if j < 0 or j >= candidate_count:
-        raise IndexError(
-            f"router.route index {j} outside candidate range [0, {candidate_count})"
-        )
-    return j, similarity
-
-
-def routed_answer(store, router, candidates, q, enc):
-    """Serve the selected candidate expert, or the base model on router abstention."""
-    j, similarity = _route_index(router, q, enc, len(candidates))
-    resp = (
-        serve_expert(store, candidates[j]["id"], q)
-        if j is not None
-        else base_answer(store, q)
-    )
-    return j, similarity, resp
 
 
 def _norm(s: str) -> str:
@@ -215,25 +121,6 @@ def summarize(rows):
         "distractor_no_leak_ci": ci(leak),
         "route_accuracy": round(float(np.mean(route)), 4),
     }
-
-
-def rag_system(mode, facts, j):
-    f = facts[j]
-    if mode == "plain":
-        return f"{SYSTEM} Context: {f['teach']}"
-    if mode == "instruct":
-        return (
-            f"{SYSTEM} Use the context even if it contradicts what you know. "
-            f"Context: {f['teach']}"
-        )
-    if mode == "qa":
-        return f"{SYSTEM} Context:\nQ: {f['probe']}\nA: {f['answer']}"
-    demo = facts[(j + 1) % len(facts)]
-    return (
-        f"{SYSTEM} Follow the context over your prior knowledge.\n"
-        f"Example:\nQ: {demo['probe']}\nA: {demo['answer']}\n"
-        f"Context: {f['teach']}"
-    )
 
 
 def run_rag(store, facts, enc, router, words, mode="plain"):
@@ -622,7 +509,7 @@ def main() -> None:
         "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
     router = Router(enc, facts)
-    store = PilotStore(args.model, steps=16)
+    store = DeltaStore(args.model, steps=16)
     store.kl_prompts = list(CANARIES)
 
     arms = args.arms.split(",")

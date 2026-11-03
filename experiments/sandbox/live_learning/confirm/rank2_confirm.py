@@ -23,19 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
-from adapter_size import (  # noqa: E402
-    KAPPA,
-    make_variant,
-    mean_d,
-    round_to,
-    set_delta,
-    train_one,
-)
+from adapter_size import KAPPA, mean_d  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import chat, load_model  # noqa: E402
 from locality_eval import paired_diff_ci  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, hit, rag_system, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -43,6 +34,12 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
+
+from relic.adapters import make_variant, round_to, set_delta, train_one  # noqa: E402
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, rag_system, trim  # noqa: E402
 
 SEED = 84
 BOOT = 10000
@@ -207,7 +204,7 @@ def main(argv=None):
     rng = random.Random(SEED)
     draw = [rng.choice(keys) for _ in damage]
 
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

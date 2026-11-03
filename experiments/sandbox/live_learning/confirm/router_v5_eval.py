@@ -26,13 +26,14 @@ from locality_eval import (  # noqa: E402
     other_relation_prompts,
     paired_diff_ci,
 )
-from router_v4 import RouterV5  # noqa: E402
 from router_v4_calibrate import (  # noqa: E402
     SEED,
     _other_template,
     _templates_by_relation,
     build_dev,
 )
+
+from relic.router import RouterV5  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 ARMS = ("adapter", "retrieval", "both")
@@ -145,11 +146,14 @@ def main(argv=None):
     # base answers for newly abstained queries (base model only)
     base_hits = {}
     if need_base:
-        from pilot import PilotStore, base_answer, hit, trim
         from routed_eval import MANIFEST_PATH
 
+        from relic.ledger import DeltaStore
+        from relic.metrics import hit
+        from relic.serving import base_answer, trim
+
         model_id = json.loads(MANIFEST_PATH.read_bytes())["models"]["base"]["id"]
-        store = PilotStore(model_id, steps=16)
+        store = DeltaStore(model_id, steps=16)
         for name, (_, dec, rows, _) in decisions.items():
             facts = tests[name]
             for i, f in enumerate(facts):

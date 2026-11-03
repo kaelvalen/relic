@@ -126,3 +126,7 @@ last_results_personal/
 
 # graphify knowledge graph (regenerated locally with `graphify update .`)
 graphify-out/
+
+# local profiling output and personal notes
+.measure/
+important.md

@@ -25,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from external import adapt_counterfact, adapt_zsre  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from pilot import CANARIES, PilotStore, base_answer, hit, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -34,50 +33,13 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
+from relic.ledger import CANARIES, HELDOUT_CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.serving import base_answer, trim  # noqa: E402
+
 SEED = 69
 CONFIRM = Path("results/live_learning/confirm")
-HELDOUT = [
-    "What is the capital of Japan?",
-    "Who wrote Romeo and Juliet?",
-    "What is the boiling point of water in Celsius?",
-    "How many continents are there?",
-    "What is the largest planet in the solar system?",
-    "Who painted the Mona Lisa?",
-    "What is the chemical symbol for gold?",
-    "In which year did World War II end?",
-    "What language is spoken in Brazil?",
-    "What is the square root of 81?",
-    "What is 12 plus 15?",
-    "What is 9 times 6?",
-    "What is 100 divided by 4?",
-    "Is 17 a prime number?",
-    "Translate 'thank you' into Spanish.",
-    "Give a synonym for 'happy'.",
-    "What is the opposite of 'cold'?",
-    "Write one sentence about the ocean.",
-    "List three primary colors.",
-    "What day comes after Monday?",
-    "What is the currency of the United Kingdom?",
-    "Which organ pumps blood through the body?",
-    "What gas do plants absorb from the air?",
-    "How many legs does a spider have?",
-    "What is the freezing point of water in Fahrenheit?",
-    "Who developed the theory of relativity?",
-    "What is the tallest mountain on Earth?",
-    "Which ocean is the largest?",
-    "What is the main language of Germany?",
-    "Name a programming language.",
-    "What does CPU stand for?",
-    "What is the past tense of 'go'?",
-    "How many minutes are in an hour?",
-    "What is the capital of Canada?",
-    "Türkiye'nin başkenti neresidir?",
-    "Quelle est la capitale de l'Italie ?",
-    "Wie viele Tage hat eine Woche?",
-    "¿Cuál es el color del cielo?",
-    "Summarize: The cat sat on the mat.",
-    "Answer yes or no: is the sun a star?",
-]
+HELDOUT = HELDOUT_CANARIES
 
 
 def d_on(store, delta, prompts):
@@ -126,7 +88,7 @@ def main(argv=None):
     import torch
 
     torch.manual_seed(SEED)
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, _ = load_verified_checkpoint(
         verified["checkpoint_path"],

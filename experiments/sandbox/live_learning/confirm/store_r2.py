@@ -25,18 +25,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
-from adapter_size import (  # noqa: E402
-    KAPPA,
-    make_variant,
-    round_to,
-    set_delta,
-    train_one,
-)
+from adapter_size import KAPPA  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from ledger import sym_kl  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, hit, trim  # noqa: E402
 from rank2_confirm import R2  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
@@ -46,35 +37,29 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
+from relic.adapters import (  # noqa: E402
+    int8_delta,
+    make_variant,
+    pad,
+    set_delta,
+    train_one,
+)
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import (
+    hit,  # noqa: E402
+    sym_kl,  # noqa: E402
+)
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, trim  # noqa: E402
+
 SEED, RETRY_SEED = 94, 95
 GATE = 2.0
-R_STORE = 16
 BOOT = 10000
 CONFIRM = Path("results/live_learning/confirm")
 FILES = {
     "counterfact": ("cf_n1000.ckpt", "external_counterfact_n1000.json", "cf"),
     "zsre": ("zsre_n1000.ckpt", "external_zsre_n1000.json", "zsre"),
 }
-
-
-def int8_one(delta):
-    return {
-        n: {"A": round_to(ab["A"], "int8"), "B": round_to(ab["B"], "int8")}
-        for n, ab in delta.items()
-    }
-
-
-def pad(delta, r=R_STORE):
-    """A rank-2 adapter in the rank-16 layout; B @ A and the LoRA scale are unchanged."""
-    out = {}
-    for n, ab in delta.items():
-        a, b = ab["A"], ab["B"]
-        pa = torch.zeros(r, a.shape[1], dtype=a.dtype)
-        pb = torch.zeros(b.shape[0], r, dtype=b.dtype)
-        pa[: a.shape[0]] = a
-        pb[:, : b.shape[1]] = b
-        out[n] = {"A": pa, "B": pb}
-    return out
 
 
 class Divergence:
@@ -184,7 +169,7 @@ def build(args):
         else {"prereg": "SS94", "dataset": args.dataset, "kappa": KAPPA}
     )
 
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
 
     # Phase A: train (the store model waits on the CPU; train_one loads its own base).
@@ -214,7 +199,7 @@ def build(args):
         store.model.to("cpu")
         torch.cuda.empty_cache()
         t = time.time()
-        state["deltas"][f["id"]] = int8_one(
+        state["deltas"][f["id"]] = int8_delta(
             train_one(store, R2, fact_pairs(f), b_mult=8, seed=SEED)
         )
         state["seconds"][f["id"]] = round(time.time() - t, 2)
@@ -244,7 +229,7 @@ def build(args):
         if not d_in <= GATE:
             store.model.to("cpu")
             torch.cuda.empty_cache()
-            r2[fid] = int8_one(
+            r2[fid] = int8_delta(
                 train_one(store, R2, fact_pairs(f), b_mult=8, seed=RETRY_SEED)
             )
             store.model.to("cuda:0")

@@ -27,9 +27,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from external import adapt_counterfact, adapt_zsre  # noqa: E402
 from locality_eval import paired_diff_ci  # noqa: E402
-from router_v4 import find_subject, key_text, relation_text  # noqa: E402
-from router_v7 import BiScorer, RouterV7  # noqa: E402
 from router_v7_select import dev_scores, threshold_fpr  # noqa: E402
+
+from relic.router import (  # noqa: E402  # noqa: E402
+    BiScorer,
+    RouterV7,
+    find_subject,
+    key_text,
+    relation_text,
+)
 
 SEEDS = (79, 80, 81)
 DEV_N = 500

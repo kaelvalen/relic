@@ -10,7 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      # The live-learning tests import transformers through the sandbox harness;
-      # it is only in the lm extra, so a plain sync cannot collect them.
-      - run: uv sync --frozen --extra lm
-      - run: uv run --frozen --extra lm pytest -q
+      - run: uv sync --frozen --no-default-groups --group dev
+      - run: uv run --frozen --no-default-groups --group dev pytest -q
+      - run: uv run --frozen --no-default-groups --group dev ruff check relic experiments tests

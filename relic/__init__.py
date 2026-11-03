@@ -1,35 +1,7 @@
-"""RELIC: closed-form, exactly reversible, auditable learning after deployment.
+"""RELIC: revocable entries for language model insertions and corrections.
 
-RELIC stands for Revocable Entries for Language model Insertions and Corrections.
-A frozen base provides a fixed address space; learning is an API call
-on three time scales (a key-value memory, a closed-form edit, a frozen expert bank),
-and every `write` / `forget` returns measured locality, reversibility and
-order-invariance reports:
-
-    from relic.api import Relic, Batch, Example
-
-The project was called PAL-MoE until 2026-09-26; the v1 design of that name lives in
-`relic.legacy`, and the `pal_moe` package keeps the old import paths working.
+`relic.ledger` keeps the entries of a frozen model, `relic.router` decides which entry
+answers a query, `relic.serving` answers it and `relic.metrics` holds the shared readings.
 """
 
-from .api import (
-    Batch,
-    Relic,
-    ConsolidationReport,
-    EditRecord,
-    Example,
-    GuardConfig,
-    Prediction,
-)
-
-__version__ = "0.2.0"
-
-__all__ = [
-    "Batch",
-    "Relic",
-    "ConsolidationReport",
-    "EditRecord",
-    "Example",
-    "GuardConfig",
-    "Prediction",
-]
+__version__ = "0.3.0"

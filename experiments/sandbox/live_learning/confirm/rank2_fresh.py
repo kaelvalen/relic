@@ -22,13 +22,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
-from adapter_size import KAPPA, train_one  # noqa: E402
+from adapter_size import KAPPA  # noqa: E402
 from external import adapt_counterfact, adapt_zsre  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from pilot import CANARIES, PilotStore, hit, rag_system, trim  # noqa: E402
 from rank2_confirm import R2, R16, READS, evaluate, int8, summarize  # noqa: E402
 from router_v4_calibrate import build_dev  # noqa: E402
+
+from relic.adapters import train_one  # noqa: E402
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import rag_system, trim  # noqa: E402
 
 SEED = 87
 N_PER = 1000
@@ -130,7 +134,7 @@ def main(argv=None):
     rng = random.Random(SEED)
     draw = [rng.choice(keys) for _ in damage]
 
-    store = PilotStore(MODEL, steps=16)
+    store = DeltaStore(MODEL, steps=16)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

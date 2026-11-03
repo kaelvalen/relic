@@ -25,9 +25,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from locality_eval import paired_diff_ci  # noqa: E402
-from router_v4 import RouterV4  # noqa: E402
 from router_v4_calibrate import build_dev, youden  # noqa: E402
 from router_v6_eval import Judge, clause  # noqa: E402
+
+from relic.router import RouterV4  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 ARMS = ("adapter", "retrieval", "both")
@@ -93,9 +94,12 @@ def main(argv=None):
     if Path(args.out).exists():
         ap.error(f"refusing to overwrite {args.out}")
 
-    from pilot import PilotStore, base_answer, ci, hit, trim
     from routed_eval import MANIFEST_PATH
     from sentence_transformers import SentenceTransformer
+
+    from relic.ledger import DeltaStore
+    from relic.metrics import ci, hit
+    from relic.serving import base_answer, trim
 
     enc = SentenceTransformer(
         "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", device="cpu"
@@ -117,7 +121,7 @@ def main(argv=None):
     dev = build_dev(raw["counterfact"], raw["zsre"], test_subjects)
 
     model_id = json.loads(MANIFEST_PATH.read_bytes())["models"]["base"]["id"]
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.deltas = {}
     store.materialize()
     judge, typescore = Judge(store), TypeScore(store)
@@ -142,9 +146,11 @@ def main(argv=None):
         neg.append(
             (
                 part,
-                scores(dev_router, dev, j, f["negative"], sim)
-                if j is not None
-                else None,
+                (
+                    scores(dev_router, dev, j, f["negative"], sim)
+                    if j is not None
+                    else None
+                ),
             )
         )
     selection = {}

@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 
 import torch
-from harness import chat, make_lora
+
+from relic.model import chat, make_lora
 
 SYSTEM = (
     "Sen kısa ve net cevap veren bir asistansın. "

@@ -26,7 +26,6 @@ from locality_eval import (  # noqa: E402
     other_relation_prompts,
     paired_diff_ci,
 )
-from pilot import CANARIES, PilotStore, hit, rag_system, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -36,8 +35,15 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
-from router_v4 import RouterV4  # noqa: E402
-from v4_eval import Server  # noqa: E402
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.router import RouterV4  # noqa: E402
+from relic.serving import (  # noqa: E402
+    Server,  # noqa: E402
+    rag_system,
+    trim,
+)
 
 CONFIRM = Path("results/live_learning/confirm")
 POLICIES = ("adapter", "note", "both", "tiered")
@@ -149,7 +155,7 @@ def main(argv=None):
 
     torch.manual_seed(0)
     enc = SentenceTransformer(manifest["models"]["router_encoder"]["id"])
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, ckpt_sha = load_verified_checkpoint(
         verified["checkpoint_path"],

@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from locality_eval import match_raw, other_relation_prompts  # noqa: E402
 from router_v4_calibrate import build_dev  # noqa: E402
-from router_v7 import RouterV10, make_scorer  # noqa: E402
+
+from relic.router import RouterV10, make_scorer  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
 SCORER = "relenc"

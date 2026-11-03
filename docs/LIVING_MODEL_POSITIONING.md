@@ -17,6 +17,12 @@ below, not DB-ACID: our "isolation" is an interference budget (locality), not
 concurrent-transaction isolation, and G1-G5 are defined in Section 3, not imported
 from databases.
 
+Scope of "transactional" as implemented (`relic/ledger.py`, 2026-11). A commit either
+completes or leaves the store unchanged: writes from threads of one process are serial
+under a lock, and `save` replaces the file atomically. There is no isolation between
+processes and no distributed commit: two processes writing one store file are not
+supported. A failed gate check leaves no entry.
+
 ## 2. Why this is not already in the literature (first sweep)
 
 Three lines exist and each owns a piece; none owns the state.

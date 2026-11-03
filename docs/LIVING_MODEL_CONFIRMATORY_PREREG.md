@@ -2476,3 +2476,586 @@ slightly more: on held-out prompts, and when it is applied to a question it was 
 trained for, where it keeps 4.5 points fewer of the base model's correct answers. New
 facts continue to be stored with the rank-2 adapter (SS89); a larger wrong-route sample
 would tell whether the difference in (v) is real.
+
+## 96. Write-time slots on the N=1000 stores (pinned 2026-11-01, before the run; eval-only)
+
+Question. In the zsRE store, removal returns 0.84 of the removed facts to the base answer,
+because a rephrased duplicate of the removed fact stays stored (SS64); removal by content
+reaches 1.00 only by deleting every entry with the same subject and answer. relic.ledger.Ledger
+decides at write time instead: a write whose subject is stored and whose relation the
+relation encoder cannot tell apart from a stored one (similarity >= theta_slot) adds a
+phrasing to that entry if the answer is the same, and replaces the entry if it differs.
+Does this close the removal gap, and how many different facts does it wrongly merge?
+zsRE records carry no relation identifier (relation is "external" in all of them), so the
+comparison has to go through the encoder; subject and relation identifier alone cannot
+be used on this dataset.
+
+Runner: confirm/slot_eval.py on cf_n1000.ckpt and zsre_n1000.ckpt (rank 16, the main build),
+manifest-verified, default router (relation_encoder_mpnet, theta 0.7501). No training.
+
+theta_slot, fixed on the dev split of SS66 (not the test stores) with the same encoder: the
+lowest threshold at which at most 1% of dev other-relation pairs (edit prompt against the
+`negative` template of another relation, same subject) reach it. It is stored in the output.
+
+Readings. (a) Write actions per dataset in fact order: inserts, duplicates, updates. (b)
+False merges: on CounterFact, merged pairs whose two relation identifiers differ; over
+all pairs of CounterFact templates from different relations, the share at or above
+theta_slot and the ten worst relation pairs; over pairs from one relation, the same share
+(recall on known-identical relations). (c) Serving on the original 1000 edit prompts and
+paraphrases, arms adapter and both, paired with the SS76 evaluation. A query is re-served
+only if its route changed; otherwise the saved outcome stands, since serving is
+deterministic (100 of 100 responses reproduced when the code moved). (d) Removal of the
+first 100 original facts, removing the entry that holds each: gone, return, retention on
+the facts whose entry stays.
+
+Decision rule. Slot detection becomes the default write path if all hold: (i) zsRE return,
+lower end of the one-sided 95% bootstrap interval, >= 0.95; (ii) CounterFact pairs merged
+across different relation identifiers: at most 1 in the store; (iii) over template pairs
+from different relations, share at or above theta_slot <= 0.02; (iv) non-inferiority of
+efficacy and paraphrase (both) on both datasets at margin 0.01: the lower end of the
+one-sided 95% interval of the paired difference is >= -0.01. Otherwise the store keeps
+per-entry writes and the paper reports the gap as it is.
+
+Predictions. P1: theta_slot lies between 0.85 and 0.95. P2: on zsRE most of the 216
+surplus entries in multi-entry subjects (360 entries, 144 subjects) merge; at least 150.
+P3: zsRE return is 0.96 to 1.00, not exactly 1.00 by construction: some duplicates are
+worded below theta_slot and stay separate entries, and those still answer. The claim that
+slots reach 100% structurally therefore holds only as far as the encoder recognises the
+phrasing. P4: rule (iii) is the tightest: near-neighbour relations are the known weakness
+of this encoder (SS85: 31% routed), and a wrong merge loses a stored fact. P5: on CounterFact
+the two different-answer same-subject pairs (Marissa Mayer employer, Gambit network) are
+decided correctly as different only if their relations differ by identifier; the result is
+reported either way, since a merge of the Gambit pair would be a correct update.
+
+## 97. Audit of the answer score on the saved outputs (pinned 2026-11-01, before the analysis; no model run)
+
+Question. An answer counts as correct if the output contains the target as a substring,
+ignoring case (`hit`). Two ways this can flatter a result: an output that contains both the
+new and the old answer counts as correct, and a short target matches inside another word
+(the zsRE target "C" matches any output containing that letter).
+
+Runner: confirm/score_audit.py, on the saved outputs of the default router's evaluations
+(cf_n1000_v8_eval.json, zsre_n1000_v8_eval.json), edit prompts and paraphrases, arms adapter,
+retrieval and both. CounterFact's old answer is `target_true` of the raw record. zsRE has no
+old answer. Removal `gone` and the E2 and E3 leak readings are recomputed the same way where
+the outputs are saved.
+
+Readings per dataset, kind and arm: (a) substring rate, the reported number; (b) word-boundary
+rate: the target must match between non-alphanumeric characters; (c) CounterFact only: share
+of the substring hits that also contain the old answer at a word boundary, and the strict rate
+(new answer at a word boundary and old answer absent); (d) number of targets of one or two
+characters, and the substring and word-boundary rates on them.
+
+Decision rule. If the word-boundary rate or the strict rate is below the substring rate by
+more than 0.02 on any edit-prompt or paraphrase reading of the both arm, the stricter score
+becomes the primary score in the paper and README and make_numbers.py is changed to it.
+Otherwise the substring score stays primary and the stricter readings are reported beside it.
+
+Predictions. P1: strict CounterFact rates on the both arm are within 0.02 of the substring
+rates; outputs are short (at most 24 tokens) and mostly one phrase. P2: the retrieval arm
+contains both answers more often than the adapter arm, since a note can prompt a correction
+("X, not Y"). P3: the one- and two-character targets are few (under 2% of facts) but score
+near 1.00 by substring whatever the output, so the word-boundary rate on them is clearly lower.
+
+## 98. How many facts need an adapter as the base model grows (pinned 2026-11-01, before the run)
+
+Question. On Qwen2.5-1.5B a note alone answers most edit prompts and an adapter is needed
+for the rest. Is the adapter a compensation for small models, or does the need remain as
+the base model grows? The same arms also answer the limitation that everything so far
+ran on one base model.
+
+Arms. Qwen2.5-0.5B-Instruct (bf16, revision 7ae5576), Qwen2.5-1.5B-Instruct (bf16, 989aa79),
+Qwen2.5-1.5B-Instruct (4-bit), Qwen2.5-3B-Instruct (4-bit, aa8e725), Qwen2.5-7B-Instruct
+(4-bit, a09a354), and SmolLM3-3B (4-bit, another model family, revision stored in the
+output). 3B in bf16 needs 6.2 GB and does not fit next to other users of the shared 8 GB
+GPU, so 3B and 7B run in 4-bit; the 4-bit 1.5B arm measures what quantization alone changes.
+A smoke of 3 facts per new arm checks memory and is discarded.
+
+Runner: confirm/scale_eval.py, on the same 2000 facts (external_counterfact_n1000,
+external_zsre_n1000). Routes are those saved in the SS76 evaluation: the router does not
+depend on the base model. Note = the instructed system prompt of SS67. A fact needs an adapter
+if its note does not answer its edit prompt, scored at a word boundary. SS97 showed that the
+substring score overstates the note arm by 5 points on zsRE (0.794 against 0.741), and this
+reading depends on the note arm, so here word_hit is primary and the substring fraction is
+reported beside it. With word_hit the saved 1.5B fractions are 0.164 on CounterFact and 0.259 on
+zsRE, 0.2115 pooled (against 0.162 and 0.206 by substring, SS68). Facts that need an
+adapter get the adopted recipe (rank 2, LoRA+, int8, KL anchor) and the commit gate (in-sample D <=
+2, one retraining with another seed); queries routed to them are served with adapter and note.
+One resident rank-2 model is reset per fact instead of reloaded, which a 4-bit base would make
+slow. The 1.5B bf16 arm reuses the SS94 adapters.
+
+Readings per arm and dataset, and pooled: share of facts that need an adapter, with 95%
+bootstrap CI; base score; note on edit prompts and paraphrases; tiered store on edit prompts
+and paraphrases, word and substring; adapters committed, retrained; seconds per adapter; adapter
+bytes; held-out D mean and p99, and share above 0.968 (kappa was measured on 1.5B and is a
+reference on the other models); peak GPU memory.
+
+Decision rule on the pooled share at 7B (4-bit), f7, with its 95% CI.
+A: upper end of the CI <= 0.02. The thesis becomes: the ledger and notes are enough, and the
+adapter is a compensation for small models.
+B: lower end of the CI >= 0.10. The adapter layer stays necessary at the largest model that runs here.
+C: otherwise. The need depends on size; the adapter remains an optional tier and the paper
+reports the curve.
+The trend is read within 4-bit (1.5B, 3B, 7B). If the two 1.5B arms differ by more than 0.02,
+quantization is a confound and bf16 and 4-bit arms are not compared. The second-family reading
+holds if SmolLM3-3B reaches a tiered edit-prompt score >= 0.95 on both datasets with a tiered
+paraphrase score above its note paraphrase score. Only one family and sizes up to 7B are
+tested, so this narrows the single-model limitation and does not close it for all models.
+
+Predictions. P1: 0.5B pooled >= 0.30. P2: the 1.5B bf16 arm reproduces at least 1990 of 2000
+saved note outputs on each dataset and the pooled share 0.2115 within 0.005. P3: the two
+1.5B arms differ by at most 0.02. P4: f7 is between 0.06 and 0.16, outcome C or B. The direction
+is less certain than it looks: larger models may follow an instruction better, but on CounterFact
+they also hold the contradicted fact more firmly. P5: tiered edit-prompt score >= 0.97 in every
+arm. P6: 7B in 4-bit trains an adapter in under 30 s with peak memory under 5.3 GB.
+
+## 99. SS97 results: audit of the answer score (2026-11-01)
+
+Source: results/live_learning/confirm/score_audit.json.
+
+Both arm (the primary reading), substring / word boundary / strict. CounterFact edit prompts 0.996 /
+0.996 / 0.996; paraphrases 0.891 / 0.890 / 0.889. zsRE edit prompts 0.989 / 0.988; paraphrases 0.982 /
+0.979. The largest drop is 0.003, below the limit of 0.02, so the rule keeps the substring score primary
+for the both arm. Adapter arm: at most 0.002. Of the CounterFact hits with both served, 0.11% on
+paraphrases also contain the old answer, and none on edit prompts.
+
+Note arm, which the rule did not cover. CounterFact edit prompts 0.838 / 0.836 / 0.811, paraphrases
+0.684 / 0.681 / 0.626; 8.0% of paraphrase hits also contain the old answer. zsRE edit prompts 0.794 /
+0.741, paraphrases 0.815 / 0.770. The note arm's substring rate on zsRE is flattered by about 5 points,
+through matches such as "male" inside "female".
+
+Predictions. P1 held. P2 held: 3.0% and 8.0% against 0% and 0.14%. P3 half failed: short targets are
+few (15 of 2000, targets Ay, C, FX, Io), but their word-boundary rates equal their substring rates (edit
+prompts 0.867, paraphrases 0.933); the concern about "C" did not materialise in these outputs.
+
+Reading. The main results stand under the stricter scores. Anything that rests on the note arm alone
+does not: the note-only comparison row and the tier fractions (0.162, 0.206 by substring) move to
+0.164 and 0.259 at a word boundary. SS98 therefore uses the word-boundary score for that reading.
+
+## 100. The cost of a wrong route, on 1000 questions and per serving arm (pinned 2026-11-01, before the run)
+
+Question. SS95 rejected rank 2 as the main build on one point comparison: 0.675 < 0.69, with a
+paired difference of -0.045 and CI [-0.095, 0.005] on 200 questions. That rule discarded a 23-fold
+storage gain on sampling noise. Separately, 0.72 describes the adapter alone, while the system
+serves adapter and note together, and whether the damage comes from the adapter or the note has
+not been measured.
+
+Runner: confirm/wrong_route.py. The SS69 design with its seed: zsRE dev questions the base model
+answers correctly, each served with a randomly drawn fact of the CounterFact store; the draw
+continues the SS69 sequence, so the first 200 questions are those of SS69 and SS94, extended to
+1000. Arms on each question, paired: adapter rank 16; adapter rank 2 (int8, SS94 store); note of
+the drawn fact (instructed system prompt, no adapter); adapter and note, rank 16; adapter and note,
+rank 2. Reading: the share of base-correct answers retained, by substring (as SS69) and word boundary;
+paired differences with 10000 bootstrap samples.
+
+Decision rule, written over an interval as CONTRIBUTING.md now requires. Rank 2 becomes the main build
+if the lower end of the one-sided 95% interval of (rank 2 minus rank 16, adapter arm) is >= -0.03. The
+margin is the distance between 0.72 and the old limit 0.69; the other conditions of SS94 held already.
+Otherwise rank 16 stays main, and the result is reported with its interval.
+
+Predictions. P1: the first 200 rows reproduce SS94's 0.72 and 0.675 exactly. P2: the difference is
+between -0.05 and 0, and the lower end of the interval is above -0.03 with probability about even; 1000
+questions shrink the half-width to about 0.02. P3: the note alone retains more than the adapter alone,
+at least 0.85 against about 0.72. P4: adapter and note together retain no more than the adapter alone,
+so the 0.72 quoted so far overstates what the served system keeps.
+
+## 101. General capability on standard benchmarks with the store active (pinned 2026-11-01, before the run)
+
+Question. Protection so far rests on 40 control prompts and 200 zsRE questions. Does a store of 1000
+facts change what the model can do on benchmarks reviewers know?
+
+Runner: confirm/general_eval.py. 500 questions of the MMLU test split and 500 of ARC-Challenge test,
+drawn with seed 101. The prompt is the question and its options followed by "Answer with the letter
+only."; the system prompt and generation settings are those of serving; the first standalone option
+letter of the output is the answer. Arms, paired by question: base; through the CounterFact store and
+through the zsRE store with the default router (routed: adapter and note; otherwise base, as served);
+and, as an upper bound on the damage, every question forced through a randomly drawn entry of the
+CounterFact store: adapter rank 16, adapter rank 2, note, adapter and note rank 2.
+
+Readings per benchmark and pooled: share routed, with the Clopper-Pearson interval; accuracy per arm;
+paired difference from base with a 95% bootstrap interval.
+
+Decision rule. The store is non-inferior on general capability if, pooled and for each store, the lower
+end of the one-sided 95% interval of (through the store minus base) is >= -0.01. Failing this is
+reported as a limitation of the router, with the routed questions listed. The forced arms carry no
+rule: they say what a wrong route would cost, and they are not what the system does.
+
+Predictions. P1: share routed under 1% on both benchmarks, since a query needs a full stored subject
+and a relation above threshold. P2: the rule holds; if nothing is routed the through-store arm equals
+base by construction, and the benchmark says only that the router stays out of the way. P3: base
+accuracy between 0.50 and 0.80. P4: forced adapter costs 2 to 15 points, less than the 28% of SS69,
+because a letter answer depends less on the fact the adapter was trained toward. P5: forced note and
+forced adapter with note cost more than forced adapter alone, since the instruction tells the model to use
+an unrelated context.
+
+## 102. Human labels for the natural-question sample (pinned 2026-11-01, before any human label exists)
+
+Question. The natural-question leak rate rests on labels from the analysing model (SS90). Does a human
+agree with them? This closes one limitation only if the author does the labelling, so nothing here is
+scored until the author has filled in the sheet.
+
+Sample. 200 automatic leaks: the 106 items labelled in SS91, plus 94 further automatic leaks drawn with seed
+102 from the routed rows of natural_e3.json, without repeating a (question, stored fact) pair. The model labels
+the 94 new items blind with the rule and display of SS90, before the sheet is issued, and writes them to
+natural_e3_labels_model_ext.json. The sheet (confirm/label_sheet.py make) is shuffled with seed 102 and shows
+the question, the stored fact, the stored target, the served response and the base response. It does not show
+the router, the source of the item or any label.
+
+Rule, as in SS90. In the counterfactual world where the stored fact is true, is the stored target a correct
+answer to the question? legit: yes, or entailed for the asked relation. leak: no, including a target of the wrong
+type. unsure: the asked relation and the stored one can differ for this subject.
+
+Readings (confirm/label_sheet.py score). Agreement and Cohen's kappa between author and model over the three
+classes, and over legit against leak on items neither marks unsure, with 95% bootstrap intervals; the confusion
+table; the corrected near-neighbour leak rate of the default router with author labels, beside the 11.7% from
+model labels.
+
+Decision rule. Kappa >= 0.6 on the two-class reading: the paper reports both labelers and the limitation is
+closed. Below 0.6: the author's labels replace the model's in every figure, and the disagreement is reported.
+Prediction. P1: kappa 0.5 to 0.8. The unsure class (28 of 106) is where most disagreement will fall.
+
+## 103. SS96 results: write-time slots (2026-11-01)
+
+Source: results/live_learning/confirm/slot_eval.json. theta_slot = 0.8985 on the dev split (dev FPR 0.01, dev TPR on
+paraphrases 0.762). Template pairs across different relations: 1.61% at or above it (28470 pairs), within one
+relation 81.5% (933 pairs).
+
+Writes. CounterFact: 998 inserts, 1 duplicate (Fritz Reiner, P937), 1 update (Marissa Mayer employer, BBC replaced
+by Microsoft or the reverse by order of writing, both P108), 0 merges across relation identifiers. The Gambit pair
+stayed separate. zsRE: 858 inserts, 142 duplicates, 0 updates, no merge with a different answer.
+
+Serving against the SS76 evaluation, new / old / lower end of the one-sided 95% interval of the difference. CounterFact
+edit prompts (both) 0.997 / 0.996 / -0.002; paraphrases (both) 0.893 / 0.891 / -0.001. zsRE edit prompts (both) 0.991
+/ 0.989 / 0.000; paraphrases (both) 0.984 / 0.982 / -0.001. Retention 0.9978 on CounterFact, 0.9989 on zsRE.
+
+Removal. CounterFact: gone 1.0, return 1.0. zsRE, 98 entries removed: gone 0.46, return 0.90 [0.84, 0.95], up from
+0.84; lower end of the one-sided interval 0.85.
+
+Decision rule. (i) fails: 0.85 < 0.95. (ii), (iii) and (iv) hold. As pinned, the store keeps per-entry writes.
+
+Predictions. P1 held. P2 failed narrowly: 142 merges, not at least 150. P3 failed: return is 0.90, not 0.96 to 1.00. The
+expectation that slots reach 100% by construction is refuted with this threshold. P4 failed: (iii) passed with room
+and (i) was the tightest. P5: Marissa Mayer merged correctly as one relation; Gambit stayed separate.
+
+Reading. All 10 return failures have the same form: the removed fact has a duplicate with the same subject and answer,
+worded below theta_slot ("What is the home city of Low Skies?" against "In what city or state did the formation of Low
+Skies occur?"), to which the router still sends the query, since the routing threshold is 0.7501. Writes and reads disagree
+in the band between the two thresholds. No failure involves a different answer.
+
+## 104. Slots with an asymmetric threshold (pinned 2026-11-01, after reading the SS96 failures)
+
+This entry was written after seeing which test facts failed in SS96, so on the N=1000 stores it is a post-hoc
+revision and is labelled as such. The confirmatory reading is on facts that played no part in the design.
+
+Change. The two errors of a slot decision do not cost the same. Merging a write with the same answer loses nothing that
+is stored: the entry already answers it. Replacing an entry with a different answer drops a fact. So a same-answer write
+now merges at the routing threshold (0.7501), the point at which a query would be sent to the entry anyway, and a
+different-answer write still needs theta_slot (0.8985).
+
+Readings. (a) The SS96 readings on the N=1000 stores (confirm/slot_eval.py --duplicate-theta 0.7501), post hoc. (b)
+Confirmatory, no model needed, confirm/slot_fresh.py: a fresh sample of 1000 zsRE records drawn with seed 104 from records
+whose subjects are in neither N=1000 store nor the dev split, all subjects with two or more records among those
+preferred so that duplicates exist. For each of the first 100 facts remove the entry that holds it and route its edit prompt
+over the rest. A residual route is a route to an entry with the same subject. Reported: residual-route share under per-entry writes,
+under SS96 slots and under asymmetric slots; merges; merges with a different answer (there should be none, since the
+threshold for those did not change).
+
+Decision rule. Slot detection with the asymmetric threshold becomes the default write path if: (i) on the fresh sample the upper
+end of the one-sided 95% interval of the residual-route share is <= 0.05; (ii) on the N=1000 stores zsRE return, lower end of the
+one-sided 95% interval, is >= 0.95, CounterFact merges across relation identifiers are at most 2, and efficacy and paraphrase
+(both) are non-inferior at margin 0.01. Otherwise per-entry writes stay and the gap is reported.
+
+Predictions. P1: zsRE return 0.97 to 1.00; the band between the thresholds is where all ten failures sit, but a route below 0.7501
+is impossible, so any survivor is a route the same-subject scan misses, for instance when the query's best key is a phrasing
+added later. P2: fresh residual-route share under 0.03. P3: at most 2 CounterFact merges across relation identifiers: a same-answer
+pair in two relations of one subject is rare. A wrong merge of this kind costs a removal that takes both facts, reported as such.
+
+## 105. Aliases, pronouns and short conversations (pinned 2026-11-01, before the run)
+
+Question. The default router needs the stored subject in the query, so "Obama" and "Barack Obama" are different
+subjects and a pronoun routes nowhere. Real use is conversation. (The earlier figure of 0.10 for pronouns, router_stress,
+is the semantic-only argmax on the nonce set; with the entity gate pronoun routing was 0.) Do Wikidata aliases and a
+history-based pronoun rewrite recover these queries, and what do they cost in false routes?
+
+Method. Aliases from Wikidata (confirm/fetch_aliases.py, by Wikipedia title, then by exact English label), filtered by
+usable_aliases (at least 4 characters and a capital or digit). relic.router.resolve_reference rewrites the query's first
+pronoun with the last stored subject named in the conversation, and does not rewrite if a later turn names someone
+unstored. Runner: confirm/alias_eval.py with the default router (relation encoder, theta 0.7501). Routing is measured
+without the language model, and answers with `--serve`, on the rank-16 stores.
+
+Query sets, per dataset. A1, A2: edit prompt and paraphrase with the subject replaced by one alias drawn with seed 105, for
+facts with a usable alias that does not contain the subject. C1: edit prompt and paraphrase with the subject replaced by a
+pronoun ("it", or "its" after a possessive), after the turn "Tell me about {subject}." C4: the same with two filler turns in
+between. False-route sets: F1: E3 other-relation prompts of CounterFact, with aliases available, and F1a with an alias in the
+prompt. F2: the synthetic distractors. F3: the 1000 MMLU and ARC prompts of SS101. F4: the 993 SmolLM3 natural questions of
+SS85. C2: pronoun query after the subject turn, with a later turn naming an unstored subject: the rewrite should not fire. C3:
+E3 prompts with a pronoun after the subject turn. A route is correct if it reaches an entry with the fact's subject and answer.
+
+The pronoun queries are built by substitution, not from recorded conversations; this tests the mechanism, not the variety of
+real dialogue. That limit stays in the paper.
+
+Decision rule. Aliases and the rewrite become the default if all hold. (i) A1 route accuracy with aliases exceeds the accuracy
+without by at least 0.20, at the lower end of the one-sided 95% interval, on both datasets. (ii) No new false routes:
+paired difference (with minus without) of the routed share on F1 and F4, upper end of the one-sided 95% interval, <= 0.01; F2
+stays at 0; F3 routed share <= 0.01. (iii) C1 route accuracy on edit prompts >= 0.60. (iv) C2 routed share <= 0.05, and C3
+routed share no more than 0.02 above the F1 share without aliases.
+
+Predictions. P1: 40% to 60% of subjects have a usable alias. P2: A1 without aliases 0.05 to 0.25 (near-spellings still match),
+with aliases 0.80 to 0.95. P3: F4 rises by under 0.5 points; F1 unchanged, since an alias adds a name and not a relation. P4:
+C1 is about 0.95 on edit prompts, because the rewrite restores the original text except for pronoun and possessive form, and
+about 0.85 on paraphrases, since CounterFact paraphrases carry a leading unrelated sentence. P5: C2 at most 0.02. P6: C3 is about the F1 rate.
+
+## 106. A three-tier gate (pinned 2026-11-01, before the analysis; uses saved outputs)
+
+Question. The router applies an entry or nothing. Saved outputs suggest that the note does less harm than the adapter on
+queries it should not answer (natural near-neighbour questions: leak 0.19 with the note, 0.288 with adapter and note). Would a
+middle tier, the note alone, soften the trade-off between leakage and misses?
+
+Policies, by the router's score s. Current: s >= 0.7501 adapter and note, else base. Upper band U(t): s >= t adapter and note;
+0.7501 <= s < t note alone; else base. t is fixed on the dev split as the threshold with CounterFact false-positive rate 2%
+(U2) and 1% (U1). Lower band L: s >= 0.7501 adapter and note; t10 <= s < 0.7501 note alone; else base, with t10 the threshold at dev
+false-positive rate 10%. Runner: confirm/tier_gate.py. U1 and U2 need only saved outputs of the SS76 and SS85 evaluations. L needs
+new note answers for queries in its band, served by `--serve`.
+
+Readings, per policy and paired with Current. Edit prompts and paraphrases on both datasets, substring and word boundary; E3 and E2
+leak on CounterFact; zsRE loc same-as-base; natural near and natural uniform leak_target; share of queries per tier. SS100 gives the
+cost of a wrong route per arm.
+
+Decision rule. A policy is adopted if (i) natural near-neighbour leak falls, with the upper end of the one-sided 95% interval of the
+paired difference below 0, by at least 0.03 in the mean; (ii) paraphrase and edit-prompt reading on both datasets are non-inferior at
+margin 0.01. If several pass, the one with the largest fall in leak. Otherwise the two-tier gate stays.
+
+Predictions. P1: U2 lowers near-neighbour leak by 0.03 to 0.08. P2: U2 fails (ii) on CounterFact paraphrases: the note alone answers
+0.68 of them against 0.89 with the adapter, and many paraphrases score in the band. So the gate trades as much as it gains, and the
+rule rejects it. P3: L raises paraphrases by under 0.02 and raises near-neighbour leak; it fails (i).
+
+## 107. Threshold calibration outside the calibrated phrasings (pinned 2026-11-01, before the analysis; no language model)
+
+Question. Theta 0.7501 gives a 5% false-positive rate on the dev templates. SS82 found 7.5% to 11% off-template, and on natural
+near-neighbour questions 31% are routed. Do per-relation thresholds or calibration on natural questions fix this?
+
+Arms. Global 0.7501. N: one global threshold at 5% on natural calibration questions. R: per-relation thresholds max(0.7501, the 95th
+percentile of the natural calibration questions whose stored entry has that relation), for relations with at least 20 calibration
+questions, else 0.7501. Calibration half: natural_e3 queries split in two by subject with seed 107; the test half is untouched. zsRE records
+have no relation identifier, so R applies 0.7501 there; this is a limit of per-relation thresholds on zsRE. Runner: confirm/tau_calib.py,
+default relation encoder.
+
+Readings on the test half and the stores. Routed share on natural near and uniform questions; route accuracy on edit prompts and paraphrases
+of both stores (a change in routing changes serving only through this); E3 routed share; automatic leak on routed test-half questions from
+saved outputs. Roughly half of the sampled automatic near-neighbour leaks are labelled legitimate (SS91), so a lower routed share on those
+questions costs correct answers too. The corrected reading using SS91 labels is reported where labels exist.
+
+Decision rule. An arm replaces 0.7501 if (i) routed share on natural near test questions falls by at least 0.10, paired, upper end of the
+one-sided 95% interval below 0; (ii) paraphrase route accuracy on both stores non-inferior at margin 0.02. If both arms pass, the larger fall.
+
+Predictions. P1: N sets a threshold near 0.90 and fails (ii): the natural near-neighbour scores overlap the paraphrase scores (SS85). P2: R
+passes (i) with a smaller fall, about 0.10 to 0.15, and is borderline on (ii) on CounterFact. P3: neither reaches a near-neighbour routed
+share under 0.10. The boundary for these relations is not a matter of threshold, as SS77 and SS78 already suggest.
+
+## 108. SS106 results: the three-tier gate (2026-11-01)
+
+Source: results/live_learning/confirm/tier_gate.json. t2 = 0.8985, t1 = 0.9585 on the dev split.
+
+Mean against the current gate. U2 (note alone for 0.7501 <= s < 0.8985, 15.8% of CounterFact paraphrases and 14.1% of zsRE paraphrases):
+natural near-neighbour leak 0.288 to 0.190 (-0.098), E3 leak 0.043 to 0.037, E2 0.017 to 0.015; CounterFact paraphrase 0.891 to 0.845 (-0.046), zsRE
+paraphrase 0.982 to 0.952 (-0.030); edit prompts unchanged. U1 gives the same near-neighbour leak at a higher cost (CounterFact paraphrase
+0.768, zsRE 0.915). Every routed near-neighbour question scores below t2, so both bands reduce to the note alone on these questions.
+
+Decision rule. (i) holds for both, (ii) fails for both: no policy is adopted and the two-tier gate stays. The lower band L was not served, since
+its prediction was a failure of (i) and it would raise routing into a region where the natural leak is already the problem; it is left unmeasured.
+
+Predictions. P1 failed in the favourable direction: the fall is 0.098, above the predicted range. P2 held.
+
+Reading. The middle tier does what it was proposed to do, and the trade is real in both directions: about 2 points of paraphrase per point of
+near-neighbour leak on CounterFact. It suits a deployment that prefers misses to wrong answers, and it stays available as a setting, not as the
+default. Before labels, about half of these automatic leaks are not errors (SS91), so the gain is probably smaller than it looks.
+
+## 109. SS107 results: threshold calibration (2026-11-01)
+
+Source: results/live_learning/confirm/tau_calib.json. 496 calibration and 497 test questions, split by subject. N: 0.7968. R: 9 relations have
+at least 20 calibration questions, with thresholds from 0.7501 to 0.8281 (P37 0.8281, P495 0.8128, P30 0.7968, P103 0.7835; P1412, P178, P27, P449,
+P937 stay at 0.7501).
+
+Test half, global / N / R. Natural near routed 0.3045 / 0.1111 / 0.1687 (R minus global -0.136, CI [-0.181, -0.095]); automatic leak 0.280 / 0.103 /
+0.161; uniform routed 0.004 / 0 / 0. Paraphrase route accuracy, CounterFact 0.910 / 0.886 / 0.903, zsRE 0.745 / 0.725 / 0.742. E3 routed 0.044 / 0.036 / 0.040.
+Edit prompts 1.0 in all.
+
+Decision rule. N fails (ii): lower ends -0.032 and -0.028 against the margin -0.02. R passes both, so R replaces the global threshold where a relation
+identifier exists.
+
+Predictions. P1 failed on the value (0.7968, not near 0.90), held on the failure of (ii). P2 held, and R was not borderline. P3 held: neither arm is under 0.10.
+
+Reading. Most of the near-neighbour routing lies just above the global threshold, in a few relations. Limits: R needs a relation identifier on the entry, which zsRE
+does not have, so R equals the global threshold there; about half of the automatic near-neighbour leaks are legitimate answers, so part of the fall is lost correct
+answers, and the corrected reading awaits the labels of SS102. The thresholds come from questions written by one generator model.
+
+## 110. Hard negatives from a confusion matrix (pinned 2026-11-01, before the run)
+
+Question. The remaining leakage comes from particular relation pairs (country of origin against location of formation, manufacturer
+against developer). SS76 trained on negatives from a random other relation, SS77 on a broad inventory and SS78 used write-time negative
+keys. None drew its negatives from where the encoder actually confuses relations. Does that help?
+
+Method. confirm/mine_confusions.py: with the SS76 encoder, for every pair of CounterFact relations, the share of pairs of their templates (subject
+masked) that score at or above 0.7501. Pairs with identical template text across two relations cannot be separated by any encoder on text alone;
+they are excluded from mining and counted. Each relation gets its up to 3 most confused partners with share >= 0.05. Only template text is used, no test
+fact and no natural question. confirm/train_relation_encoder.py --hard: the SS76 recipe (same seed, base and subject exclusions), with the negative drawn
+from a confused partner with probability 0.5 where a partner exists.
+
+Arms. hardA: the 11 relations held out in SS76 stay held out, and partners are limited to training relations. hardB: every relation is trained on, as a deployment that
+knows its relation schema would do; generalisation to unseen relations is then not measured. Baseline: the SS76 encoder. Each encoder's threshold is fixed on the dev split at
+CounterFact false-positive rate 5% (router_v7_select.py procedure). Runner: confirm/hardneg_eval.py, routing only; an adopted encoder gets a full serving
+evaluation under a later entry.
+
+Readings, paired with the baseline. Natural near and uniform questions routed; E3 routed; edit-prompt and paraphrase route accuracy on both stores.
+
+Decision rule. An arm replaces the baseline if (i) natural near routed falls by at least 0.05, upper end of the one-sided 95% interval below 0; (ii) paraphrase route accuracy on
+both stores is non-inferior at margin 0.02; (iii) E3 routed is no higher by more than 0.01 at the upper end of the one-sided 95% interval. If both pass, hardA, which keeps the held-out test of generalisation.
+
+Predictions. P1: identical template text exists across several pairs (P495 and P740 score 1.0), which sets a floor no encoder can pass on templates alone. P2: hardB lowers near routed by 0.03 to 0.10 and hardA by
+less, since the most confused pairs may lie among held-out relations. P3: hardB passes (ii) and hardA is close to the limit. Overall: at most one arm passes.
+
+## 111. Deviation for SS100, SS101 and SS105: serving with a single adapter slot (2026-11-01, before any result of these entries)
+
+The store model carried a rank-1024 LoRA (64 slots of rank 16) for merged serving, which routed serving never uses. At that width SS100 would take
+about 2.5 hours. DeltaStore now takes `capacity`; SS100, SS101 and the served reading of SS105 use capacity 1. In exact arithmetic the output is the same.
+In floating point it is not quite: on the first 25 CounterFact facts, 149 of 150 saved responses reproduce, 26 s instead of several minutes. One adapter response on a near tie differs (x0010 paraphrase, BMW against Microsoft), because
+the width of the matrix product changes how rounding accumulates.
+
+Consequences, fixed before the runs. All arms within SS100 and within SS101 use the same width, so paired differences are not affected. SS100 P1 is relaxed: the first 200 rows reproduce 0.72 and 0.675
+within 0.01, and not exactly. The SS100 run stopped at 100 of 1000 questions, without writing any output or showing a retained rate, and restarts from the beginning. Scripts that compare against saved
+evaluations keep the default capacity and reproduce them exactly, including SS104 (a).
+
+A side reading: about 0.7% of responses here depend on rounding at this level, which is a floor on what a difference between two stores can mean.
+
+## 112. Shard adapters with exact removal (pinned 2026-11-01, before the run)
+
+Question. A rank-2 adapter is 373 KB per fact, 373 GB at a million facts. One adapter for many facts leaks and cannot lose a single fact. In between: train k facts into one adapter and, when one is removed, retrain that shard from the ledger's remaining facts, in the
+manner of SISA (Bourtoule et al.). State stays a function of the ledger, so removal stays exact, at about k times 7 s.
+
+Literature, scanned before the run. The idea is not new as such. SISA-A (Kumar, Gangadharaiah, Roth, arXiv 2212.09573) trains adapters on shards for guaranteed unlearning in NLP classification. APA (Hu et al., arXiv 2404.10327) trains one adapter per data shard for LLM-based
+recommendation, retrains only the affected adapters, and aggregates all of them per test sample. What we did not find, in a quick scan that is not exhaustive: shards of facts with one shard selected by a router instead of all aggregated, or a measurement of leakage to other
+relations under them. Any claim in the paper is limited to that difference.
+
+Storage is not automatically k times smaller. It is rank-dependent: rank 16 in int8 is about 3 MB, so k = 8 at rank 16 stores the same 373 KB per fact as the adopted adapter. A gain needs a lower rank or a larger k.
+
+Runner: confirm/shard_eval.py on Qwen2.5-1.5B (bf16). 96 CounterFact facts of the N=1000 store, 32 from each of the three most frequent relations. Arms, as k/rank: 8/2, 8/4, 8/16, 16/4, 16/16, 32/4, 32/16, grouped by relation, and 16/16 grouped at random. Recipe: the
+grouped recipe of SS42 (lr 3e-4 for A and B, 16 passes over all pairs, KL anchor on the canaries), since LoRA+ collapses when grouped (SS47), stored in int8. Reference: the same 96 facts with their SS94 rank-2 adapters.
+
+Readings per arm. Edit prompt with the shard adapter; edit prompt and paraphrase with adapter and note; cross-talk: output contains another fact's answer from the shard and not its own; forced E3: the other-relation prompt of each fact with its shard's adapter active, adapter alone and with note, leak =
+a stored answer of the shard that the base output lacks; held-out D per shard and share above 0.968; bytes per fact; seconds per training. Removal, for 8/16 and 32/16: retrain the first shard without its first fact, twice with the same seed; are the two results bitwise equal, how long does it take, and does the
+removed fact's edit prompt stop answering it.
+
+Decision rule. An arm is viable if all hold: (i) edit prompt with adapter and note >= 0.95; (ii) paraphrase with adapter and note non-inferior to the reference at margin 0.03, lower end of the one-sided 95% interval; (iii) forced E3 leak, adapter alone, no more than 0.02 above the reference at the upper end of the
+one-sided 95% interval; (iv) share above kappa <= 0.10; (v) at most a quarter of the reference's bytes per fact (93 KB). Viable arms make shards worth a full study on the N=1000 stores. No arm being viable leaves the per-fact store as the answer on storage at this scale, and the follow-up is noted as open.
+
+Predictions. P1: 8/16 passes (i) to (iv) and fails (v) by construction. P2: 32/16 (93 KB) and 8/4 (93 KB) are the interesting arms, and neither passes all: 32/16 fails (iii) or (ii), 8/4 fails (i). P3: grouping by relation gives more cross-talk within the shard than random grouping, since the facts compete for one
+relation, and the forced E3 leak is lower. P4: leak grows with k at fixed rank, answering the open question about 256 facts: 8 to 32 stays below the 10% to 30% seen at 256. P5: retraining is not bitwise reproducible on the GPU unless deterministic ops are forced, so "exact" here would mean a function of the remaining facts up to numerical noise; reported as measured.
+
+## 113. A per-fact soft prompt (pinned 2026-11-01, before the run)
+
+Question. ReFT failed on held-out drift (SS93). A soft prompt of 10 tokens per fact, 10 times 1536 values in bf16, is 30.7 KB, 12 times smaller than the adopted adapter. It touches no weight, enters by the same route as the note, and can be cached. Is it a better second tier?
+
+Related: PSPEM (Cai et al., arXiv 2403.14381) edits with soft prompts from a prompt encoder; its abstract does not report locality, and we did not find per-fact soft prompts with a held-out drift reading, in a quick scan.
+
+Runner: confirm/soft_prompt.py on Qwen2.5-1.5B. The vectors are spliced into the input embeddings just before the user turn and trained on the pairs of the adapter recipe with the KL anchor, 32 passes, random initial values at the scale of the embeddings. Stage 1 picks a learning rate of {3e-3, 1e-2, 3e-2} on the 20 development facts of SS92 with its
+selection function. Stage 2 runs on the 279 fresh adapter facts of SS87 against the rank-2 LoRA+ int8 rows, with the same readings, the 200 wrong-route questions, and the same rule as SS92 stage 3: (i) efficacy with note within 0.02, paraphrase with note within 0.03 and its CI's lower end >= -0.06; (ii) share above kappa within 0.02, mean held-out D within 0.05; (iii) wrong route retained within 0.03.
+
+Predictions. P1: efficacy is reached at the selected learning rate. P2: the rule fails on (ii): like an intervention at the last prompt positions, a soft prompt sits in every prompt it is applied to, and SS93's held-out D of 4 to 12 times is the closer comparison. P3: without the note its paraphrase score is below the adapter's. P4: as a replacement it fails; its size makes it worth reporting even so.
+
+## 114. SS100 results: the cost of a wrong route (2026-11-01)
+
+Source: results/live_learning/confirm/wrong_route.json, 1000 questions, capacity 1 as in entry 111.
+
+Share of base-correct answers retained, by substring / by word boundary. Adapter rank 16: 0.705 / 0.696. Adapter rank 2: 0.668 / 0.657.
+Note: 0.511 / 0.505. Adapter and note, rank 16: 0.396 / 0.394. Adapter and note, rank 2: 0.370 / 0.367.
+
+Paired differences, with 95% CI and lower end of the one-sided 95% interval. Rank 2 minus rank 16, adapter: -0.037 [-0.061, -0.013], -0.058.
+Rank 2 minus rank 16, both: -0.026 [-0.051, 0.000], -0.048. Note minus adapter rank 16: -0.194 [-0.232, -0.157]. Both minus adapter rank 16:
+-0.309 [-0.343, -0.274]. Both minus note, rank 2: -0.141 [-0.177, -0.105].
+
+Decision rule. The lower end is -0.058 against the margin -0.03, so rank 16 stays main. With 1000 questions this is no longer a matter of sampling noise,
+since the upper end of the two-sided interval excludes zero.
+
+Predictions. P1 held under the relaxed form of entry 111: the first 200 rows give 0.725 and 0.675. P2 held: the difference lies in [-0.05, 0] and the half-width is
+0.024; the lower end did not clear the margin. P3 failed by a wide distance: the note retains 0.511, not at least 0.85, and less than the adapter. P4 held, and
+by more than expected.
+
+Reading. The figure 0.72 quoted so far describes an arm the system does not serve. A wrong route to the served combination keeps 0.40 of the answers the base model had right, and the
+note does more of the damage than the adapter. A wrong route is therefore more expensive than the earlier text said, and the gate's false-route rate is what keeps this cost small. Every report of wrong-route cost uses the served figure from now on.
+
+## 115. SS104 reading (b): residual routes on fresh facts (2026-11-01)
+
+Source: results/live_learning/confirm/slot_fresh.json. 1000 zsRE records over 328 subjects, none in the N=1000 stores or the dev split; the first 100 facts removed in turn.
+
+Residual-route share, with upper end of the one-sided 95% interval. Per-entry writes: 0.99, 1.00 (1000 inserts). SS96 slots: 0.32, 0.40 (490 inserts, 510 duplicates). Asymmetric slots: 0.01, 0.03 (347 inserts, 653 duplicates).
+No merge joined different answers in any arm. No updates occurred, as the sample was not built to contain conflicting answers.
+
+Rule (i) of SS104 holds. P2 held. Rule (ii) waits for reading (a), which is in the queue. The sample prefers subjects with several records, so these shares describe stores with many facts per subject, the case in which duplicates exist at all.
+
+## 116. SS101 results: general capability with the store active (2026-11-01)
+
+Source: results/live_learning/confirm/general_eval.json, 500 MMLU and 500 ARC-Challenge questions, capacity 1 as in entry 111.
+
+Routed: 0 of 1000 through either store (Clopper-Pearson upper end 0.0037). Accuracy through each store therefore equals base: 0.665 pooled, 0.564 on MMLU, 0.766 on ARC. The rule holds with a lower end of 0.
+
+Forced through a random entry of the CounterFact store, pooled accuracy and paired difference from base with 95% CI. Adapter rank 16: 0.657, -0.008 [-0.020, 0.004]. Adapter rank 2: 0.658, -0.007 [-0.021, 0.007].
+Note: 0.654, -0.011 [-0.025, 0.003]. Adapter and note, rank 2: 0.643, -0.022 [-0.038, -0.006].
+
+Predictions. P1, P2 and P3 held; P2 holds by construction, as P2 itself said, since nothing was routed. This benchmark shows that the router stays out of the way on these questions; it says nothing about served entries. P4 failed on the low side: the forced adapter costs under 1 point, not 2 to 15. P5 held in direction: the combination costs most, but the note's excess over the adapter is within the noise.
+
+Reading. Forcing the served combination on a multiple-choice question costs 2.2 points, while entry 114 measured a loss of 60% of correct answers on factual questions. The damage is specific to short factual answers, the form the note and adapter are trained on, so these benchmarks do not replace the wrong-route reading.
+
+## 117. Deviation for SS98: the embedding and output layers of the 7B arm on CPU (2026-11-01, before any 7B result)
+
+The smoke of the 7B arm ran out of memory while loading, beside another user of the shared GPU that holds 2.3 GB; 5.5 GB is free. Quantization leaves the embedding and the output layer in bf16, 1.09 GB each at this size. For this arm those two layers stay on CPU, in bf16, and everything else stays as pinned. They are not trained and no adapter touches them, so the outputs should match up to floating-point differences between devices; training is slower, because every loss computes the output layer on CPU. The other arms keep the full model on the GPU, so seconds per adapter and peak memory are not comparable for this arm. P6 of SS98 can no longer be read as stated: its time and memory are reported with this note.
+
+If the smoke with this layout also fails, 7B waits until the GPU has room for the pinned layout, and no decision A, B or C is taken before then.
+
+## 118. Entry 117 withdrawn: the 7B arm returns to the pinned layout (2026-11-02, before any 7B result)
+
+The smoke with the two layers on CPU failed with "Cannot copy out of meta tensor". Accelerate treats a module mapped to CPU as offloaded: its parameters become meta tensors and it executes on the GPU, so the layout does not do what entry 117 described and would not have kept those layers off the GPU during a forward pass. As entry 117 fixed in advance for this case, the arm waits for room and runs as pinned in SS98, with the full model on the GPU. The other user of the GPU has released its 2.3 GB, so there is room now. The code of entry 117 is reverted, and P6 of SS98 can be read as stated.
+
+The queue also lost six jobs when they were killed from outside at 22:17 on 2026-11-01, with exit 137 and no out-of-memory record in the kernel log. It now stops and puts a failed job back. Those jobs had produced no output apart from the resumable state of the 1.5B arm.
+
+## 119. SS105 results: aliases and pronouns, routing (2026-11-02)
+
+Sources: results/live_learning/confirm/alias_eval_pinned.json, as first run, and alias_eval.json, after the fix below. Served answers are in the queue and carry no rule.
+
+The defect. The first run gave C4 (pronoun after two filler turns) 0.001 on CounterFact against 0.972 on zsRE. C4 is not part of the rule. The filler "Can you say more?" matched the alias "Morven" of one stored subject at edit distance 2, so the rewrite took every such pronoun to that entry, with no relation check after it. A rewrite now needs a spelled-out mention (commit 2f51137). The fix was made after reading this result. The rule holds on both runs, so the decision does not depend on it. Aliases still match approximately in route() itself, where the relation check follows, and that is what the rule measured.
+
+Readings, CounterFact / zsRE, after the fix; the first-run value follows in brackets where it differs. Alias coverage 0.423 / 0.346. A1 without and with aliases 0.096 and 1.000 / 0.283 and 1.000; lower end of the difference 0.878 / 0.675. A2 without and with 0.090 and 0.865 / 0.270 and 0.961. C1 on edit prompts 0.998 (0.983) / 1.000 (0.972). C1 on paraphrases 0.735 (0.608) / 0.978 (0.952). C4 0.998 (0.001) / 1.000 (0.972). Without history every pronoun set routes 0.
+
+False routes, CounterFact / zsRE. F1 0.044, difference 0. F4 0.156, difference 0. F2 0 / 0. F3 0 / 0.002. C2 0.003 (0.013) / 0.003 (0.008). C3 0.044 (0.042), against F1 0.044. F1a (other-relation prompt with an alias in it) rises from 0.011 to 0.042, which is the F1 rate reached through an alias; it was not part of the rule.
+
+Decision rule. (i) lower ends 0.878 and 0.675 against 0.20. (ii) differences 0 on F1 and F4; F2 stays 0; F3 at most 0.002. (iii) C1 at least 0.97. (iv) C2 at most 0.013, C3 within 0.02 of F1. All hold, so aliases and the rewrite are the default: `Ledger.ask` resolves pronouns from the history it is given, and an entry that carries aliases matches them.
+
+Predictions. P1 held on CounterFact and failed on zsRE (0.346 against 0.40 to 0.60). P2 without aliases held on CounterFact, and zsRE is slightly above (0.283 against at most 0.25); with aliases both exceed the range at 1.000. That figure is close to built in, since A1 keeps the stored wording of the query; A2 is the informative one. P3 held. P4 held on edit prompts and on zsRE paraphrases, and failed on CounterFact paraphrases (0.735 against 0.85), which carry a leading unrelated sentence for the pronoun to land on. P5 and P6 held.
+
+Limits. The pronoun queries are built by substitution, as SS105 said, and a real conversation has more varied turns. The two-filler reading shows how easily one common word broke the mechanism; other fillers were not tested. Coverage is about 40% of subjects, so most stored subjects have no alias to match.
+
+## 120. SS98 results: how many facts need an adapter as the base model grows (2026-11-03)
+
+Sources: results/live_learning/confirm/scale/<arm>.json and summary.json. Layout as pinned, with entry 117 withdrawn in entry 118. The 3-fact smokes were discarded; the 7B smoke ran before the full arm. SmolLM3-3B revision a07cc9a.
+
+Share of facts that need an adapter, word boundary. CounterFact / zsRE / pooled with 95% CI.
+Qwen2.5-0.5B: 0.032 / 0.035 / 0.0335 [0.026, 0.0415].
+Qwen2.5-1.5B bf16: 0.164 / 0.259 / 0.2115 [0.1935, 0.229].
+Qwen2.5-1.5B 4-bit: 0.138 / 0.297 / 0.2175 [0.1995, 0.235].
+Qwen2.5-3B 4-bit: 0.058 / 0.161 / 0.1095 [0.096, 0.1235].
+Qwen2.5-7B 4-bit: 0.090 / 0.086 / 0.088 [0.076, 0.1005].
+SmolLM3-3B 4-bit: 0.037 / 0.063 / 0.050 [0.040, 0.060].
+
+Tiered store, word boundary, edit prompts then paraphrases, CounterFact / zsRE; the note alone on paraphrases in brackets.
+0.5B: 0.998, 0.834 (0.825) / 0.999, 0.934 (0.911). 1.5B bf16: 0.997, 0.739 (0.681) / 0.996, 0.936 (0.770). 1.5B 4-bit: 0.996, 0.736 (0.689) / 0.992, 0.939 (0.783). 3B: 0.998, 0.668 (0.655) / 0.987, 0.921 (0.842). 7B: 0.993, 0.797 (0.786) / 0.989, 0.957 (0.912). SmolLM3: 0.986, 0.798 (0.794) / 0.983, 0.948 (0.920).
+
+Every adapter passed the commit gate on its first training; none was retrained. Seconds per adapter, CounterFact / zsRE: 0.5B 4.6 / 4.6; 1.5B 4-bit 8.7 / 8.8; 3B 11.9 / 12.0; 7B 27.9 / 23.0; SmolLM3 17.2 / 17.4. The 1.5B bf16 arm reuses saved adapters, so its 0.8 s is only the gate. Bytes per adapter: 184512, 372960, 626976, 860384, 663840. Peak allocated memory: 1254, 3036, 1585, 2667, 6252, 3780 MB.
+
+Mean held-out D and share above 0.968, CounterFact / zsRE. 0.5B: 0.44, 0.06 / 0.80, 0.37. 1.5B bf16: 0.41, 0.03 / 0.64, 0.17. 1.5B 4-bit: 0.34, 0.01 / 0.67, 0.20. 3B: 2.25, 0.93 / 3.22, 0.94. 7B: 1.47, 0.68 / 1.99, 0.90. SmolLM3: 0.23, 0.05 / 0.40, 0.13.
+
+Decision rule. f7 = 0.088 [0.076, 0.1005]. The upper end is above 0.02 and the lower end below 0.10, so the outcome is C: the need depends on the model, the adapter remains an optional tier, and the paper reports the curve. The two 1.5B arms differ by 0.006, so quantization is not a confound. Within 4-bit the share falls from 0.2175 to 0.1095 to 0.088, and the intervals of 3B and 7B overlap. The second-family reading holds: SmolLM3 reaches at least 0.983 on edit prompts on both datasets, and its tiered paraphrase score is above its note score on both, by 0.004 on CounterFact.
+
+Predictions. P1 failed by a wide distance: 0.5B is 0.0335, not at least 0.30, and it is the lowest share of all arms. Its outputs are short and do not repeat the note (no output contains the note's opening, mean 1.3 and 1.9 words), so this is not an artefact of copying. P2 held: 2000 of 2000 saved note outputs on each dataset, share 0.2115. P3 held. P4 held: f7 in [0.06, 0.16], outcome C. P5 held: lowest 0.983. P6 held on time and failed on memory: 6.25 GB against 5.3.
+
+Reading. Size does not explain the need. The smallest model needs fewest adapters, a 3B model of another family needs half of what the Qwen 3B needs, and the highest share is at 1.5B, so the view that the adapter compensates for small models is not supported, and neither is the view that large models no longer need it. What the adapter adds also varies: paraphrase gain on zsRE is 0.166 at 1.5B and between 0.023 and 0.079 elsewhere; on CounterFact it is at most 0.058, and at most 0.013 outside the 1.5B arms. A reason for the differences between models was not measured.
+
+Limit. Kappa 0.968 was measured on 1.5B. It is a reference elsewhere, as SS98 said, so the shares above it at 3B and 7B do not show that those adapters are harmful, and they do not show that they are safe. The gate in-sample limit D <= 2 was also set on 1.5B and passed everything. On 3B and 7B the adapter's protection is therefore unmeasured until both limits are calibrated on those models. The adapters also belong to different facts in each arm, since each arm trains only the facts its own notes miss. This narrows the single-model limitation to sizes up to 7B and two families, and does not close it.

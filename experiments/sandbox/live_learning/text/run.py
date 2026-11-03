@@ -15,9 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import harness  # noqa: E402
 import stream as stream_mod  # noqa: E402
 from mechanisms import MECHANISMS  # noqa: E402
+
+from relic import model as harness  # noqa: E402
 
 
 def score(ev, resp: str):

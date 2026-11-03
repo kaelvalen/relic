@@ -24,9 +24,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 import torch  # noqa: E402
 from canary_eval import HELDOUT  # noqa: E402
-from harness import chat, load_model  # noqa: E402
-from ledger import sym_kl  # noqa: E402
-from pilot import CANARIES, SYSTEM, PilotStore, hit, rag_system, trim  # noqa: E402
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -35,7 +32,21 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
-SEED = 81
+from relic.adapters import (  # noqa: E402
+    SEED,
+    make_variant,
+    round_to,
+    set_delta,
+    train_one,
+)
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import (
+    hit,  # noqa: E402
+    sym_kl,  # noqa: E402
+)
+from relic.model import chat, load_model  # noqa: E402
+from relic.serving import SYSTEM, rag_system, trim  # noqa: E402
+
 KAPPA = 0.968  # SS69 held-out kappa (paper \chkKappa)
 CONFIRM = Path("results/live_learning/confirm")
 FORMATS = ["fp32", "bf16", "fp16", "int8"]
@@ -55,26 +66,6 @@ VARIANTS = {
 
 
 # -- A: storage precision ---------------------------------------------------
-def _int8_rows(t: torch.Tensor) -> torch.Tensor:
-    """Symmetric int8 with one fp16 absmax scale per row, dequantized to fp32."""
-    scale = (t.abs().amax(dim=1, keepdim=True) / 127.0).half().float()
-    scale = torch.where(scale > 0, scale, torch.ones_like(scale))
-    return (t / scale).round().clamp(-127, 127) * scale
-
-
-def round_to(t: torch.Tensor, fmt: str) -> torch.Tensor:
-    t = t.float()
-    if fmt == "fp32":
-        return t
-    if fmt == "bf16":
-        return t.bfloat16().float()
-    if fmt == "fp16":
-        return t.half().float()
-    if fmt == "int8":
-        return _int8_rows(t)
-    raise ValueError(fmt)
-
-
 def stored_bytes(delta: dict, fmt: str, b_only: bool = False) -> int:
     width = {"fp32": 4, "bf16": 2, "fp16": 2, "int8": 1}[fmt]
     total = 0
@@ -117,7 +108,7 @@ def precision(args) -> None:
     trim()
 
     torch.manual_seed(SEED)
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     slot = next(p for n, p in store.model.named_parameters() if "lora_A" in n)
     store.deltas = {}
     store.materialize()
@@ -194,78 +185,6 @@ def precision(args) -> None:
 
 
 # -- B: update form ---------------------------------------------------------
-def make_variant(base, spec, seed=SEED):
-    from peft import LoraConfig, get_peft_model
-
-    torch.manual_seed(seed)
-    kw = dict(
-        r=spec["r"],
-        lora_alpha=2 * spec["r"],
-        lora_dropout=0.0,
-        target_modules=spec["targets"],
-        task_type="CAUSAL_LM",
-    )
-    if spec["layers"] is not None:
-        kw["layers_to_transform"] = spec["layers"]
-    m = get_peft_model(base, LoraConfig(**kw))
-    if spec["fa"]:
-        for n, p in m.named_parameters():
-            if "lora_A" in n:
-                p.requires_grad_(False)
-    return m
-
-
-def get_delta(m) -> dict:
-    params = dict(m.named_parameters())
-    return {
-        n: {
-            "A": p.detach().float().cpu().clone(),
-            "B": params[n.replace("lora_A", "lora_B")].detach().float().cpu().clone(),
-        }
-        for n, p in params.items()
-        if "lora_A" in n
-    }
-
-
-def set_delta(m, delta=None) -> None:
-    with torch.no_grad():
-        for n, p in m.named_parameters():
-            if "lora_A" in n:
-                key, k = n, "A"
-            elif "lora_B" in n:
-                key, k = n.replace("lora_B", "lora_A"), "B"
-            else:
-                continue
-            if delta is None:
-                p.zero_()
-            else:
-                p.copy_(delta[key][k].to(p.device, p.dtype))
-
-
-def train_one(store, spec, pairs, b_mult=8, seed=SEED):
-    """b_mult: B learning rate as a multiple of A's (8 = LoRA+, 1 = baseline)."""
-    base = load_model(store.model_name)[1]
-    m = make_variant(base, spec, seed)
-    a = [p for n, p in m.named_parameters() if "lora_A" in n and p.requires_grad]
-    b = [p for n, p in m.named_parameters() if "lora_B" in n and p.requires_grad]
-    groups = [{"params": b, "lr": b_mult * store.lr}]
-    if a:
-        groups.insert(0, {"params": a, "lr": store.lr})
-    opt = torch.optim.AdamW(groups)
-    m.eval()
-    with torch.no_grad(), m.disable_adapter():
-        store._base_logits = [store._logits(m, q) for q in store.kl_prompts]
-    m.train()
-    for _ in range(store.steps):
-        for user, assistant in pairs:
-            store._pair_step(m, opt, user, assistant)
-    store._base_logits = None
-    delta = get_delta(m)
-    del m, base
-    torch.cuda.empty_cache()
-    return delta
-
-
 def eval_variant(store, spec, deltas, facts) -> dict:
     base = load_model(store.model_name)[1]
     m = make_variant(base, spec)
@@ -327,7 +246,7 @@ def shared_a_identical(deltas) -> bool:
 def sweep(args) -> None:
     data = json.loads(Path(args.facts).read_text())
     facts = data["facts"] if isinstance(data, dict) else data
-    store = PilotStore(args.model, steps=16)
+    store = DeltaStore(args.model, steps=16)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

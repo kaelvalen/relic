@@ -32,15 +32,6 @@ from locality_eval import (  # noqa: E402
     other_relation_prompts,
     paired_diff_ci,
 )
-from pilot import (  # noqa: E402
-    CANARIES,
-    SYSTEM,
-    PilotStore,
-    base_answer,
-    hit,
-    rag_system,
-    trim,
-)
 from routed_eval import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
@@ -50,52 +41,13 @@ from routed_eval import (  # noqa: E402
     load_verified_checkpoint,
     verify_manifest_inputs,
 )
-from router_v4 import RouterV4  # noqa: E402
+
+from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.metrics import hit  # noqa: E402
+from relic.router import RouterV4  # noqa: E402
+from relic.serving import Server, serve_arms, trim  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
-
-
-class Server:
-    """Serving with a base-answer cache; `system=None` means the plain system prompt."""
-
-    def __init__(self, store):
-        self.store = store
-        self._base = {}
-
-    def base(self, q, system=None):
-        key = (q, system)
-        if key not in self._base:
-            self._base[key] = base_answer(self.store, q, system=system)
-        return self._base[key]
-
-    def adapter(self, fid, q, system=None):
-        store = self.store
-        full = store.deltas
-        store.deltas = {fid: full[fid]}
-        store.materialize()
-        resp = store.answer(q, system=system or SYSTEM)
-        store.deltas = full
-        store.materialize()
-        return resp
-
-
-def serve_arms(server, router, facts, q, enc):
-    """(route index, similarity, {arm: response}) for one query."""
-    j, sim = router.route(q, enc)
-    if j is None:
-        base = server.base(q)
-        return j, sim, {"adapter": base, "retrieval": base, "both": base}
-    note = rag_system("instruct", facts, j)
-    fid = facts[j]["id"]
-    return (
-        j,
-        sim,
-        {
-            "adapter": server.adapter(fid, q),
-            "retrieval": server.base(q, system=note),
-            "both": server.adapter(fid, q, system=note),
-        },
-    )
 
 
 def locality(server, router, facts, queries, enc, answers):
@@ -355,7 +307,7 @@ def main(argv=None):
 
     torch.manual_seed(0)
     enc = SentenceTransformer(manifest["models"]["router_encoder"]["id"])
-    store = PilotStore(model_id, steps=16)
+    store = DeltaStore(model_id, steps=16)
     store.kl_prompts = list(CANARIES)
     checkpoint, ckpt_sha = load_verified_checkpoint(
         verified["checkpoint_path"],

@@ -1,23 +1,8 @@
 """Router v4 (prereg SS66): entity match, clause scoping and relation keys."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "experiments/sandbox/live_learning/confirm"
-    ),
-)
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[1] / "experiments/sandbox/live_learning/text"),
-)
-
-from router_v4 import (  # noqa: E402
+from relic.router import (  # noqa: E402
     RouterV4,
     RouterV5,
     clause_with_span,
@@ -137,7 +122,7 @@ class BagScorer:
 
 
 def test_v7_generated_keys_raise_paraphrase_score():
-    from router_v7 import RouterV7
+    from relic.router import RouterV7
 
     facts = [
         {"subject": "Jean Galland", "probe": "The mother tongue of Jean Galland is"}
@@ -219,3 +204,109 @@ def test_misspelled_longer_subject_still_beats_its_exact_prefix():
     ]
     query = "The mother of Paris Hiltn is"
     assert _route_subject(facts, query) == "Paris Hilton"
+
+
+class ToyScorer:
+    def __init__(self):
+        self.enc = BagEncoder()
+
+    def sims(self, query, keys):
+        e = self.enc.encode([query, *keys])
+        return [float(e[0] @ k) for k in e[1:]]
+
+
+def _v7(facts, tau=0.5):
+    from relic.router import RouterV7
+
+    return RouterV7(facts, ToyScorer(), tau)
+
+
+OBAMA = {
+    "id": "a",
+    "subject": "Barack Obama",
+    "probe": "The mother tongue of Barack Obama is",
+    "aliases": ["Obama", "obama the president", "BHO"],
+}
+
+
+def test_alias_routes_to_its_entry_and_short_or_lowercase_aliases_do_not():
+    router = _v7([OBAMA])
+    assert router.route("The mother tongue of Obama is")[0] == 0
+    assert router.route("The mother tongue of BHO is")[0] is None
+    assert router.route("The mother tongue of obama the president is")[0] == 0
+    no_alias = _v7([{k: v for k, v in OBAMA.items() if k != "aliases"}])
+    assert no_alias.route("The mother tongue of Obama is")[0] is None
+
+
+def test_full_subject_outranks_a_shorter_alias_of_another_entry():
+    other = {"id": "b", "subject": "Paris Hilton", "probe": "Paris Hilton plays"}
+    city = {
+        "id": "c",
+        "subject": "Lutetia",
+        "probe": "Lutetia plays",
+        "aliases": ["Paris"],
+    }
+    router = _v7([other, city])
+    assert router.candidates("Paris Hilton plays")[0] == [0]
+    assert router.candidates("Paris plays")[0] == [1]
+
+
+def test_relation_threshold_applies_to_entries_of_that_relation():
+    from relic.router import RouterV7
+
+    fact = {**OBAMA, "relation": "P103"}
+    q = "The mother tongue of Barack Obama is"
+    assert RouterV7([fact], ToyScorer(), 0.5).route(q)[0] == 0
+    strict = RouterV7([fact], ToyScorer(), 0.5, relation_tau={"P103": 1.5})
+    assert strict.route(q)[0] is None
+    other = RouterV7([fact], ToyScorer(), 0.5, relation_tau={"P37": 1.5})
+    assert other.route(q)[0] == 0
+
+
+def test_pronoun_resolves_to_the_last_stored_subject():
+    from relic.router import resolve_reference
+
+    router = _v7([OBAMA])
+    history = ["Tell me about Barack Obama.", "Go on."]
+    assert (
+        resolve_reference("The mother tongue of him is", history, router)
+        == "The mother tongue of Barack Obama is"
+    )
+    assert (
+        resolve_reference("What is his mother tongue?", history, router)
+        == "What is Barack Obama's mother tongue?"
+    )
+    assert (
+        resolve_reference("What is her mother tongue?", history, router)
+        == "What is Barack Obama's mother tongue?"
+    )
+
+
+def test_a_near_spelling_in_the_history_is_not_a_mention():
+    from relic.router import resolve_reference
+
+    router = _v7([{**OBAMA, "aliases": ["Morven"]}])
+    q = "What is his mother tongue?"
+    # "more" is within edit distance 2 of the alias, as a real store showed
+    assert resolve_reference(q, ["Can you say more?"], router) == q
+    assert resolve_reference(q, ["Tell me about Morven."], router) == (
+        "What is Barack Obama's mother tongue?"
+    )
+    assert resolve_reference(
+        q, ["Tell me about Barack Obama.", "Can you say more?"], router
+    ) == ("What is Barack Obama's mother tongue?")
+
+
+def test_pronoun_is_left_alone_when_nothing_safe_resolves_it():
+    from relic.router import resolve_reference
+
+    router = _v7([OBAMA])
+    q = "What is his mother tongue?"
+    assert resolve_reference(q, [], router) == q
+    assert resolve_reference(q, ["Tell me a joke."], router) == q
+    # a more recent turn names someone who is not stored
+    named = ["Tell me about Barack Obama.", "What about Angela Merkel?"]
+    assert resolve_reference(q, named, router) == q
+    # a query that names a stored subject itself is not rewritten
+    own = "The mother tongue of Barack Obama and his family is"
+    assert resolve_reference(own, ["Tell me about Barack Obama."], router) == own

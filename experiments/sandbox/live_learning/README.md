@@ -23,8 +23,8 @@ patched silently. Results JSONs live under `results/live_learning/` (untracked).
 ## Environment (NixOS quirks, essential)
 
 ```bash
-export LD_LIBRARY_PATH=/nix/store/38v10xhwhypb747h3z4c2i0a19hkiwx2-nvidia-x11-615.71.09/lib
-export TRITON_LIBCUDA_PATH=$LD_LIBRARY_PATH   # NixOS: triton wants /sbin/ldconfig
+export LD_LIBRARY_PATH=/run/opengl-driver/lib:$LD_LIBRARY_PATH
+export TRITON_LIBCUDA_PATH=/run/opengl-driver/lib   # NixOS: triton wants /sbin/ldconfig
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 .venv/bin/python experiments/sandbox/live_learning/<dir>/<script>.py
 ```

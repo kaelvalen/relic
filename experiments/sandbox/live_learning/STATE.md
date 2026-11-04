@@ -1,6 +1,20 @@
-# live-learning sandbox: state checkpoint (2026-10-03, after the VLM line)
+# live-learning sandbox: state checkpoint
 
-Handoff after context compaction. Everything below is committed on `main`; nothing is
+## Current state (2026-11-04)
+
+Branch `review-2026-11`. The record runs to entry 137 of `docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`; the next
+free entry is 138. Commits after c41b846 and the `prereg-*` tags are local. The last line of work tried a store
+with no note (entries 126 to 137). It removes the cost of the gate and fails its rule on CounterFact paraphrases,
+so the note stays. `confirm/fresh_ladder.py` is the last runner. Open: near-relation leakage, the human label
+sheet `results/live_learning/confirm/human_labels_sheet.csv`, and the defects in `Ledger.commit` and the state
+hash. Long jobs go through `results/live_learning/confirm/queue_runner.sh`. The GPU is shared, so check
+`nvidia-smi` first and never stop another project's process.
+
+Everything below is the earlier log, kept as written.
+
+## Checkpoint of 2026-10-03, after the VLM line
+
+Handoff after context compaction. Everything below was committed on `main`; nothing was
 pushed. The program: `docs/LIVING_MODEL_POSITIONING.md` (claim, audit Appendix A,
 measured guarantees Appendix B). Rule of the house: every run is pinned in
 `docs/LIVING_MODEL_SLICE_PREREG.md` before it runs; failures are recorded, not

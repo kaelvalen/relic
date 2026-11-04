@@ -3429,3 +3429,27 @@ Diagnostic. Over all near questions with a candidate the score separates them fr
 Limits. The fall counts lost correct answers as well as removed leaks. About half of the automatic near leaks were legitimate in entry 91, and the human labels of SS102 are still open, so the fall in wrong answers is smaller than the fall above by an unknown amount. The same generator wrote the calibration and the test questions. Rall has now been read on these facts, so a later arm between R107 and Rall needs fresh facts.
 
 Implementation, in the same change. `Ledger` takes `relation_tau`. `Ledger.commit` refuses an id held by another fact, which used to leave the old adapter serving the new note. `Ledger.state_hash` now covers tau, the slot thresholds, the relation thresholds and the entry's relation; it still names the model without its revision. confirm/ledger_smoke.py ran end to end on the real model with these settings.
+
+## 140. SS102 results: the author's labels agree with the model's (2026-11-04)
+
+Source: results/live_learning/confirm/human_labels.json, 200 items labelled by the author: 93 legit, 49 leak, 58 unsure.
+
+Agreement with the model's labels. Two classes, on the 132 items neither marks unsure: kappa .967 (95 percent interval .915 to 1.0), agreement .985. Three classes: kappa .739 (.656 to .816), agreement .835. Of the 33 disagreements, 31 involve the unsure class; on legit against leak the two differ on 2 items.
+
+Rule. Kappa on the two-class reading is above .6, so the paper reports both labelers and the limitation is closed.
+
+Corrected near leak of the default router, on the 27 labelled items of that router that are legit or leak: legit share .556, corrected leak .128 by the author's labels against .117 by the model's, from the automatic .288.
+
+Predictions. P1 failed on the value, two-class kappa is above the predicted .5 to .8, and three-class kappa is inside it. The unsure class did hold most of the disagreement, as predicted.
+
+Limit. The corrected rate rests on 27 items and sets unsure items aside.
+
+## 141. Do the thresholds remove leaks or correct answers? (pinned 2026-11-04, before the analysis; no language model)
+
+Question. Entry 139 could not say how much of the fall in automatic near leak is lost correct answers. The author's labels now allow a reading.
+
+Runner: confirm/label_sheet.py thresholds. Items: the sheet's items whose question and stored fact are a routed row of the default router in natural_e3.json, labelled legit or leak by the author. For each arm of SS138, R107 and Rall, the share of each label that the arm no longer routes. R107 was calibrated on half of these questions, so the reading is also given on the test half of entry 107.
+
+Reading, no rule. If the arm removes leaks at a higher rate than legit answers, the threshold also discriminates. If at equal rates, the fall in wrong answers is the fall in the automatic count times the leak share.
+
+Predictions. P1: R107 removes leak and legit items at rates within .15 of each other. P2: R107 removes between .30 and .55 of the items overall. Limits: tens of items, and an old store.

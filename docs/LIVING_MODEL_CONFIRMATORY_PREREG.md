@@ -3503,4 +3503,6 @@ Rule, for the claims and not for the default, which entry 143 settles. A claim s
 
 Predictions. P1: 4 to 7 percent of facts fail the first attempt, and at most .5 percent have no entry. P2: edit prompts at least .98 on both. P3: paraphrases about .90 on CounterFact and .94 on zsRE, under the .885 and .975 of the rank-2 store with note on zsRE and level or above it on CounterFact. P4: retention at least .99 and return at least .98. P5: (iii), (iv) and (v) hold, with wrong route about .55. P6: forced MMLU and ARC cost at most 1.5 points, less than the 2.2 of adapter and note.
 
+Token length, written before the run. The saved evaluations of the main stores and SS100 generated 24 tokens; `DeltaStore.answer` now generates 64. Every paired comparison with a saved reading therefore cuts the new response to its first 24 tokens, which equals generating 24 with greedy decoding, and reports the 64-token reading beside it. This also limits entry 143: its figure of .535 for the store with no note was generated at 64 tokens on 200 questions, and its comparison of about .37 at 24 tokens on 1000, so part of that gap may be length. Reading (v) settles it.
+
 Limits. One model, rank 2, seen facts. About 8 to 12 hours of GPU.

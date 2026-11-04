@@ -619,6 +619,23 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS136 the store with no note and a retry ladder, 800 fresh facts (prefix "lad").
+try:
+    r = json.load(open(R + "fresh_ladder.json"))
+    s = r["summary"]
+    for tag, store in (("Cur", "current"), ("Lad", "ladder"), ("Off", "gate_off")):
+        emit(f"lad{tag}Edit", s[store]["edit"], fixed=True)
+        emit(f"lad{tag}Para", s[store]["paraphrase"], fixed=True)
+        emit(f"lad{tag}CfPara", s[store]["paraphrase_cf"], fixed=True)
+        emit(f"lad{tag}Nat", s[store]["natural"], fixed=True)
+    emit("ladNear", s["ladder"]["natural_near"], fixed=True)
+    d = s["ladder"]["minus_current"]["paraphrase_cf"]
+    out.append(f"\\newcommand{{\\ladCfGap}}{{{d['diff']:+.3f}}}")
+    out.append(f"\\newcommand{{\\ladCfLower}}{{{d['lower_95_one_sided']:+.3f}}}")
+    out.append(f"\\newcommand{{\\ladRejected}}{{{len(r['rejected_by_A1'])}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

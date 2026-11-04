@@ -874,6 +874,15 @@ against \srvCurEThPct\% for the current store, and \srvFallNatPct\% against \srv
 questions about another relation, read with these results in hand. On CounterFact paraphrases it reached
 \srvFallCfParaPct\% against \srvCurCfParaPct\%, because the gate rejected adapters that then fell back to
 the shorter recipe; with the gate off it reached \srvOffCfParaPct\%.
+A retry for rejected adapters, trying another seed and then larger anchor weights until one passes the
+gate, removed that cost and the store still failed. On 800 fresh facts, \ladRejected\ of them rejected
+at the first attempt, the ladder store reached the rates of the store with the gate off, with
+\ladLadCfParaPct\% on CounterFact paraphrases against \ladCurCfParaPct\% for the current store. The
+paired difference was \ladCfGap, with a one-sided lower bound of \ladCfLower\ against a margin of
+$-0.03$. It reached \ladLadEditPct\% on edit prompts against \ladCurEditPct\%, and the leak did not
+separate the stores (\ladLadNatPct\% and \ladCurNatPct\% on natural questions, \ladNearPct\% on near
+relations). As registered, the note stays. Since the rejected facts no longer differ, the note appears
+to answer some paraphrases the adapter does not; the near-relation leak is a limit of the router.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -929,7 +938,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 131 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 137 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

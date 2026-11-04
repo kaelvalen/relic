@@ -2,6 +2,7 @@
 
     python label_sheet.py make    # writes the sheet; fill in its `label` column
     python label_sheet.py score   # agreement with the model labels
+    python label_sheet.py thresholds   # SS141: what the per-relation arms stop routing
 
 Labels: legit (under the stored fact, the target answers the question), leak (it does
 not, including a target of the wrong type), unsure (the two relations can differ here).
@@ -156,7 +157,87 @@ def score() -> None:
     print(json.dumps(report, indent=1))
 
 
+def thresholds() -> None:
+    """SS141: which of the author's labels each per-relation arm stops routing."""
+    from locality_eval import match_raw
+
+    from relic.router import RouterV7, make_scorer
+
+    theta = 0.7501
+    with SHEET.open(encoding="utf-8") as f:
+        sheet = [
+            r for r in csv.DictReader(f) if r["label"].strip() in ("legit", "leak")
+        ]
+    raw = json.loads((CONFIRM / "raw/counterfact.json").read_text())
+    facts = json.loads((CONFIRM / "external_counterfact_n1000.json").read_text())[
+        "facts"
+    ]
+    relation = {
+        f["id"]: r["requested_rewrite"]["relation_id"]
+        for f, r in zip(facts, match_raw(facts, raw))
+    }
+    rows = json.loads((CONFIRM / "natural_e3.json").read_text())["rows"]["default_ss76"]
+    fact_of = {r["query"]: r["fact_id"] for r in rows}
+    subjects = sorted({r["fact_id"] for r in rows})
+    random.Random(107).shuffle(subjects)
+    test_half = set(subjects[len(subjects) // 2 :])
+    arms = {
+        "R107": json.loads((CONFIRM / "tau_calib.json").read_text())["per_relation"],
+        "Rall": json.loads((CONFIRM / "near_threshold.json").read_text())["thresholds"][
+            "Rall"
+        ],
+    }
+    router = RouterV7(facts, make_scorer("relenc", device="cpu"), theta)
+    items = []
+    for r in sheet:
+        fid = fact_of.get(r["question"])
+        if fid is None:
+            continue
+        cand, sims = router.score(r["question"])
+        if not cand:
+            continue
+        k = int(np.argmax(sims))
+        chosen = facts[cand[k]]
+        if (
+            sims[k] < theta
+            or chosen["id"] != fid
+            or chosen["answer"] != r["stored_target"]
+        ):
+            continue
+        items.append(
+            {
+                "label": r["label"].strip(),
+                "test_half": fid in test_half,
+                "score": float(sims[k]),
+                "relation": relation[fid],
+            }
+        )
+
+    def read(rows_, tau) -> dict:
+        out = {}
+        for label in ("legit", "leak"):
+            xs = [x for x in rows_ if x["label"] == label]
+            gone = [x["score"] < tau.get(x["relation"], theta) for x in xs]
+            out[label] = {
+                "n": len(xs),
+                "removed": int(sum(gone)),
+                "share": round(float(np.mean(gone)), 4) if xs else None,
+            }
+        return out
+
+    report = {
+        "prereg": "SS141",
+        "n": len(items),
+        "all": {a: read(items, t) for a, t in arms.items()},
+        "test_half": {
+            a: read([x for x in items if x["test_half"]], t) for a, t in arms.items()
+        },
+    }
+    (CONFIRM / "label_thresholds.json").write_text(json.dumps(report, indent=1))
+    print(json.dumps(report, indent=1))
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("command", choices=["make", "score"])
-    {"make": make, "score": score}[ap.parse_args().command]()
+    ap.add_argument("command", choices=["make", "score", "thresholds"])
+    {"make": make, "score": score, "thresholds": thresholds}[ap.parse_args().command]()

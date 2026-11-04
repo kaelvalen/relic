@@ -3401,3 +3401,29 @@ Diagnostic, no rule. AUROC of the router's score, CounterFact paraphrases agains
 Predictions. P1: R107 lowers near leak from about .30 to about .17 to .20. P2: R107 costs at most 1 point of CounterFact paraphrase. P3: Rall covers more relations than R107 and lowers near leak by at least .02 more. P4: pooled AUROC is between .75 and .90. P5: near leak stays above .10 in every arm.
 
 Limits. The automatic count includes legitimate answers; about half were legitimate in entry 91, so part of the fall may be lost correct answers until the human labels of SS102 exist. Thresholds come from questions written by one generator model, the same one that wrote the test questions.
+
+## 139. SS138 results: per-relation thresholds hold on fresh facts (2026-11-04)
+
+Source: results/live_learning/confirm/near_threshold.json. The global arm reproduces the saved run of SS136 exactly on both stores, which the runner asserts. Rall has 22 relations from 1142 scored questions, 8 of them above 0.7501; R107 has 9, 4 of them above.
+
+| Current store | Global | R107 | Rall |
+|---|---|---|---|
+| Natural near leak (199) | .297 | .171 | .075 |
+| Natural near routed | .327 | .191 | .080 |
+| Natural leak, all | .154 | .091 | .043 |
+| Natural uniform leak | .010 | .010 | .010 |
+| E3 leak | .048 | .043 | .040 |
+| CounterFact paraphrase | .915 | .913 | .898 |
+| CounterFact edit | .983 | .983 | .983 |
+
+zsRE readings do not move, as its entries have no relation identifier. The ladder store moves the same way: near .297, .181, .080; CounterFact paraphrase .895, .893, .878.
+
+Rule. R107 holds: near -.126 (95 percent interval -.176 to -.080), paraphrase -.0025 with lower bound -.0075, edit 0. Rall fails (ii): near -.221 (-.281 to -.166), paraphrase -.0175 with lower bound -.030 against a margin of -.02. R107 is adopted. It is `RELATION_TAU` in relic/router.py, passed to `Ledger` by the caller, and applies to entries that carry a `relation`.
+
+Predictions. P1 held: .171. P2 held: a quarter of a point. P3 held: 22 relations against 9, and .095 more. P4 failed: pooled AUROC is .968, above the predicted range. P5 failed: Rall reaches .075.
+
+Diagnostic. Over all near questions with a candidate the score separates them from routed paraphrases well, so the leak is largely a matter of where the threshold sits and not of the score. The threshold that keeps paraphrase routing within 2 points of global is .7907, where near routing is .176 against .327. Per relation, with 5 to 25 items each, most AUROCs are 1.0; the exceptions are P37 (.711), P131 (.864), P103 (.878), P364 (.879) and P740 (.937). Rall's threshold of .892 for P131 is where most of its paraphrase cost is expected to sit; this was not read separately.
+
+Limits. The fall counts lost correct answers as well as removed leaks. About half of the automatic near leaks were legitimate in entry 91, and the human labels of SS102 are still open, so the fall in wrong answers is smaller than the fall above by an unknown amount. The same generator wrote the calibration and the test questions. Rall has now been read on these facts, so a later arm between R107 and Rall needs fresh facts.
+
+Implementation, in the same change. `Ledger` takes `relation_tau`. `Ledger.commit` refuses an id held by another fact, which used to leave the old adapter serving the new note. `Ledger.state_hash` now covers tau, the slot thresholds, the relation thresholds and the entry's relation; it still names the model without its revision. confirm/ledger_smoke.py ran end to end on the real model with these settings.

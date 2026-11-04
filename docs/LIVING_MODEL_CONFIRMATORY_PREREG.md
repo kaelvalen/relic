@@ -3408,7 +3408,7 @@ Source: results/live_learning/confirm/near_threshold.json. The global arm reprod
 
 | Current store | Global | R107 | Rall |
 |---|---|---|---|
-| Natural near leak (199) | .297 | .171 | .075 |
+| Natural near leak (199) | .296 | .171 | .075 |
 | Natural near routed | .327 | .191 | .080 |
 | Natural leak, all | .154 | .091 | .043 |
 | Natural uniform leak | .010 | .010 | .010 |
@@ -3416,9 +3416,11 @@ Source: results/live_learning/confirm/near_threshold.json. The global arm reprod
 | CounterFact paraphrase | .915 | .913 | .898 |
 | CounterFact edit | .983 | .983 | .983 |
 
-zsRE readings do not move, as its entries have no relation identifier. The ladder store moves the same way: near .297, .181, .080; CounterFact paraphrase .895, .893, .878.
+zsRE readings do not move, as its entries have no relation identifier. The ladder store moves the same way: near .296, .181, .080; CounterFact paraphrase .895, .893, .878.
 
 Rule. R107 holds: near -.126 (95 percent interval -.176 to -.080), paraphrase -.0025 with lower bound -.0075, edit 0. Rall fails (ii): near -.221 (-.281 to -.166), paraphrase -.0175 with lower bound -.030 against a margin of -.02. R107 is adopted. It is `RELATION_TAU` in relic/router.py, passed to `Ledger` by the caller, and applies to entries that carry a `relation`.
+
+Correction to entry 137: its table rounds this reading to .297, and 59 of 199 is .296.
 
 Predictions. P1 held: .171. P2 held: a quarter of a point. P3 held: 22 relations against 9, and .095 more. P4 failed: pooled AUROC is .968, above the predicted range. P5 failed: Rall reaches .075.
 

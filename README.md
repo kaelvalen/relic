@@ -89,7 +89,7 @@ table therefore keeps the rank-16 stores as the main build.
 | Does a store change standard benchmarks? | 101, 116 | Not as served: 0 of 500 MMLU and 500 ARC questions are routed, so accuracy equals the base model's (0.665). Forcing a random entry costs 2.2 points. |
 | Do repeated writes of one fact survive a removal? | 96, 104, 115, 122 | Not any more. A same-answer write joins the entry wherever a query would be routed to it, and a different answer needs a stricter threshold before it replaces one. zsRE return rises from 0.84 to 1.00 at 206 merges, and on fresh facts residual routes fall from 0.99 to 0.01, with no merge of different answers. |
 | Are aliases and pronouns handled? | 105, 119 | On constructed conversations. Wikidata aliases cover about 40% of subjects; alias paraphrases route 0.865 and 0.961, pronouns on edit prompts 0.998 and 1.000, with no new false routes. |
-| Does the threshold depend on the relation? | 107, 109, 138, 139 | Yes. A threshold per relation lowers routing of neighboring-relation questions from 30.5% to 16.9%, at 0.3 to 0.7 points of paraphrase routing, where a relation identifier exists. On 400 fresh facts as served, the automatic leak on those questions falls from 0.297 to 0.171 at 0.25 points of paraphrase. `Ledger` takes these as `relation_tau`. |
+| Does the threshold depend on the relation? | 107, 109, 138, 139 | Yes. A threshold per relation lowers routing of neighboring-relation questions from 30.5% to 16.9%, at 0.3 to 0.7 points of paraphrase routing, where a relation identifier exists. On 400 fresh facts as served, the automatic leak on those questions falls from 0.296 to 0.171 at 0.25 points of paraphrase. `Ledger` takes these as `relation_tau`. |
 | Does the answer score flatter the results? | 97, 99 | Not for adapter and note (at most 0.3 points at a word boundary). It does for the note alone on zsRE: 0.794 by substring, 0.741 at a word boundary. |
 | Do mined hard negatives help the router? | 110, 123 | No. Neither arm is adopted: mining moves leakage from natural questions to template prompts. Training on every relation raises routing of neighboring-relation questions from 30% to 52%. |
 | Can one adapter hold a shard of facts and still remove exactly? | 112, 124 | Not yet. On 96 facts no arm of 8 to 32 facts passes: paraphrase with note stays 5 to 21 points below per-fact adapters. Retraining takes about 4.6 s per fact and repeated bitwise in one process. Eight facts at rank 2 store 47 KB per fact and leak less, so this stays open. |
@@ -139,7 +139,7 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
 - Near-neighbour relations (country of origin against location of formation, original
   language against language of the work) are the main remaining source of leakage; the
   boundary has to be learned from examples of that pair. On 400 fresh CounterFact facts the automatic
-  count is 0.297 of such questions with one threshold and 0.171 with thresholds per relation (entry 139).
+  count is 0.296 of such questions with one threshold and 0.171 with thresholds per relation (entry 139).
 - A wrong route is costly. Served as the system serves it, with adapter and note, an
   unrelated fact keeps 40% of the base model's correct answers; the note alone keeps 51%
   and the adapter alone 71% (entry 100, 1000 questions). The router's false-route rate is

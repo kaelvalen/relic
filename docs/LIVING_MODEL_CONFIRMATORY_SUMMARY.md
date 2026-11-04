@@ -114,5 +114,5 @@ Each line is a reading from the pre-registration record; the README's table of c
   prompts, 0.986 against 0.965. The note stays.
 - Prior work. The architecture is published in SoLA and RRDA, both before this repository. See the paper's related work.
 - Thresholds per relation (entries 138, 139). On 400 fresh CounterFact facts as served, the automatic near-relation leak falls from
-  0.297 to 0.171 at 0.25 points of paraphrase, and the write path takes them as `relation_tau`. zsRE has no relation identifier.
+  0.296 to 0.171 at 0.25 points of paraphrase, and the write path takes them as `relation_tau`. zsRE has no relation identifier.
 - Open. Near-relation leakage that remains, the 200 human labels, the note template, and the state hash, which names the model without its revision.

@@ -120,6 +120,13 @@ is unmeasured.
 
 ## Comparison with editing methods
 
+The architecture is not new. SoLA ([arXiv 2603.11239](https://arxiv.org/abs/2603.11239)) stores each edit as a frozen
+LoRA behind semantic routing and revokes it by removing its key, and RRDA
+([arXiv 2606.14668](https://arxiv.org/abs/2606.14668)) combines a router, an explicit edit memory and adapters. Both
+predate this repository. What RELIC adds is measurement: the cost of a wrong route to one fact, the share of facts that
+need an adapter across base models, removal under repeated writes, and rejection by divergence on held-out prompts, each
+registered before it was run. We did not find these readings elsewhere, in a search that was not systematic.
+
 GRACE and WISE were run with their official code on 200 CounterFact facts, against 1000 for
 RELIC, so this comparison is descriptive and not a ranking. It is also sensitive to format:
 GRACE answers all 200 on the plain edit prompt and 2.5% under the chat template, because its
@@ -131,7 +138,8 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
 
 - Near-neighbour relations (country of origin against location of formation, original
   language against language of the work) are the main remaining source of leakage; the
-  boundary has to be learned from examples of that pair.
+  boundary has to be learned from examples of that pair. On 800 fresh facts the automatic
+  count is about 30% of such questions in every store with a high paraphrase rate (entry 137).
 - A wrong route is costly. Served as the system serves it, with adapter and note, an
   unrelated fact keeps 40% of the base model's correct answers; the note alone keeps 51%
   and the adapter alone 71% (entry 100, 1000 questions). The router's false-route rate is
@@ -144,7 +152,10 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
   `Ledger.write(fact, kappa=...)`.
 - "Transactional" covers one process: commits from threads are serial and saving is atomic. Two
   processes writing one store are not coordinated.
-- Pronoun handling was tested by substitution on constructed conversations.
+- Pronoun handling was tested by substitution on constructed conversations. The rewrite reads the
+  store, so removing a fact can change the subject a pronoun on a later turn is rewritten to.
+- Known defects, not fixed yet: `Ledger.commit` with a reused id keeps the old adapter, and the state
+  hash covers neither the thresholds nor the model revision.
 
 ## Repository layout
 

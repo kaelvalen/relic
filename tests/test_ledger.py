@@ -105,6 +105,36 @@ def test_a_write_under_an_alias_finds_the_slot_of_the_full_name():
     assert event["action"] == "update" and event["superseded"] == "a"
 
 
+def test_a_reused_id_for_another_fact_is_refused_and_changes_nothing():
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"), delta())
+    before = led.state_hash()
+    with pytest.raises(ValueError, match="held by another fact"):
+        led.commit(fact("a", "Bob", "Bob plays", "jazz"))
+    assert led.state_hash() == before and led.entries["a"]["subject"] == "Ann"
+
+
+def test_hash_covers_the_thresholds():
+    led = make_ledger()
+    h = led.state_hash()
+    led.tau = 0.8
+    assert led.state_hash() != h
+    led.tau = 0.75
+    led.relation_tau = {"P37": 0.83}
+    assert led.state_hash() != h
+
+
+def test_a_relation_threshold_reaches_the_router():
+    led = make_ledger()
+    led.relation_tau = {"P37": 2.0}
+    led.commit({**fact("a", "Ann", "Ann was born in", "Oslo"), "relation": "P37"})
+    router, _ = led.router
+    assert router.route("Ann was born in")[0] is None
+    led.relation_tau = {}
+    led._router = None
+    assert led.router[0].route("Ann was born in")[0] == 0
+
+
 def test_hash_covers_phrasings():
     led = make_ledger()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
@@ -115,8 +145,9 @@ def test_hash_covers_phrasings():
 
 def test_hash_covers_the_delta_and_is_order_independent():
     a, b = make_ledger(), make_ledger()
-    ann, bob = fact("a", "Ann", "Ann plays", "jazz"), fact(
-        "b", "Bob", "Bob plays", "rock"
+    ann, bob = (
+        fact("a", "Ann", "Ann plays", "jazz"),
+        fact("b", "Bob", "Bob plays", "rock"),
     )
     a.commit(ann, delta()), a.commit(bob)
     b.commit(bob), b.commit(ann, delta())

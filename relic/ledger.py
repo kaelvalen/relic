@@ -386,9 +386,11 @@ class Ledger:
         tau: float,
         slot_theta: float,
         duplicate_theta: float | None = None,
+        relation_tau: dict | None = None,
     ):
         self.store, self.scorer = store, scorer
         self.tau, self.slot_theta = tau, slot_theta
+        self.relation_tau = dict(relation_tau or {})
         # SS104: a same-answer write merges wherever a query would be routed to the entry
         self.duplicate_theta = tau if duplicate_theta is None else duplicate_theta
         self.entries: dict[str, dict] = {}
@@ -453,6 +455,9 @@ class Ledger:
         """Apply one write atomically: insert, duplicate (new phrasing) or update."""
         with self.lock:
             old = self.slot(fact)
+            if fact["id"] in self.entries and fact["id"] != old:
+                # committing would serve the old entry's adapter with this fact's note
+                raise ValueError(f"{fact['id']}: id is held by another fact")
             if old is not None and self._same_answer(old, fact):
                 if fact["probe"] != self.entries[old]["probe"] and (
                     fact["probe"] not in self.phrasings[old]
@@ -508,7 +513,8 @@ class Ledger:
             extra = {
                 f"{f['subject']}\t{f['probe']}": self.phrasings[f["id"]] for f in facts
             }
-            self._router = (RouterV7(facts, self.scorer, self.tau, extra), facts)
+            router = RouterV7(facts, self.scorer, self.tau, extra, self.relation_tau)
+            self._router = (router, facts)
         return self._router
 
     def ask(self, query: str, history=()) -> dict:
@@ -533,17 +539,20 @@ class Ledger:
             return {"answer": answer, "entry": fact["id"], "score": score}
 
     def state_hash(self) -> str:
-        """A function of the active set: the model, the router setting and each entry.
+        """A function of the active set: the model, the router settings and each entry.
 
         A delta is hashed once when it is committed; hashing every tensor of a large
         store on each commit would make a commit linear in the size of the store.
         """
         h = hashlib.sha256()
-        for s in (self.store.base_hash, self.store.router_config):
+        limits = [self.tau, self.slot_theta, self.duplicate_theta]
+        limits += [f"{r}={t}" for r, t in sorted(self.relation_tau.items())]
+        for s in (self.store.base_hash, self.store.router_config, *map(str, limits)):
             _hash_text(h, s)
         for fid in sorted(self.entries):
             entry = self.entries[fid]
             fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
+            fields.append(entry.get("relation", ""))
             names = sorted(entry.get("aliases", ()))
             for s in [*fields, entry["probe"], *sorted(self.phrasings[fid]), *names]:
                 _hash_text(h, s)

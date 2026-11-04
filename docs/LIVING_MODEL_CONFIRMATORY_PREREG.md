@@ -3357,3 +3357,31 @@ Reported, no rule. Forced wrong route on the 200 questions for A0, A1 and the la
 Predictions. P1: A1 is rejected on between 4 and 9 percent of facts. P2: the ladder store holds at least 99.5 percent of the facts. P3: ladder minus current on paraphrase is at least -.010 pooled and at least -.015 on CounterFact. P4: (ii), (iii) and (iv) hold. P5: the fallback store fails (i) on CounterFact. P6: forced wrong route of the stored adapters is at least .05 under A0, and at most 1 percent of edit and paraphrase queries route to another fact.
 
 Limits. One model, rank 2, one adapter seed per rung. The first attempt and the retries share the gate, so a store built this way has been selected on D more than once, and the readings above are on that selected store and the rule covers them. Kappa was calibrated on this model only.
+
+## 137. SS136 results: the ladder removes the gate's cost and the note stays (2026-11-04)
+
+Run as pinned, 400 CounterFact and 400 zsRE facts, served, word boundary. Served and forced outputs agree on all correctly routed gate-off readings (1.0).
+
+| Store | Facts held | Edit | Paraphrase | CounterFact paraphrase | zsRE paraphrase | E3 leak | Natural leak | Near, uniform |
+|---|---|---|---|---|---|---|---|---|
+| Current (A0 and note) | 792 | .965 | .931 | .915 | .948 | .048 | .154 | .297, .010 |
+| A0 alone | 792 | .964 | .793 | .725 | .860 | .038 | .116 | .226, .005 |
+| Fallback | 798 | .983 | .915 | .893 | .938 | .048 | .151 | .292, .010 |
+| Ladder | 799 | .986 | .919 | .895 | .943 | .048 | .154 | .297, .010 |
+| Gate off | 800 | .988 | .919 | .895 | .943 | .048 | .156 | .302, .010 |
+
+Rule, ladder minus current. It does not hold. (i) Paraphrase pooled -.0125, lower bound -.0275, holds; on CounterFact -.020, lower bound -.045, fails. (ii) Edit +.021, lower bound +.009, holds. (iii) E3 0, upper bound .005, holds. (iv) Natural 0, upper bound .015, holds. As pinned, the note stays and no further change to the training recipe is tried on this question.
+
+The fallback store of SS130 replicates its failure, here on both parts of (i): pooled -.016, lower bound -.033; CounterFact -.023, lower bound -.048.
+
+Where the gap lies. The ladder reaches the paraphrase rates of the gate-off store exactly, so the cost of the gate is gone: on the 38 facts A1 failed at the first attempt the ladder gets 32 paraphrases, gate off 32, fallback 29, current 31. The remaining gap is on the accepted facts, 703 against 714 of 762. Against current the ladder loses 33 paraphrases and wins 23, none of the 33 on a rejected fact and none through a missing route. On zsRE the gap is -.005, lower bound -.023; on CounterFact the ladder loses 22 and wins 14. So the note answers some paraphrases that A1 alone does not, and this is a difference between A1 and A0 with its note, not a matter of the gate.
+
+The store with no note is better on edit prompts, and the interval excludes zero (+.021, 95 percent interval .006 to .036). This reading has no rule behind it as a gain. Against A0 alone the ladder gains .126 on paraphrases, and .170 on CounterFact, at +.010 on E3 and +.038 on natural leak.
+
+Ladder use. A1 was rejected on 38 of 800 facts. R1 stored 12, L2 9, L4 11, L8 4, L16 none, A0 1, and 1 fact has no entry. A1 stores 95.25 percent of the facts. Two facts passed no rung (cf0099, cf0101); A0 holds one of them.
+
+Predictions. P1 held: 4.75 percent rejected. P2 held: 99.9 percent held. P3 failed: -.0125 pooled against at least -.010, and -.020 on CounterFact against at least -.015. P4 held. P5 held. P6 held: forced wrong route .535 for the stored adapters against .650 for A0, the same as A1 at .535 as 95 percent of the store is A1, and no edit or paraphrase query routed to another fact.
+
+Note on the leak. Natural leak on near relations is about 30 percent in every store with a high paraphrase rate, and E3 and natural are higher here than in SS130 (.020, .107). They do not separate the stores. This is the largest remaining defect of the served path, and the router and not the adapter holds it (SS107).
+
+Limits. One model, rank 2, one adapter seed per rung. E3 and natural readings are on a store selected on D more than once. Word-boundary scoring. The margin of -.03 was fixed in entry 130 and it is not changed by this result; no claim is made from the point estimate.

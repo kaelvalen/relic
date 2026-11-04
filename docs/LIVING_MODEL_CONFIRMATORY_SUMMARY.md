@@ -1,7 +1,7 @@
 # Living model - confirmatory summary (updated 2026-11-04)
 
 One-page record of the confirmatory phase. Sources: `LIVING_MODEL_CONFIRMATORY_PREREG.md`
-SS33-78, then entries to 139 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
+SS33-78, then entries to 144 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
 new - it consolidates. The paper (`paper/main.tex`) reports the same numbers.
 
 ## The claim
@@ -96,7 +96,7 @@ distractor no-leak 0.992 / 0.975, return to base after removal 0.96 / 0.80, rete
 The 2026-10-09 open decision (paper identity) is settled: the paper is a systems paper
 about the transactional store and its measured guarantees.
 
-## Since 2026-10-11 (entries to 139)
+## Since 2026-10-11 (entries to 144)
 
 Each line is a reading from the pre-registration record; the README's table of checks has them with their entries.
 
@@ -111,8 +111,11 @@ Each line is a reading from the pre-registration record; the README's table of c
 - A store with no note (entries 126 to 137). Training on rewrites lifts CounterFact paraphrases alone from 0.73 to 0.95, and
   the router absorbs the leak that brings. A retry ladder removes the cost of the gate. On 800 fresh facts the store still fails
   its rule on CounterFact paraphrases, 0.895 against 0.915, lower bound -0.045 against a margin of -0.03, and is ahead on edit
-  prompts, 0.986 against 0.965. The note stays.
+  prompts, 0.986 against 0.965. By the author's decision (entry 143) it is now the default, and `Ledger` reproduces it (entry 144).
+  The current system is therefore an adapter per fact with no note; the tables above describe the earlier stores.
+- Labels (entries 140, 142). The author's labels agree with the model's, kappa 0.967 on legit against leak, and give a corrected
+  near-relation leak of 12.8% against 11.7%. Per-relation thresholds remove correct answers and leaks at similar rates.
 - Prior work. The architecture is published in SoLA and RRDA, both before this repository. See the paper's related work.
 - Thresholds per relation (entries 138, 139). On 400 fresh CounterFact facts as served, the automatic near-relation leak falls from
   0.296 to 0.171 at 0.25 points of paraphrase, and the write path takes them as `relation_tau`. zsRE has no relation identifier.
-- Open. Near-relation leakage that remains, the 200 human labels, the note template, and the state hash, which names the model without its revision.
+- Open. The main evaluation on the store with no note, a signal that separates near-relation leaks from correct answers, that store beyond 1.5B, and the state hash, which names the model without its revision.

@@ -57,7 +57,7 @@ flowchart LR
 Qwen2.5-1.5B-Instruct, 1000 facts per dataset, every query served through the router,
 adapter and note served together unless stated. Source:
 [`docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`](docs/LIVING_MODEL_CONFIRMATORY_PREREG.md),
-entries 64 to 131.
+entries 64 to 137.
 
 | Reading | CounterFact, router v4 (MiniLM) | CounterFact, default router | zsRE, default router |
 | :-- | :-- | :-- | :-- |
@@ -97,6 +97,7 @@ table therefore keeps the rank-16 stores as the main build.
 | Does the adapter alone beat the note alone? | 125, 127 | Yes, in all four cells at rank 2: +16.1 and +25.9 points on edit prompts, +4.9 and +19.7 on paraphrases. Adding the note still gives 15 points on CounterFact paraphrases. |
 | Can rewrites make the note unnecessary? | 126, 129 | Not yet. CounterFact paraphrases alone rise from 0.73 to 0.95, level with the note, but the forced leak on the subject's other relation rises from 0.36 to 0.63 and answers kept under a wrong route fall from 0.66 to 0.55. No arm passes. |
 | And through the router and the gate? | 130, 131 | Not yet. The leak stays level with the current store (E3 0.020 against 0.020, natural 0.114 against 0.107), but CounterFact paraphrases reach 0.880 against 0.913, because the gate rejects 19 of 300 adapters. With the gate off they reach 0.920. |
+| With a retry for rejected adapters, on fresh facts? | 136, 137 | No. On 800 fresh facts the retry removes the gate's cost, and CounterFact paraphrases reach 0.895 against 0.915 for the current store, lower bound -0.045 against a margin of -0.03. Edit prompts reach 0.986 against 0.965, and the leak does not separate the stores. The note stays. |
 
 ### Other base models
 

@@ -48,7 +48,7 @@ mehmetardahakbilen2005@gmail.com).}}
 \maketitle
 
 \begin{abstract}
-Knowledge editing writes facts into a model's weights but cannot remove an
+Writing facts into a model's shared weights makes it hard to remove an
 individual fact, identify the fact behind an answer, or limit an update's effect on
 unrelated inputs. We present RELIC, which keeps the base model
 frozen and stores each fact as an entry served as a note in the context, a low-rank
@@ -97,13 +97,14 @@ success~\cite{yang2025mirage}. Removing a single edit from weights that hold man
 is an unlearning problem, for which current methods are approximate and difficult to
 verify~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse,liu2025rethinking}.
 Retrieval-augmented generation~\cite{lewis2020rag} keeps facts outside the model, so
-removal is an index deletion, but instruction-tuned models often ignore retrieved text
-that contradicts their parametric knowledge~\cite{longpre2021conflicts,xie2024chameleon}.
+removal is an index deletion, but whether a model follows retrieved text that contradicts its
+parametric knowledge depends on the model and the evidence~\cite{longpre2021conflicts,xie2024chameleon}.
 
 We treat additions to and removals from the model's stored knowledge as transactions in
 the database sense~\cite{haerder1983transactions}: an addition is accepted only if it
 passes a check, a removal returns the store to its earlier state, and each operation is
-logged. We call the resulting system RELIC (Revocable Entries for Language model
+logged. Here a transaction means an atomic operation by a single writer, with no isolation between
+processes. We call the resulting system RELIC (Revocable Entries for Language model
 Insertions and Corrections). The base model is never updated, each fact is a separate entry that consists of
 a note and, if needed, a low-rank adapter, and a router whose parameters are fixed
 before any fact is stored applies at most one entry to a query. Exact removal and answer attribution are then
@@ -167,9 +168,14 @@ locality. Later work studies ripple effects and multi-hop
 consistency~\cite{cohen2024ripple,zhong2023mquake}, forgetting over long edit
 sequences~\cite{gupta2024forgetting}, damage to general abilities~\cite{gu2024harms},
 and the difference between teacher-forced and free generation~\cite{yang2025mirage}.
-RELIC's adapters behind an index follow the MELO design. RELIC differs in the
-operations it provides around it: a divergence check at write time, removal of
-individual facts, attribution of answers, and the combination with notes.
+The closest designs are recent preprints. SoLA stores each edit as a frozen LoRA, activates it by
+semantic routing and revokes it by removing its key~\cite{luo2026sola}. RRDA combines a router, an
+explicit edit memory and edit and locality adapters, and finds that the memory gives most of the edit
+gain~\cite{zhang2026rrda}. RELIC's architecture is of this kind, so what this paper adds lies in its
+measurements: the cost of a wrong route to one fact, the share of facts that need an adapter across base
+models, removal under repeated writes, and the rejection of adapters by divergence on held-out prompts,
+each registered before it was run. We did not find these readings elsewhere, in a search that was not
+systematic and that read the 2026 preprints in part.
 Table~\ref{tab:positioning} compares these operations across approaches.
 
 \input{tables/positioning}
@@ -180,9 +186,9 @@ models~\cite{khandelwal2020knnlm} and in-context editing~\cite{zheng2023ike} kee
 knowledge outside the weights, as do SERAC, which combines a scope classifier with a
 counterfactual model~\cite{mitchell2022serac}, and RECIPE, which retrieves continuous
 prompts~\cite{chen2024recipe}. MemGPT manages such memory across
-sessions~\cite{packer2023memgpt}. Because models tend to prefer parametric knowledge
-over conflicting context~\cite{longpre2021conflicts,xie2024chameleon}, our notes are
-served with an explicit instruction to follow the context.
+sessions~\cite{packer2023memgpt}. Models can prefer parametric knowledge over conflicting context~\cite{longpre2021conflicts}, although
+coherent evidence often overrides it~\cite{xie2024chameleon}, so our notes are served with an explicit
+instruction to follow the context.
 
 \subsection{Adapters, Merging and Routing}
 LoRA~\cite{hu2022lora} and its variants~\cite{hayou2024loraplus,liu2024dora,
@@ -207,7 +213,7 @@ evaluated with forget and retain sets~\cite{maini2024tofu,shi2025muse,
 liu2025rethinking}. In mixture-of-experts models, an update to the router can redirect
 queries away from the expert that holds the knowledge without removing it, and SEUF and
 GRIP constrain the router to prevent this~\cite{zhuang2025seuf,zhu2026grip}. RELIC
-resembles SISA with one shard per fact. Its router has no state that depends on the stored facts, so removing a
+resembles SISA with one shard per fact. Its router has no trained state that depends on the stored facts, so removing a
 fact cannot change routing decisions for queries unrelated to it
 (Proposition~\ref{prop:locality}).
 
@@ -221,7 +227,7 @@ distillation term of Learning without Forgetting~\cite{li2018lwf}, and storing o
 adapter per fact is a form of parameter isolation~\cite{rusu2016progressive}. For
 monolithic models, attributing outputs to training data requires influence
 approximations~\cite{koh2017influence,grosse2023influence}. With one entry per fact,
-attribution reduces to reading the router's decision.
+the router's decision names the entry used; whether its adapter caused the answer is a separate check.
 
 % ===========================================================================
 \section{Problem Formulation}
@@ -413,7 +419,8 @@ positives on the development split), since a replacement drops a fact; below it,
 into a LoRA slot of the model and all other slots are set to zero. The log records the
 identifier, the outcome of the check, $D$, the training time and the state hash.
 Attribution is checked by leaving one adapter out: an answer is attributed to fact $i$ if
-the target appears when $\delta_i$ is active and not when it is suspended.
+the target appears when $\delta_i$ is active and not when it is suspended. An entry with no adapter is
+named by the router and is not covered by this check.
 
 The system is implemented in Python on Hugging Face Transformers and PEFT. Commits from threads of one process
 are serial under a lock, and saving replaces the store file atomically. There is no isolation between processes
@@ -727,6 +734,7 @@ by an alias are routed correctly \alCfParaNamedPct\% and \alZsParaNamedPct\% of 
 subject reach \alCfPronPct\% and \alZsPronPct\%, and paraphrases \alCfPronParaPct\% and \alZsPronParaPct\%; the
 CounterFact paraphrases carry a leading sentence the pronoun can land on. Without the history none of them is routed. With adapter and note, edit prompts that use an alias are answered
 \alCfAnsAliasPct\% and \alZsAnsAliasPct\% of the time, and those that use a pronoun \alCfAnsPronPct\% and \alZsAnsPronPct\%.
+Proposition~\ref{prop:locality} covers a query as it reaches the router. The rewrite reads the store, so removing a fact can change the subject that a pronoun on a later turn is rewritten to.
 If a later turn names an unstored subject, \alCfLaterPct\% and \alZsLaterPct\% are routed. Routing of natural
 questions (\alNaturalPct\%) and other-relation prompts (\alOtherPct\%) does not change. All registered
 conditions hold, so both are the default. An approximate match in the first run turned the word ``more'' in a
@@ -911,8 +919,8 @@ Each problem was documented before and after it was corrected.
 
 RELIC stores each fact learned after deployment as a separate entry on a frozen
 language model, consisting of a note and, where needed, a low-rank adapter, and selects
-entries with a router whose parameters do not depend on the stored facts. Removal and attribution are
-exact by construction. A first version met its requirements on the prompts used to store
+entries with a router whose parameters do not depend on the stored facts. Removal is exact by construction, and the
+router's decision names the entry behind an answer. A first version met its requirements on the prompts used to store
 the facts but failed on paraphrases, on other questions about stored subjects and in the
 calibration of its check. Revising the router and the check, and serving notes and
 adapters together, raised CounterFact paraphrase accuracy from 32.3\% to
@@ -928,7 +936,9 @@ of natural questions about them, and relations that the router has not seen in t
 the main open problem. Because a wrong route keeps only \wrBothPct\% of the base model's correct factual
 answers, this open problem bounds how far the system can be trusted. Across five base models the share of facts that
 need an adapter ranges from \scHalfNeedPct\% to \scOneFiveQNeedPct\% without following model size, so the adapter is
-an optional tier. Calibrating the divergence limits for each base model remains to be done.
+an optional tier. A store with no note, with a retry for adapters the gate rejects, removed the cost of the gate on 800
+fresh facts and still fell short of its registered margin on CounterFact paraphrases, so the note stays. Calibrating the
+divergence limits for each base model remains to be done.
 
 % ===========================================================================
 \appendices

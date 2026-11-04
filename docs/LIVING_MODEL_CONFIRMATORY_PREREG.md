@@ -3490,3 +3490,17 @@ Source: results/live_learning/confirm/ledger_parity.json. It holds on every part
 Sequence. The branch with the change was merged to main by the author at 14:01, before this check finished at 14:04. The condition of entry 143 is met, so nothing has to move back.
 
 Scope. This shows that the write path and the serving path reproduce the tested store. It adds no new reading of quality: removal, retention, the 1000 wrong-route questions, benchmarks, aliases and pronouns have not been read on the store with no note. The main tables of the paper and the README still come from the earlier stores with adapter and note.
+
+## 145. The main evaluation on the default store (pinned 2026-11-04, before the run)
+
+Question. The main tables come from stores with adapter and note. What do the readings of those tables give on the default store, built through the library's own write path?
+
+Runner: confirm/notless_eval.py. Facts: the 1000 CounterFact and 1000 zsRE facts of the main stores, in stored order. Build: `Ledger.write` for each, one after the other, so slots merge repeated facts as they would in use. Qwen2.5-1.5B, rank 2 in int8, the ladder of entry 136, kappa 0.968. These facts have been seen, so the readings are for comparison with the main tables, and the fresh-fact reading stays entry 137.
+
+Readings, word boundary and substring, under one threshold and under `RELATION_TAU`, which applies to CounterFact only. Edit prompts and paraphrases answered, paired with the saved rank-2 store with adapter and note. E3 and E2 leak on CounterFact: the stored answer in the output and not in the base model's. Natural questions of SS85 on CounterFact, near and uniform. Synthetic distractors on both, and zsRE loc questions, routed share. Removal of the first 100 facts by the entry that holds each: gone, return to base, and retention of the others. Forced wrong route on the 1000 questions of SS100 with the same wrong entries, CounterFact store, paired with saved `adapter_r2` and `both_r2`. MMLU and ARC, the 1000 questions of SS101: routed share, and forced through a random entry with seed 145, paired with base. Pronouns on edit prompts after a turn that names the subject, answered. Write path: rung shares, facts with no entry, seconds per write.
+
+Rule, for the claims and not for the default, which entry 143 settles. A claim stands for the default store if: (i) retention at least .98 on both; (ii) return to base at least .98 on both; (iii) no distractor routed, and MMLU and ARC routed at most 1 in 1000; (iv) E3 leak at most .06 under `RELATION_TAU`; (v) wrong route retained above `both_r2`, lower bound of the paired difference above 0. A part that fails is reported, and the claim is withdrawn for the default. A failure of (i) or (ii) goes back to the author.
+
+Predictions. P1: 4 to 7 percent of facts fail the first attempt, and at most .5 percent have no entry. P2: edit prompts at least .98 on both. P3: paraphrases about .90 on CounterFact and .94 on zsRE, under the .885 and .975 of the rank-2 store with note on zsRE and level or above it on CounterFact. P4: retention at least .99 and return at least .98. P5: (iii), (iv) and (v) hold, with wrong route about .55. P6: forced MMLU and ARC cost at most 1.5 points, less than the 2.2 of adapter and note.
+
+Limits. One model, rank 2, seen facts. About 8 to 12 hours of GPU.

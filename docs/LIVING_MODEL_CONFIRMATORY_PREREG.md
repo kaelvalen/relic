@@ -3385,3 +3385,19 @@ Predictions. P1 held: 4.75 percent rejected. P2 held: 99.9 percent held. P3 fail
 Note on the leak. Natural leak on near relations is about 30 percent in every store with a high paraphrase rate, and E3 and natural are higher here than in SS130 (.020, .107). They do not separate the stores. This is the largest remaining defect of the served path, and the router and not the adapter holds it (SS107).
 
 Limits. One model, rank 2, one adapter seed per rung. E3 and natural readings are on a store selected on D more than once. Word-boundary scoring. The margin of -.03 was fixed in entry 130 and it is not changed by this result; no claim is made from the point estimate.
+
+## 138. Per-relation thresholds on fresh facts, served (pinned 2026-11-04, before the analysis; no language model)
+
+Question. Entry 137 reads natural near-relation leak at about 30 percent in every store with a high paraphrase rate. Entry 109 adopted per-relation thresholds where a relation identifier exists, on routing and on old stores, but the write path does not use them. Do they hold on facts no decision has seen, as served? Is what remains a matter of threshold or of the score?
+
+Runner: confirm/near_threshold.py, on the saved outputs of SS136 (400 CounterFact and 400 zsRE facts, stores current and ladder) with the default relation encoder on CPU. Raising a threshold only moves a query to the base model's saved answer, so no generation is needed. zsRE entries have no relation identifier and keep 0.7501.
+
+Arms. Global: 0.7501. R107: the thresholds frozen in entry 109. Rall: the same recipe, max(0.7501, the 95th percentile for the relation of the chosen entry, relations with at least 20 questions), calibrated on all natural questions of SS85 and SS130. Those facts are disjoint from the test facts by construction.
+
+Rule, for each arm minus global on the current store. (i) Natural near automatic leak falls by at least .05, upper end of the one-sided 95 percent interval below 0. (ii) Paraphrase on CounterFact, lower bound at least -.02. (iii) Edit on CounterFact, lower bound at least -.01. An arm that passes is added to the write path for entries with a relation identifier. If both pass, the larger fall in near leak. E3 and uniform leak can only fall, and are read.
+
+Diagnostic, no rule. AUROC of the router's score, CounterFact paraphrases against natural near questions with a candidate, pooled and per relation. A pooled value near 1 says the threshold is the problem; a low value says no threshold separates them, and a different signal is needed. Also the near leak left at the threshold that keeps paraphrase routing within 2 points of global.
+
+Predictions. P1: R107 lowers near leak from about .30 to about .17 to .20. P2: R107 costs at most 1 point of CounterFact paraphrase. P3: Rall covers more relations than R107 and lowers near leak by at least .02 more. P4: pooled AUROC is between .75 and .90. P5: near leak stays above .10 in every arm.
+
+Limits. The automatic count includes legitimate answers; about half were legitimate in entry 91, so part of the fall may be lost correct answers until the human labels of SS102 exist. Thresholds come from questions written by one generator model, the same one that wrote the test questions.

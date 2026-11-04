@@ -3453,3 +3453,32 @@ Runner: confirm/label_sheet.py thresholds. Items: the sheet's items whose questi
 Reading, no rule. If the arm removes leaks at a higher rate than legit answers, the threshold also discriminates. If at equal rates, the fall in wrong answers is the fall in the automatic count times the leak share.
 
 Predictions. P1: R107 removes leak and legit items at rates within .15 of each other. P2: R107 removes between .30 and .55 of the items overall. Limits: tens of items, and an old store.
+
+## 142. SS141 results: the thresholds remove correct answers and leaks at similar rates (2026-11-04)
+
+Source: results/live_learning/confirm/label_thresholds.json, 96 of the author's labelled items routed by the default router, 58 legit and 38 leak.
+
+| Arm | Legit removed | Leak removed | Test half: legit, leak |
+|---|---|---|---|
+| R107 | 25 of 58 (.431) | 21 of 38 (.553) | 10 of 22 (.455), 12 of 23 (.522) |
+| Rall | 48 of 58 (.828) | 30 of 38 (.789) | 16 of 22 (.727), 18 of 23 (.783) |
+
+Predictions. P1 held: the rates differ by .122. P2 held: R107 removes 46 of 96 (.479).
+
+Reading. R107 removes a little more of the wrong answers than of the correct ones, a difference these counts cannot separate from none, and Rall removes both alike. So the thresholds lower wrong stored answers about in proportion to the automatic count, and they also return the base model's answer on near questions that the stored fact would have answered. Entry 139's fall of .126 in the automatic count is not all gain. An answer to the near-relation question needs a signal that tells the two apart, which the score does not do here.
+
+## 143. Decision of the author: the store with no note is the default (2026-11-04)
+
+Decision. The author makes the store with no note the default, removes the note from the write path and the serving path, and prefers the simpler architecture. This replaces the consequence written in entry 136 ("the note stays"). That sentence was written by the analyst as a recommendation following from a rule, and a product decision belongs to the author.
+
+What this does not say. The store did not pass the rule of entry 136, and it is not reported as having passed. On CounterFact paraphrases it stands at -.020 with lower bound -.045 against a margin of -.03, so a loss of up to 4.5 points is not excluded. The earlier evaluations with adapter and note remain as run.
+
+Grounds, on Qwen2.5-1.5B at rank 2 only. Edit prompts +.021, with an interval that excludes zero. Leak level with the current store. Answers kept under a wrong route .535 against about .37 for adapter and note (entry 116), not on one sample. No stored text enters the prompt.
+
+Cost. Every fact trains an adapter. In the tiered store 16 to 21 percent did. A write takes about 14 seconds on the first rung, and each fact stores 373 KB. A note answered about 90 percent of facts on 7B, and on 3B and 7B the default kappa rejects most adapters, so this default is untested beyond 1.5B and needs kappa measured there first.
+
+Change. `Ledger.write`: same answer in a slot joins it, otherwise rewrites by the base model, then the ladder of entry 136, the first rung under kappa is stored, and none commits nothing. `Ledger.ask`: the routed adapter alone, under the serving system prompt. An entry with no adapter is not named as a source. `DeltaStore.answer` generates up to 64 tokens, as the evaluations did, not 24. Earlier runners and their results are unchanged; those that call `store.answer` directly would now generate longer outputs if rerun.
+
+Parity check, pinned before it runs. Runner: confirm/ledger_parity.py, the real model, 16 facts of SS136: 4 first-attempt facts per dataset and 2 per rung from R1, L2, L4 and L8, taken in id order. It holds if the rewrites match, every fact stores at the same rung, D differs by at most .01, at least 95 percent of edit and paraphrase answers are identical to the saved ones, and each query routes to its own entry. The stored adapters are padded into the store's layout, which entry 94 found changes logits by 1 to 3 ulps, so a few answers may differ. If it fails, the default is not moved until the cause is found.
+
+Prediction. P1: it holds, with 100 percent identical answers on first-attempt facts.

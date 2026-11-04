@@ -25,6 +25,12 @@ supported. A failed gate check leaves no entry.
 
 ## 2. Why this is not already in the literature (first sweep)
 
+Superseded 2026-11-03. A later scan found the architecture published before this repository's first
+commit: SoLA (arXiv 2603.11239, a frozen LoRA per edit behind semantic routing, revoked by removing its
+key) and RRDA (arXiv 2606.14668, a router with an edit memory and adapters). The claim below stands as a
+record of what we believed in October. What remains defensible is a set of measurements, listed in the
+paper's related work. Appendix A has the same limit.
+
 Three lines exist and each owns a piece; none owns the state.
 
 | line | exemplars (audited: Appendix A) | what it has | what it lacks |

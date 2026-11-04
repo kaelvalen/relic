@@ -1,5 +1,7 @@
 # Paper 1 - outline (draft v0, 2026-10-09)
 
+Historical. The current text is `paper/main.tex`, and its claims differ from this draft.
+
 Working title: **"RELIC: Transactional Memory for Frozen Language Models -
 Exact Revoke, Audit, and Capability Safety at Scale"**
 Alternatives: "Write, Forget, Audit: ..." / "Learning after deployment as an API

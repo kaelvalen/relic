@@ -1,7 +1,7 @@
-# Living model - confirmatory summary (updated 2026-10-11)
+# Living model - confirmatory summary (updated 2026-11-04)
 
 One-page record of the confirmatory phase. Sources: `LIVING_MODEL_CONFIRMATORY_PREREG.md`
-SS33-78; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
+SS33-78, then entries to 137 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
 new - it consolidates. The paper (`paper/main.tex`) reports the same numbers.
 
 ## The claim
@@ -95,3 +95,22 @@ distractor no-leak 0.992 / 0.975, return to base after removal 0.96 / 0.80, rete
 
 The 2026-10-09 open decision (paper identity) is settled: the paper is a systems paper
 about the transactional store and its measured guarantees.
+
+## Since 2026-10-11 (entries to 137)
+
+Each line is a reading from the pre-registration record; the README's table of checks has them with their entries.
+
+- Adapter size. Rank 2 LoRA+ in int8 (373 KB) matches rank 16 (8.7 MB) on 279 fresh facts and is what `Ledger.write`
+  trains. The N=1000 stores keep rank 16 as the main build, as a rank-2 adapter on a wrong route keeps fewer answers:
+  0.668 against 0.705 on 1000 questions, lower end -0.058 against a margin of -0.03.
+- Wrong route as served. Adapter and note keep 40% of the base model's correct answers, the note alone 51%, the adapter alone 71%.
+- Other models. The share of facts that need an adapter is 3.4% at 0.5B, 21.2% at 1.5B, 11.0% at 3B, 8.8% at 7B and 5.0% on
+  SmolLM3-3B. Size does not explain it. The divergence limits do not transfer. Leakage, removal and wrong route were read on 1.5B only.
+- Repeated writes. A same-answer write joins the entry, and zsRE return to base rises from 0.84 to 1.00.
+- Rejected designs. Shards, a soft prompt, hard negatives for the router, LoReFT and DiReFT.
+- A store with no note (entries 126 to 137). Training on rewrites lifts CounterFact paraphrases alone from 0.73 to 0.95, and
+  the router absorbs the leak that brings. A retry ladder removes the cost of the gate. On 800 fresh facts the store still fails
+  its rule on CounterFact paraphrases, 0.895 against 0.915, lower bound -0.045 against a margin of -0.03, and is ahead on edit
+  prompts, 0.986 against 0.965. The note stays.
+- Prior work. The architecture is published in SoLA and RRDA, both before this repository. See the paper's related work.
+- Open. Near-relation leakage (about 30% by the automatic count), the 200 human labels, and the defects in `Ledger.commit` and the state hash.

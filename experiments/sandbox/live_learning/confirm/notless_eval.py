@@ -319,7 +319,7 @@ def summarize(report: dict, cut=lambda text: text) -> dict:
     rows, out = report["rows"], {}
     for route in ("route", "route_tau"):
 
-        def text(r):
+        def text(r, route=route):
             # a raised threshold only sends a query to the base model
             return r["response"] if r[route] == r["route"] else r["base"]
 

@@ -154,8 +154,9 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
   processes writing one store are not coordinated.
 - Pronoun handling was tested by substitution on constructed conversations. The rewrite reads the
   store, so removing a fact can change the subject a pronoun on a later turn is rewritten to.
-- Known defects, not fixed yet: `Ledger.commit` with a reused id keeps the old adapter, and the state
-  hash covers neither the thresholds nor the model revision.
+- Known defects, not fixed yet: `Ledger.commit` with a reused id and a different fact keeps the old
+  adapter, and the state hash covers the thresholds only if the caller sets `router_config`, and not
+  the model revision.
 
 ## Repository layout
 

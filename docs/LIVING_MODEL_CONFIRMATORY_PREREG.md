@@ -3059,3 +3059,426 @@ Predictions. P1 failed by a wide distance: 0.5B is 0.0335, not at least 0.30, an
 Reading. Size does not explain the need. The smallest model needs fewest adapters, a 3B model of another family needs half of what the Qwen 3B needs, and the highest share is at 1.5B, so the view that the adapter compensates for small models is not supported, and neither is the view that large models no longer need it. What the adapter adds also varies: paraphrase gain on zsRE is 0.166 at 1.5B and between 0.023 and 0.079 elsewhere; on CounterFact it is at most 0.058, and at most 0.013 outside the 1.5B arms. A reason for the differences between models was not measured.
 
 Limit. Kappa 0.968 was measured on 1.5B. It is a reference elsewhere, as SS98 said, so the shares above it at 3B and 7B do not show that those adapters are harmful, and they do not show that they are safe. The gate in-sample limit D <= 2 was also set on 1.5B and passed everything. On 3B and 7B the adapter's protection is therefore unmeasured until both limits are calibrated on those models. The adapters also belong to different facts in each arm, since each arm trains only the facts its own notes miss. This narrows the single-model limitation to sizes up to 7B and two families, and does not close it.
+
+## 121. SS105 served reading, and the write gate on real writes (2026-11-03)
+
+Source: results/live_learning/confirm/alias_eval_served.json, rank-16 stores, adapter and note, capacity 1 as in entry 111. This reading carries no rule.
+
+Answers through the alias, substring / word boundary. A1 (alias in the edit prompt): CounterFact 0.971 / 0.971, zsRE 0.929 / 0.922. C1 (pronoun on the edit prompt): CounterFact 0.996 / 0.996, zsRE 0.990 / 0.989. Against the same prompts with the stored subject, 0.996 and 0.989, the rewrite loses nothing, and an alias loses about 2.5 points on CounterFact and 6 on zsRE, since the adapter was trained on the stored name.
+
+The write gate. `Ledger.write` still gated on the two trained anchors with limit 2.0, the check SS69 rejected. It now gates on the 40 held-out canaries with kappa 0.968. confirm/ledger_smoke.py passes end to end on the real model with the new gate: adapter write, alias, pronoun, save and reload with an equal hash, update, and removal back to the empty hash. That is 2 adapters on one seed, a check that the path works and not a measurement of the rejection rate. At the SS87 reading 2.9% of rank-2 adapters are above this limit and would be rejected, with no retraining in this path.
+
+## 122. SS104 reading (a): asymmetric slots on the N=1000 stores, and the decision (2026-11-03)
+
+Source: results/live_learning/confirm/slot_eval_asym.json, post hoc as SS104 said; the confirmatory reading is entry 115.
+
+Writes. CounterFact: 998 inserts, 1 duplicate, 1 update, the same as SS96, with 0 merges across relation identifiers. zsRE: 794 inserts, 206 duplicates, 0 updates, no merge with a different answer.
+
+Serving against the SS76 evaluation, new / old / lower end of the one-sided 95% interval of the difference, adapter and note. CounterFact edit prompts 0.997 / 0.996 / -0.002; paraphrases 0.893 / 0.891 / -0.001. zsRE edit prompts 0.991 / 0.989 / -0.001; paraphrases 0.985 / 0.982 / 0.000. Adapter alone, lowest lower end: -0.005, zsRE edit prompts. Retention 0.9978 and 0.9965.
+
+Removal. CounterFact: return 1.00. zsRE, 96 entries removed: return 1.00 [1.00, 1.00], from 0.84 per entry and 0.90 under SS96 slots; lower end 1.00; gone 0.56, and base-correct 0.44, so every removed fact either leaves the answer or leaves the answer the base model already gave.
+
+Decision rule. (i) on the fresh sample holds (entry 115). (ii) zsRE return lower end 1.00 against 0.95; 0 CounterFact merges across relation identifiers against at most 2; serving non-inferior at 0.01. All hold, so the asymmetric threshold is the default write path: `Ledger` now merges a same-answer write at the routing threshold unless told otherwise. confirm/slot_eval.py and slot_fresh.py pass their thresholds explicitly, so the SS96 and per-entry readings stay reproducible. The saved stores of the main evaluation remain per-entry, as they were evaluated.
+
+Predictions. P1 held: return 1.00. P2 held: 0.01. P3 held: 0 merges.
+
+Limit. Slots are measured by replaying the writes over stores that already exist, with the kept entry's adapter, and not by training through `Ledger.write`. "Removal by content" stays as the operation for stores already written per entry.
+
+## 123. SS110 results: hard negatives from a confusion matrix (2026-11-03)
+
+Source: results/live_learning/confirm/hardneg_eval.json, routing only. Thresholds at dev false-positive rate 5%: baseline 0.7501, hardA 0.7325, hardB 0.6726. 15 relation pairs have identical template text and were excluded from mining.
+
+Baseline / hardA / hardB. Natural near routed 0.302 / 0.248 / 0.522. Natural uniform routed 0.002 / 0.002 / 0.016. E3 routed 0.044 / 0.051 / 0.064. Paraphrase route accuracy CounterFact 0.910 / 0.914 / 0.994, zsRE 0.745 / 0.744 / 0.758. Edit prompts 1.0 in all.
+
+Differences from the baseline with 95% CI. hardA: near -0.054 [-0.084, -0.024], E3 +0.007 [0.001, 0.014]. hardB: near +0.220 [0.176, 0.264], E3 +0.020 [0.008, 0.033].
+
+Decision rule. hardA passes (i) and (ii) and fails (iii): E3 rises by more than 0.01 at the upper end. hardB fails (i) and (iii). Neither replaces the baseline, and no full serving evaluation follows.
+
+Predictions. P1 held: 15 pairs. P2 failed: hardB raises near routing by 0.22 instead of lowering it, and hardA, predicted to gain less, gains more. P3 held: hardB passes (ii) by a wide distance, and hardA passes (ii); hardA was not close to the limit. "At most one arm passes" held, with none.
+
+Reading. Mining the negatives moves leakage from natural questions to template prompts instead of removing it, at about the rate of the threshold trade-off. Training on every relation makes the encoder confident on its own relations, which raises paraphrase routing to 0.994, and the dev-calibrated threshold falls so far that natural near questions pass. Hard negatives therefore join the list of changes that do not leave the trade-off.
+
+## 124. SS112 results: shard adapters with exact removal (2026-11-03)
+
+Source: results/live_learning/confirm/shard_eval.json. 96 CounterFact facts, relations P30, P103 and P449. The reference is the same facts with their SS94 rank-2 adapters: edit prompt with note 1.000, paraphrase with note 0.948, forced E3 leak 0.375, share above kappa 0.031, 373 KB per fact.
+
+Per arm, k/rank: bytes per fact; edit prompt with note; paraphrase with note and lower end against the reference; forced E3 leak and upper end against the reference; share above kappa. All grouped by relation unless marked.
+
+8/2: 47 KB; 0.958; 0.865, -0.146; 0.198, -0.083. 0.00. Fails (ii) only.
+8/4: 81 KB; 0.958; 0.802, -0.219; 0.240, -0.052. 0.00. Fails (ii) only.
+8/16: 285 KB; 0.948; 0.802, -0.219; 0.323, +0.031. 0.00. Fails (i), (ii), (iii), (v).
+16/4: 40 KB; 0.927; 0.833, -0.177; 0.250, -0.031. 0.00. Fails (i), (ii).
+16/16: 143 KB; 0.958; 0.833, -0.177; 0.302, +0.021. 0.00. Fails (ii), (iii), (v).
+16/16 random: 143 KB; 0.917; 0.896, -0.115; 0.354, +0.073. 0.00. Fails (i), (ii), (iii), (v).
+32/4: 20 KB; 0.771; 0.740, -0.292; 0.479, +0.198. 0.00. Fails (i), (ii), (iii).
+32/16: 71 KB; 0.990; 0.854, -0.156; 0.635, +0.354. 0.33. Fails (ii), (iii), (iv).
+
+Decision rule. No arm is viable, and every arm fails (ii). The per-fact store stays the answer on storage at this scale, and the follow-up stays open. No full study on the N=1000 stores follows.
+
+Removal. Retraining the first shard without its first fact, twice with the same seed in one process: 8/16 took 31.4 s for 7 facts, 32/16 took 144.1 s for 31 facts, about 4.6 s per fact against the 7 s assumed. Both pairs are bitwise equal, largest absolute difference 0.0. The removed fact's edit prompt no longer gave its answer in either arm, which is one fact per arm.
+
+Predictions. P1 failed: 8/16 fails (i) by 0.002, (ii) and (iii) as well as (v). P2 held on the main claim, neither passes, and failed on the detail: 32/16 fails (ii), (iii) and also (iv), but 8/4 passes (i) and fails (ii). P3 held in direction and is not resolved: at 16/16, cross-talk 0.010 by relation against 0.000 at random is one fact of 96, and leak 0.302 against 0.354 has no interval in this run. P4 held on growth at rank 4 (0.240, 0.250, 0.479) and only from 16 to 32 at rank 16 (0.323, 0.302, 0.635); it failed on the comparison, since 32 facts leak 48% and 64% and even 8 facts leak 20% to 32%, above most of the 10% to 30% at 256. The two readings use different prompts: the 256-fact reading used held-out facts and this one uses other-relation prompts of the stored facts, on which the per-fact reference itself leaks 37.5%, so the comparison was badly posed. P5 failed: retraining was bitwise reproducible without forcing deterministic operations.
+
+Pin. The pinned sizes were estimates. Measured, 8/16 is 285 KB and not 373 KB, 32/16 is 71 KB and 8/4 is 81 KB and not 93 KB. The limit in (v) stays at 93 KB. 16/16 misses (iii) by 0.001, which decides nothing since it also fails (ii) and (v).
+
+Reading. Grouping loses paraphrases even with the note: the best arm at any size is 5 points below the reference, and the best arm within the byte limit is 8 points below. At small k and low rank it also leaks less: 8/2 stores 47 KB per fact, 8 times less, and its leak is 17.7 points lower [-29.2, -6.2]. It fails only (ii). That leaves one open question: whether the grouped recipe of SS42, used here because LoRA+ collapses when grouped, costs the paraphrases, or the sharing itself does.
+
+Limit. A pilot of 96 facts in three relations, with no served reading: forced prompts only, and the router does not take part. Bitwise equality holds for two runs in one process on one GPU, and not across machines or library versions.
+
+## 125. The adapter alone against the note alone, on saved outputs (pinned 2026-11-03, before the paired reading)
+
+Question. The project now tries the adapter path alone, without the note in the prompt. Do the saved N=1000 stores support it? "A fact needs an adapter" (entry 120) only says that the note fails on the edit prompt. It does not compare the two tiers.
+
+Runner: confirm/adapter_vs_note.py, no model. Saved served outputs of the rank-16 and rank-2 stores, CounterFact and zsRE, edit prompts and paraphrases, word-boundary score, paired bootstrap CI of adapter minus note, routed as stored. Marginal rates of the rank-16 store were already seen (score_audit.json); the rank-2 cells and all paired differences were not.
+
+Decision rule. The stored results support the adapter path if adapter minus note has a 95% CI above 0 in all four rank-2 cells. This is a reading, and it does not change a default.
+
+Predictions. P1: the rule holds. P2: the CounterFact paraphrase cell is the smallest difference, under 8 points at rank 2. P3: adapter alone stays below adapter with note on paraphrases, by 10 to 20 points on CounterFact and under 4 on zsRE.
+
+## 126. The adapter alone, trained on phrasings the base model writes (pinned 2026-11-03, before the run)
+
+Question. The recipe trains an adapter on two pairs: the note's sentence and one edit prompt. Adapter alone reaches 0.73 on CounterFact paraphrases against 0.89 with the note. Does training on rewrites of the edit prompt close that gap, so that no note is needed?
+
+Runner: confirm/adapter_only.py on Qwen2.5-1.5B (bf16). 150 CounterFact and 150 zsRE facts, seed 126, one fact per subject, with a paraphrase, every fact of the draw and not only those where a note fails. Their subjects are in neither N=1000 store, the dev split nor the 2000 facts of SS87. Rewrites: up to three per fact, written by the base model with the prompt and the parser of SS75 (confirm/gen_keys.py), from the subject and the edit prompt only. The benchmark's paraphrases are held out from all training.
+
+Arms, all rank 2 with LoRA+ in int8, 16 passes over all pairs, KL anchor on the two training canaries, seed 126 before each adapter. A0: the current pairs. A1: the current pairs and (rewrite, answer) for each rewrite. A2: (edit prompt, answer) and (rewrite, answer), without the note's sentence. More pairs means more updates at 16 passes; this is the recipe, and the training time is reported.
+
+Readings per arm, word-boundary score, pooled and per dataset, right adapter forced: edit prompt alone; paraphrase alone; paraphrase with note, which only A0 needs; held-out D on the 40 canaries and share above 0.968; forced E3 on the other-relation prompt, CounterFact only, adapter alone, a leak being the target that the base output lacks; wrong route on the 200 zsRE dev questions of SS69. Routing is not part of this entry, since it does not depend on the adapter.
+
+Decision rule. A1 or A2 replaces A0 if, pooled: (i) paraphrase alone rises by at least 0.05 and the paired 95% CI is above 0; (ii) edit prompt alone falls by at most 0.02; (iii) share above kappa at most A0 + 0.02 and mean held-out D at most A0 + 0.05; (iv) E3 leak at most A0 + 0.02 at the upper end of the one-sided 95% interval; (v) wrong route at most 0.03 below A0. If both pass, the higher paraphrase rate wins.
+
+Note-free reading. The note is not needed at this scale if the chosen arm (A0 if none passes) has paraphrase alone non-inferior to A0's paraphrase with note, margin 0.03, lower end of the one-sided 95% interval, pooled and on CounterFact.
+
+Stop rule. If no arm passes, the adapter path does not continue on recipe changes of this kind, and the next entry must say why it is different. A later rank-16 run of the chosen arm decides the rank, and a test under pressure decides whether the adapter holds where a note does not. Neither is pinned here.
+
+Predictions. P1: A1 and A2 raise CounterFact paraphrase alone by 5 to 15 points. P2: zsRE rises by at most 2 points, being near its ceiling. P3: A1 passes the rule. P4: A2 has a lower E3 leak and lower D than A1, since it drops the "Noted:" sentence, whose echo has appeared in leaked outputs. P5: the note-free reading fails on CounterFact: the chosen arm stays more than 0.03 below A0 with note at the lower end. P6: training takes 2 to 3 times as long as A0.
+
+Not varied here. Pairs train without a system prompt and serving uses one. Noted as a possible cause, for a later entry if this one fails.
+
+## 127. SS125 results: the adapter alone against the note alone (2026-11-03)
+
+Source: results/live_learning/confirm/adapter_vs_note.json. Word-boundary score, served through the router, n = 1000 per dataset. Adapter / note / adapter with note; adapter minus note with 95% CI.
+
+Rank 2. CounterFact edit prompts 0.998 / 0.837 / 0.995, +0.161 [0.139, 0.183]. CounterFact paraphrases 0.732 / 0.683 / 0.885, +0.049 [0.017, 0.081]. zsRE edit prompts 1.000 / 0.741 / 0.986, +0.259 [0.231, 0.288]. zsRE paraphrases 0.967 / 0.770 / 0.972, +0.197 [0.170, 0.222].
+
+Rank 16. CounterFact edit prompts 0.997 / 0.836 / 0.996, +0.161 [0.139, 0.183]. CounterFact paraphrases 0.730 / 0.681 / 0.890, +0.049 [0.018, 0.081]. zsRE edit prompts 0.999 / 0.741 / 0.988, +0.258 [0.231, 0.287]. zsRE paraphrases 0.965 / 0.770 / 0.979, +0.195 [0.168, 0.221].
+
+Decision rule. Holds: the CI is above 0 in all four rank-2 cells. The stored results support the adapter path.
+
+Predictions. P1 held. P2 held: CounterFact paraphrases are the smallest difference, 4.9 points. P3 held: adapter with note is 15.3 points above adapter alone on CounterFact paraphrases at rank 2 and 0.5 on zsRE.
+
+Reading. On these stores the adapter alone beats the note alone in every cell. The note's contribution is on CounterFact paraphrases, 15 points when it is added to the adapter, and that is the gap SS126 tries to close. Rank 2 and rank 16 differ by at most 0.2 points on the adapter alone.
+
+Limit. An adapter is on these stores for every fact, including those a note alone answers. The note arm is the note with no adapter. The comparison is on Qwen2.5-1.5B only and does not test a better note.
+
+## 128. SS113 results: a per-fact soft prompt (2026-11-03)
+
+Source: results/live_learning/confirm/soft_prompt.json and soft_prompt_lr.json. Stage 1 selected lr 3e-3 on the 20 development facts: efficacy 0.90, paraphrase 0.35, above kappa 0.15. Stage 2, 279 fresh adapter facts, 30.7 KB per fact, about 12 s per fact.
+
+Soft prompt / rank-2 adapter, substring score as in SS87. Edit prompt alone 0.574 / 0.989; with note 0.785 / 0.932, difference -0.147 [-0.201, -0.093]. Paraphrase alone 0.333 / 0.821; with note 0.771 / 0.928, difference -0.158 [-0.215, -0.104]. Held-out D mean 0.522 / 0.390, maximum 1.963 / 1.407. Share above kappa 0.065 / 0.029. Wrong route retained 0.640 / 0.705.
+
+Decision rule. Fails on all of (i), (ii) and (iii). The soft prompt does not replace the adapter and is not a second tier.
+
+Predictions. P1 failed: efficacy reached 0.90 on the development facts and 0.574 on fresh ones. P2 held on the failure of (ii) but not on its reason: mean D is 1.3 times the adapter's, not the 4 to 12 times of SS93. The rule also fails on (i) and (iii), which P2 did not say. P3 held: paraphrase alone 0.333 against 0.821. P4 held.
+
+Reading. A soft prompt is 12 times smaller and does not touch a weight, but it does not hold the fact. Adding the note lifts it, which is the note doing the work. This supports the adapter path of entry 125: of the parametric forms tried so far, the low-rank adapter is the one that carries a fact alone.
+
+Limit. 32 passes and one initial value per fact, on one model, and a learning rate selected on 20 facts. The gap between the development and the fresh efficacy suggests that the small selection set flattered it, and a longer training was not tried.
+
+## 129. SS126 results: rewrites close the paraphrase gap and cost locality (2026-11-03)
+
+Source: results/live_learning/confirm/adapter_only.json. 150 CounterFact and 150 zsRE facts, word-boundary score, right adapter forced. Rewrites per fact: three for 271, two for 13, one for 6, none for 10.
+
+A0 / A1 / A2, pooled. Edit prompt alone 0.970 / 0.987 / 0.987. Paraphrase alone 0.827 / 0.960 / 0.963; against A0, A1 +0.133 [0.093, 0.173], A2 +0.137 [0.097, 0.180]. Paraphrase with note 0.967 / 0.987 / 0.990. Mean held-out D 0.384 / 0.505 / 0.605. Share above kappa 0.010 / 0.063 / 0.140. Wrong route, word boundary, 0.660 / 0.550 / 0.485.
+
+CounterFact. Paraphrase alone 0.727 / 0.947 / 0.947. Mean D 0.360 / 0.566 / 0.689. Share above kappa 0.013 / 0.100 / 0.207. E3 leak 0.360 / 0.627 / 0.700; against A0, A1 +0.267 [0.187, 0.347], A2 +0.340 [0.253, 0.427]. zsRE. Paraphrase alone 0.927 / 0.973 / 0.980. Mean D 0.407 / 0.445 / 0.520. Share above kappa 0.007 / 0.027 / 0.073.
+
+Decision rule. Neither arm passes. Both pass (i) and (ii) and fail (iii) on both parts, (iv) and (v). A0 stays.
+
+Note-free reading. With A0 as the chosen arm it fails: paraphrase alone minus A0 with note is -0.140, lower end -0.177, pooled, and -0.227, lower end -0.287, on CounterFact. The arms that were not chosen give no claim, and are given for the next entry: A1 -0.007, lower end -0.030, pooled, and -0.007, lower end -0.040, on CounterFact; A2 -0.003, lower end -0.027, pooled, and -0.007, lower end -0.040, on CounterFact.
+
+Stop rule. It applies. The adapter path does not continue on recipe changes of this kind, and the next entry must say why it is different.
+
+Predictions. P1 failed: CounterFact paraphrase alone rose by 22 points in both arms, above the predicted 5 to 15. P2 failed: zsRE rose by 4.7 and 5.3 points. P3 failed. P4 failed in the opposite direction: A2 has a higher E3 leak and a higher D than A1, and "Noted:" in outputs is not the source of the leak, since it falls with the leak rising (E3 outputs with "noted": 12%, 2%, 0%). P5 held. P6 held at the low end: 2.17 and 2.00 times A0 (6.7, 14.4 and 13.3 s per fact).
+
+Not in the plan, read after the results. (a) The word-boundary E3 score undercounts, as the smoke run suggested ("Norwegian Superliga" for "Norway"). Counting a stem of the answer gives 0.400 / 0.660 / 0.733, 3 to 4 points more in each arm, so the differences stand. (b) A forced adapter almost never leaves the other-relation answer as it was: the output equals the base output, as an exact string, for 0.0%, 0.0% and 1.3% of the E3 prompts. (c) The arms differ in dose. At 16 passes, updates toward the answer number 16 in A0 and 64 in A1 and A2 for a fact with three rewrites, and A1 has 16 more toward the note's sentence. This entry cannot separate the rewrites from the larger dose, in the gain or in the cost. (d) A1 and A2 give the answer the same number of updates, and A1, with the note's sentence, has the lower D and E3. The sentence may act as a brake, which is a guess. (e) A1 leaks on 90.7% of the CounterFact facts where A0 leaks and on 46.9% of the others.
+
+Reading. Rewrites written by the base model do what they were added for: paraphrase alone on CounterFact reaches the level of A0 with its note, without using the benchmark's paraphrases. What pays for it is locality: the adapter gives its answer to the subject's other questions more often, and damages more when the route is wrong. So this result does not show a note-free store that is as local as the current one.
+
+Limit. The forced readings say what the adapter does if it runs, not how often it runs: routing was not part of this entry. 150 facts per dataset, one model, rank 2, one seed.
+
+## 130. The SS126 adapters served through the default router (pinned 2026-11-03, before the run)
+
+Question. SS126 forced the right adapter, so it says what an adapter does when it runs and not how often it runs. Through the default router and the write gate, does a store with no note match the current system?
+
+Why this is not a recipe change. The stop rule of entry 129 stands. No adapter is trained here, and the decision of SS126 is not reopened: A1 is still rejected as a replacement under that rule. This entry asks another question, about the served system. The rule below is set knowing the forced results of entry 129 and the N=1000 results of SS85, so it is weaker evidence than a pin made blind to them, and a pass would need a confirmation on fresh facts before any claim.
+
+Runner: confirm/served_adapter.py on Qwen2.5-1.5B, with the saved int8 A0 and A1 adapters of SS126 and the same 300 facts in one store. Default router (SS76 encoder, theta 0.7501), no extra keys, one router per store, on CPU. 64 new tokens and the system prompt "Answer briefly." as in SS126, the note as `rag_system("instruct")`.
+
+Stores. A write above kappa 0.968 commits nothing, as `Ledger.write` does. Current: A0 with its note. A0 alone: the same adapters, no note. Fallback: A1 alone, where A1 is above kappa A0 alone, and neither above kappa means no entry. Reject only: A1 alone, no retry. Gate off: A1 alone for every fact. Fallback is the store that the rule reads, since a writer would retry a rejected fact, and the other two A1 stores show what the gate costs.
+
+Queries. Edit prompts and paraphrases of all 300 facts, scored with the word-boundary target. For the 150 CounterFact facts, the E3 template prompt of SS126, and one natural question about another relation, written by SmolLM3-3B with the prompts of SS85, half for a neighbouring relation (seed 130) and half uniform, dropped if the subject is not in it. SmolLM runs on CPU, as the GPU is shared; the prompts and greedy decoding are unchanged. A leak is the target at a word boundary in the served output and not in the base output.
+
+Decision rule, fallback minus current, paired. (i) Paraphrase, lower end of the one-sided 95% interval at least -0.03, pooled and on CounterFact. (ii) Edit prompt, lower end at least -0.02, pooled. (iii) E3 leak, upper end at most +0.02. (iv) Natural leak, upper end at most +0.02. If all hold, a store with no note is supported at this scale, and the next step is a run on fresh facts at a larger N. It is not adopted here.
+
+What follows, for the user's decision and not pinned. A failure of (i) that comes from rejected facts points to lowering D. A failure of (iii) or (iv) points to negatives at training, same-subject questions trained on the base model's own answer, which is why such a run would differ from SS126 under the stop rule.
+
+Predictions. P1: gate off, CounterFact paraphrase is within 2 points of current. P2: reject only fails (i) on CounterFact, since about 10% of those facts are rejected. P3: fallback fails (i) on CounterFact at the lower end, with a point difference of at most 6 points. P4: (iii) holds, since current with its note also leaks when routed, and at most 15% of E3 prompts are routed. P5: (iv) holds, with about 15% of natural questions routed as at N=1000 in SS85. P6: fallback leaks more than A0 alone on natural questions, by at most 5 points, so the comparison with current hides a real cost of the rewrites. P7: the rule fails, on (i).
+
+Limits, known in advance. 150 CounterFact facts, one model, rank 2, one seed. Natural questions are not labelled here, and some questions about a neighbouring relation may ask the same thing, so a leak is an upper bound. There is no gold answer for these questions, so damage to a right answer is read only from the forced wrong-route figure of SS126.
+
+## 131. SS130 results: the router absorbs the leak and the gate carries the cost (2026-11-03)
+
+Source: results/live_learning/confirm/served_adapter.json. 300 facts in one store. Above kappa: 3 A0 adapters and 19 A1 adapters, the 3 among the 19, so fallback holds 16 facts on A0 and has no entry for 3. Store size: current, A0 alone and fallback 297, reject only 281, gate off 300. Natural questions: 149 kept of 150, 74 of them near. Self-check: on the right route, served outputs equal the forced outputs of SS126 for every edit prompt and paraphrase (1.0).
+
+Current / A0 alone / fallback / reject only / gate off, word boundary. Edit prompt, pooled, 0.983 / 0.960 / 0.977 / 0.923 / 0.987. Paraphrase, pooled, 0.937 / 0.807 / 0.917 / 0.887 / 0.937. Paraphrase, CounterFact, 0.913 / 0.707 / 0.880 / 0.840 / 0.920. Paraphrase, zsRE, 0.960 / 0.907 / 0.953 / 0.933 / 0.953. E3 leak 0.020 / 0.013 / 0.020 / 0.013 / 0.027. Natural leak 0.107 / 0.094 / 0.114 / 0.094 / 0.121; near questions 0.216 / 0.189 / 0.230 / 0.189 / 0.243; uniform questions 0 in every store.
+
+Routed, current and fallback: edit prompts 0.990, paraphrases 0.960, E3 0.027 (4 of 150), natural 0.121. No query routed to another fact.
+
+Decision rule, fallback minus current. (i) Paraphrase -0.020 [-0.050, 0.010], lower end -0.043, pooled, and -0.033 [-0.080, 0.013], lower end -0.073, on CounterFact: fails on both. (ii) Edit prompt -0.007, lower end -0.020: holds. (iii) E3 leak 0.000: holds, on 4 routed prompts. (iv) Natural leak +0.007 [0.000, 0.020], upper end 0.013 by the method of SS126, which reflects the lower end: holds. The rule fails. A store with no note is not supported at this scale.
+
+Against A0 alone, fallback gains 11.0 points on paraphrases [7.3, 14.7] and 17.3 on CounterFact [11.3, 24.0], at +2.0 points of natural leak [0.0, 4.7] and +0.7 of E3 leak [0.0, 2.0].
+
+Predictions. All seven held: P1 (+0.7 points), P2 (lower end -0.120), P3 (-3.3 points, lower end -0.073), P4 (2.7% routed), P5 (12.1% routed, below the 15% expected), P6 (+2.0 points), P7. They were made knowing the forced results of entry 129, so this is weak evidence for the reasoning behind them.
+
+Reading, as the pin set out. The failure of (i) comes from rejected facts: gate off is level with current on paraphrases (0.000, lower end -0.023, pooled; +0.007, lower end -0.027, on CounterFact), and the 16 facts that fall back to A0 make the difference. The leak conditions hold, so this result does not point to negatives at training. The forced E3 difference of 26.7 points in entry 129 becomes 0.0 points when served, since the router sends few of those prompts to the adapter. The natural leak on near questions, about 22% in the current store, is the larger limit of both stores and comes from routing, not from the rewrites.
+
+Limits. These comparisons were set knowing the forced results. Gate off is reported to locate the cost and is not an available store, since the gate is part of the system. E3 rests on 4 routed prompts. 150 CounterFact facts, one model, rank 2, one seed. The natural questions are unlabelled, so those leaks are upper bounds. A wrong route that damages a right answer is not measured in the served path: the forced figures of entry 129 (0.66 to 0.55) apply to the routed share, and current with its note was not read on those questions.
+
+## 132. What brings a rejected adapter under kappa: a development run (pinned 2026-11-03, before the run)
+
+Question. Entry 131 locates the cost of a store with no note in the 19 of 300 A1 adapters that the gate rejects. Which change to the training brings those under kappa and keeps the fact?
+
+Why this is not a recipe change of the kind the stop rule closes. Entry 129 closes adding phrasings to reach more paraphrases. This run keeps the phrasings of A1 and changes the training only to lower D, which is the cause entry 131 names. Router keys are left out, as SS76 found no gain from them with the default encoder (development TPR 0.923 with, 0.936 without). Same-subject anchors are left out, as SS70 moved E3 little and the leak conditions of SS130 hold.
+
+Status. Development only. All facts were seen in SS126 and SS130, so no result here supports a claim. It selects what a later run on fresh facts tests.
+
+Runner: confirm/retry_dose.py, Qwen2.5-1.5B, rank 2 LoRA+ in int8, A1 pairs with the rewrites saved by SS126, seed 126 for each adapter as in SS126. Facts: the 19 rejected ones, and 31 others drawn with seed 132 from the 281 accepted ones.
+
+Arms. D8: 8 passes. D4: 4 passes. L4: 16 passes, kl_lambda 4. L16: 16 passes, kl_lambda 16. S: 16 passes, trained under the serving system prompt "Answer briefly.", the possible cause noted as not varied in entry 126. The reference is the saved A1 at 16 passes and kl_lambda 1.
+
+Readings per group, rejected and others, right adapter forced, word boundary: adapters under kappa, mean held-out D, edit prompt alone, paraphrase alone, paraphrase alone and under kappa together, E3 leak on CounterFact facts. Wrong route on the 200 zsRE questions, on the whole 50-fact draw.
+
+Selection, for the entry that pins the fresh run. The retry is the arm with the highest count on the rejected facts of paraphrase alone right and under kappa; a tie goes to the lower mean D. An arm also becomes a candidate to replace A1 at the first attempt if, on the others, its paraphrase is at most 0.02 below the reference and its mean D at least 0.05 lower.
+
+Predictions. P1: D8 brings at least 12 of the 19 under kappa. P2: D4 brings more under kappa than D8, and loses more paraphrases. P3: L16 lowers D less than D8, as the anchors cover 2 prompts and understate the effect on others (SS69). P4: S changes mean D by less than 0.05 on the others and paraphrase alone by at most 2 points. P5: D8 is the selected retry.
+
+Limits. 50 facts, one seed, chosen partly for high D, so the arms' D on the rejected group is not a rate for a whole store.
+
+## 133. SS132 results: the anchor weight rescues rejected adapters, fewer passes do not (2026-11-04)
+
+Run as pinned, 50 seen facts, right adapter forced, word boundary. Development only, so nothing here supports a claim.
+
+| Arm | Rejected 19: under kappa | D mean | paraphrase | paraphrase and under kappa | Others 31: under kappa | D mean | paraphrase | E3 rejected, others | Wrong route |
+|---|---|---|---|---|---|---|---|---|---|
+| A1 (saved) | 0 | 1.190 | .895 | 0 | 31 | .462 | .968 | .467, .600 | not on this draw |
+| D8 | 3 | 1.335 | .895 | 3 | 28 | .549 | .935 | .533, .667 | .535 |
+| D4 | 15 | .882 | .789 | 12 | 27 | .487 | .774 | .400, .267 | .635 |
+| L4 | 15 | .679 | .789 | 11 | 31 | .301 | .871 | .600, .667 | .640 |
+| L16 | 19 | .346 | .684 | 13 | 31 | .232 | .871 | .533, .467 | .700 |
+| S | 10 | 1.047 | .842 | 9 | 29 | .479 | .839 | .600, .600 | .405 |
+
+Selection. The retry is L16, with 13 of the 19 right and under kappa. No arm is a candidate to replace A1 at the first attempt: on the others every arm loses more than 0.02 of paraphrase against the reference, and only L4 and L16 also lower D by 0.05.
+
+Predictions. P1 failed: D8 brings 3 under kappa, not 12. Mean D rises at 8 passes on both groups and falls at 4, so D is not monotonic in passes over this range. P2 held. P3 failed: L16 lowers D most, the opposite of the reasoning from SS69. P4 failed: mean D moves by .017 as predicted, and paraphrase falls by 12.9 points instead of at most 2. P5 failed: L16 is selected. One of five held.
+
+Training under the serving system prompt does not help on any reading here, which closes the possible cause left open in entry 126.
+
+What the retry can recover. In SS130 the fallback store loses 13 paraphrases against current and wins 7, 6 net of 300. Of the 13, 5 are on the rejected facts, and it wins none there. On the 19 facts A0 under kappa gets 10 paraphrases and L16 gets 13, which projects the pooled gap from -.020 to about -.010 and the CounterFact gap from -.033 to about -.020. At 150 CounterFact facts the lower bound of that gap would still be near -.06, under the margin of -.03, so L16 alone is not expected to pass the rule of entry 130 on fresh facts.
+
+The rows also show that A1 sits close to the threshold on most of these facts: 12 of the 19 have D within .12 of kappa. The next entry uses that before a fresh run is pinned.
+
+Limits. One seed, facts chosen partly for high D, and the projection assumes forced readings carry over to served ones.
+
+## 134. Gentler rescues for rejected adapters: a second development run (pinned 2026-11-04, before the run)
+
+Question. Entry 133 shows L16 under kappa on all 19 rejected facts at the price of 4 paraphrases against A1, while 12 of the 19 miss kappa by at most .12. Does a smaller step, tried first, keep more of those paraphrases?
+
+Status. Development only, on the same 19 seen facts. It selects what a later run on fresh facts tests, and no result here supports a claim.
+
+Runner: confirm/retry_dose.py --round2, setup as in entry 132. The rows of SS132 are reused for L4 and L16.
+
+Arms. L2: kl_lambda 2, seed 126. L8: kl_lambda 8, seed 126. R1: kl_lambda 1, seed 127. R2: kl_lambda 1, seed 128. All at 16 passes.
+
+Ladders. A ladder tries its rungs in order at write time and stores the first adapter under kappa, as paraphrases are held out and cannot steer the choice. T0: L16. T1: R1, R2, L16. T2: L2, L4, L8, L16. T3: R1, L2, L4, L8, L16. The count of a ladder is the facts whose stored adapter gets the paraphrase alone right.
+
+Selection, for the entry that pins the fresh run. The ladder with the highest count, a tie going to the fewer rungs.
+
+Predictions. P1: L2 brings at least 10 of the 19 under kappa. P2: R1 and R2 each bring at least 5 under kappa, and each loses at most 2 of A1's 17 paraphrases on the facts it brings under. P3: T2 counts at least 15. P4: no ladder reaches 17. P5: T2 is selected.
+
+Limits. 19 facts, chosen for high D, and re-using them across rungs makes the counts optimistic. Selecting a seed by the gate also tests the gate repeatedly, so the fresh run has to read wrong route and locality on the stored adapters and not on the first attempts.
+
+## 135. SS134 results: a ladder of gentler rungs keeps most paraphrases (2026-11-04)
+
+Run as pinned, the 19 rejected facts, right adapter forced, word boundary. Development only, so nothing here supports a claim.
+
+| Arm | Under kappa | D mean | Paraphrase | Paraphrase and under kappa | Wrong route |
+|---|---|---|---|---|---|
+| L2 | 13 | .871 | .842 | 11 | .535 |
+| L8 | 18 | .490 | .789 | 14 | .630 |
+| R1 | 9 | 1.057 | .947 | 9 | .460 |
+| R2 | 8 | 1.106 | .842 | 6 | .480 |
+
+| Ladder | Rungs | Stored | Paraphrase right |
+|---|---|---|---|
+| T0 | L16 | 19 | 13 |
+| T1 | R1, R2, L16 | 19 | 16 |
+| T2 | L2, L4, L8, L16 | 19 | 15 |
+| T3 | R1, L2, L4, L8, L16 | 19 | 17 |
+
+For comparison, A0 under kappa stores 16 of these facts and gets 10 paraphrases.
+
+Selection. T3 is the ladder for the fresh run, with the highest count and no tie.
+
+Predictions. P1 held: L2 brings 13 under kappa. P2 held: R1 brings 9 and loses none of A1's paraphrases on them, R2 brings 8 and loses 1. P3 held: T2 counts 15. P4 failed: T3 reaches 17, the count of A1 itself, though not on the same facts. P5 failed: T3 is selected, not T2.
+
+The seed moves D on one fact by as much as .51 (cf0111: 1.25, .74, .95), and 11 of the 19 come under kappa on one of the two new seeds. So part of what the gate rejects at the first attempt is the training draw and not the fact.
+
+Against current, T3 on these 19 facts loses 2 paraphrases and wins 4. With the 8 lost and 7 won on the other facts of SS130 that projects to +1 of 300 pooled and +2 of 150 on CounterFact. The projection is optimistic: T3 is the best of four ladders on the same 19 facts chosen for high D, and the readings are forced.
+
+Wrong route falls as the anchor weight falls, .70 at L16 to .46 at R1 on this draw, and the first rung of T3 is R1. SS130 found no edit or paraphrase query routed to another fact, which limits how often that cost is paid, and the next entry reads it again on a larger store.
+
+## 136. The store with no note and a retry ladder, on fresh facts (pinned 2026-11-04, before the run)
+
+Question. With T3 as the retry after a rejected A1, does a store with no note hold against the current store through the router and the gate, on facts no decision has seen?
+
+Runner: confirm/fresh_ladder.py, Qwen2.5-1.5B, rank 2 LoRA+ in int8. Facts: 400 CounterFact and 400 zsRE with draw seed 136, disjoint from the N=1000 stores, the development set, SS87's 2000 and SS126's 300. Rewrites written at write time as in SS126, adapter seed 126 for A0, A1, L2, L4, L8 and L16, seed 127 for R1. Natural questions on the CounterFact facts as in SS130. The router and kappa as in SS130.
+
+Sample size. The rule's margin on CounterFact is -.03. SS130 had about 9 discordant facts in 100, which at 150 facts gives a one-sided bound of about 4 points under the gap, so a true gap of zero could not pass. At 400 facts the bound is about 2.5 points, and a gap of -.005 or better can pass. The rule is not changed.
+
+Stores. Current: A0 under kappa, with the note; the comparator. Ladder: A1, then each rung of T3, trained only while the attempts so far are above kappa, then A0, then no entry; no note. Fallback: A1, then A0, then no entry; no note, a replication of SS130. A0 alone and gate off (A1 always) as readings.
+
+Rule, the rule of entry 130 applied to the ladder store minus current. (i) Paraphrase, lower one-sided 95 bound at least -.03, pooled and on CounterFact. (ii) Edit, lower bound at least -.02. (iii) E3 leak, upper bound at most .02. (iv) Natural leak, upper bound at most .02.
+
+Consequence. If the rule holds, the store with no note replaces the current default in the recommendation, pending the same test at larger N and rank 16. If it fails, the note stays, the failing reading is reported, and no further change to the training recipe is tried on this question.
+
+Reported, no rule. Forced wrong route on the 200 questions for A0, A1 and the ladder's stored adapters on one draw from the store, the share of edit and paraphrase queries routed to another fact, the share of facts stored by each rung, near and uniform natural leak.
+
+Predictions. P1: A1 is rejected on between 4 and 9 percent of facts. P2: the ladder store holds at least 99.5 percent of the facts. P3: ladder minus current on paraphrase is at least -.010 pooled and at least -.015 on CounterFact. P4: (ii), (iii) and (iv) hold. P5: the fallback store fails (i) on CounterFact. P6: forced wrong route of the stored adapters is at least .05 under A0, and at most 1 percent of edit and paraphrase queries route to another fact.
+
+Limits. One model, rank 2, one adapter seed per rung. The first attempt and the retries share the gate, so a store built this way has been selected on D more than once, and the readings above are on that selected store and the rule covers them. Kappa was calibrated on this model only.
+
+## 137. SS136 results: the ladder removes the gate's cost and the note stays (2026-11-04)
+
+Run as pinned, 400 CounterFact and 400 zsRE facts, served, word boundary. Served and forced outputs agree on all correctly routed gate-off readings (1.0).
+
+| Store | Facts held | Edit | Paraphrase | CounterFact paraphrase | zsRE paraphrase | E3 leak | Natural leak | Near, uniform |
+|---|---|---|---|---|---|---|---|---|
+| Current (A0 and note) | 792 | .965 | .931 | .915 | .948 | .048 | .154 | .297, .010 |
+| A0 alone | 792 | .964 | .793 | .725 | .860 | .038 | .116 | .226, .005 |
+| Fallback | 798 | .983 | .915 | .893 | .938 | .048 | .151 | .292, .010 |
+| Ladder | 799 | .986 | .919 | .895 | .943 | .048 | .154 | .297, .010 |
+| Gate off | 800 | .988 | .919 | .895 | .943 | .048 | .156 | .302, .010 |
+
+Rule, ladder minus current. It does not hold. (i) Paraphrase pooled -.0125, lower bound -.0275, holds; on CounterFact -.020, lower bound -.045, fails. (ii) Edit +.021, lower bound +.009, holds. (iii) E3 0, upper bound .005, holds. (iv) Natural 0, upper bound .015, holds. As pinned, the note stays and no further change to the training recipe is tried on this question.
+
+The fallback store of SS130 replicates its failure, here on both parts of (i): pooled -.016, lower bound -.033; CounterFact -.023, lower bound -.048.
+
+Where the gap lies. The ladder reaches the paraphrase rates of the gate-off store exactly, so the cost of the gate is gone: on the 38 facts A1 failed at the first attempt the ladder gets 32 paraphrases, gate off 32, fallback 29, current 31. The remaining gap is on the accepted facts, 703 against 714 of 762. Against current the ladder loses 33 paraphrases and wins 23, none of the 33 on a rejected fact and none through a missing route. On zsRE the gap is -.005, lower bound -.023; on CounterFact the ladder loses 22 and wins 14. So the note answers some paraphrases that A1 alone does not, and this is a difference between A1 and A0 with its note, not a matter of the gate.
+
+The store with no note is better on edit prompts, and the interval excludes zero (+.021, 95 percent interval .006 to .036). This reading has no rule behind it as a gain. Against A0 alone the ladder gains .126 on paraphrases, and .170 on CounterFact, at +.010 on E3 and +.038 on natural leak.
+
+Ladder use. A1 was rejected on 38 of 800 facts. R1 stored 12, L2 9, L4 11, L8 4, L16 none, A0 1, and 1 fact has no entry. A1 stores 95.25 percent of the facts. Two facts passed no rung (cf0099, cf0101); A0 holds one of them.
+
+Predictions. P1 held: 4.75 percent rejected. P2 held: 99.9 percent held. P3 failed: -.0125 pooled against at least -.010, and -.020 on CounterFact against at least -.015. P4 held. P5 held. P6 held: forced wrong route .535 for the stored adapters against .650 for A0, the same as A1 at .535 as 95 percent of the store is A1, and no edit or paraphrase query routed to another fact.
+
+Note on the leak. Natural leak on near relations is about 30 percent in every store with a high paraphrase rate, and E3 and natural are higher here than in SS130 (.020, .107). They do not separate the stores. This is the largest remaining defect of the served path, and the router and not the adapter holds it (SS107).
+
+Limits. One model, rank 2, one adapter seed per rung. E3 and natural readings are on a store selected on D more than once. Word-boundary scoring. The margin of -.03 was fixed in entry 130 and it is not changed by this result; no claim is made from the point estimate.
+
+## 138. Per-relation thresholds on fresh facts, served (pinned 2026-11-04, before the analysis; no language model)
+
+Question. Entry 137 reads natural near-relation leak at about 30 percent in every store with a high paraphrase rate. Entry 109 adopted per-relation thresholds where a relation identifier exists, on routing and on old stores, but the write path does not use them. Do they hold on facts no decision has seen, as served? Is what remains a matter of threshold or of the score?
+
+Runner: confirm/near_threshold.py, on the saved outputs of SS136 (400 CounterFact and 400 zsRE facts, stores current and ladder) with the default relation encoder on CPU. Raising a threshold only moves a query to the base model's saved answer, so no generation is needed. zsRE entries have no relation identifier and keep 0.7501.
+
+Arms. Global: 0.7501. R107: the thresholds frozen in entry 109. Rall: the same recipe, max(0.7501, the 95th percentile for the relation of the chosen entry, relations with at least 20 questions), calibrated on all natural questions of SS85 and SS130. Those facts are disjoint from the test facts by construction.
+
+Rule, for each arm minus global on the current store. (i) Natural near automatic leak falls by at least .05, upper end of the one-sided 95 percent interval below 0. (ii) Paraphrase on CounterFact, lower bound at least -.02. (iii) Edit on CounterFact, lower bound at least -.01. An arm that passes is added to the write path for entries with a relation identifier. If both pass, the larger fall in near leak. E3 and uniform leak can only fall, and are read.
+
+Diagnostic, no rule. AUROC of the router's score, CounterFact paraphrases against natural near questions with a candidate, pooled and per relation. A pooled value near 1 says the threshold is the problem; a low value says no threshold separates them, and a different signal is needed. Also the near leak left at the threshold that keeps paraphrase routing within 2 points of global.
+
+Predictions. P1: R107 lowers near leak from about .30 to about .17 to .20. P2: R107 costs at most 1 point of CounterFact paraphrase. P3: Rall covers more relations than R107 and lowers near leak by at least .02 more. P4: pooled AUROC is between .75 and .90. P5: near leak stays above .10 in every arm.
+
+Limits. The automatic count includes legitimate answers; about half were legitimate in entry 91, so part of the fall may be lost correct answers until the human labels of SS102 exist. Thresholds come from questions written by one generator model, the same one that wrote the test questions.
+
+## 139. SS138 results: per-relation thresholds hold on fresh facts (2026-11-04)
+
+Source: results/live_learning/confirm/near_threshold.json. The global arm reproduces the saved run of SS136 exactly on both stores, which the runner asserts. Rall has 22 relations from 1142 scored questions, 8 of them above 0.7501; R107 has 9, 4 of them above.
+
+| Current store | Global | R107 | Rall |
+|---|---|---|---|
+| Natural near leak (199) | .296 | .171 | .075 |
+| Natural near routed | .327 | .191 | .080 |
+| Natural leak, all | .154 | .091 | .043 |
+| Natural uniform leak | .010 | .010 | .010 |
+| E3 leak | .048 | .043 | .040 |
+| CounterFact paraphrase | .915 | .913 | .898 |
+| CounterFact edit | .983 | .983 | .983 |
+
+zsRE readings do not move, as its entries have no relation identifier. The ladder store moves the same way: near .296, .181, .080; CounterFact paraphrase .895, .893, .878.
+
+Rule. R107 holds: near -.126 (95 percent interval -.176 to -.080), paraphrase -.0025 with lower bound -.0075, edit 0. Rall fails (ii): near -.221 (-.281 to -.166), paraphrase -.0175 with lower bound -.030 against a margin of -.02. R107 is adopted. It is `RELATION_TAU` in relic/router.py, passed to `Ledger` by the caller, and applies to entries that carry a `relation`.
+
+Correction to entry 137: its table rounds this reading to .297, and 59 of 199 is .296.
+
+Predictions. P1 held: .171. P2 held: a quarter of a point. P3 held: 22 relations against 9, and .095 more. P4 failed: pooled AUROC is .968, above the predicted range. P5 failed: Rall reaches .075.
+
+Diagnostic. Over all near questions with a candidate the score separates them from routed paraphrases well, so the leak is largely a matter of where the threshold sits and not of the score. The threshold that keeps paraphrase routing within 2 points of global is .7907, where near routing is .176 against .327. Per relation, with 5 to 25 items each, most AUROCs are 1.0; the exceptions are P37 (.711), P131 (.864), P103 (.878), P364 (.879) and P740 (.937). Rall's threshold of .892 for P131 is where most of its paraphrase cost is expected to sit; this was not read separately.
+
+Limits. The fall counts lost correct answers as well as removed leaks. About half of the automatic near leaks were legitimate in entry 91, and the human labels of SS102 are still open, so the fall in wrong answers is smaller than the fall above by an unknown amount. The same generator wrote the calibration and the test questions. Rall has now been read on these facts, so a later arm between R107 and Rall needs fresh facts.
+
+Implementation, in the same change. `Ledger` takes `relation_tau`. `Ledger.commit` refuses an id held by another fact, which used to leave the old adapter serving the new note. `Ledger.state_hash` now covers tau, the slot thresholds, the relation thresholds and the entry's relation; it still names the model without its revision. confirm/ledger_smoke.py ran end to end on the real model with these settings.
+
+## 140. SS102 results: the author's labels agree with the model's (2026-11-04)
+
+Source: results/live_learning/confirm/human_labels.json, 200 items labelled by the author: 93 legit, 49 leak, 58 unsure.
+
+Agreement with the model's labels. Two classes, on the 132 items neither marks unsure: kappa .967 (95 percent interval .915 to 1.0), agreement .985. Three classes: kappa .739 (.656 to .816), agreement .835. Of the 33 disagreements, 31 involve the unsure class; on legit against leak the two differ on 2 items.
+
+Rule. Kappa on the two-class reading is above .6, so the paper reports both labelers and the limitation is closed.
+
+Corrected near leak of the default router, on the 27 labelled items of that router that are legit or leak: legit share .556, corrected leak .128 by the author's labels against .117 by the model's, from the automatic .288.
+
+Predictions. P1 failed on the value, two-class kappa is above the predicted .5 to .8, and three-class kappa is inside it. The unsure class did hold most of the disagreement, as predicted.
+
+Limit. The corrected rate rests on 27 items and sets unsure items aside.
+
+## 141. Do the thresholds remove leaks or correct answers? (pinned 2026-11-04, before the analysis; no language model)
+
+Question. Entry 139 could not say how much of the fall in automatic near leak is lost correct answers. The author's labels now allow a reading.
+
+Runner: confirm/label_sheet.py thresholds. Items: the sheet's items whose question and stored fact are a routed row of the default router in natural_e3.json, labelled legit or leak by the author. For each arm of SS138, R107 and Rall, the share of each label that the arm no longer routes. R107 was calibrated on half of these questions, so the reading is also given on the test half of entry 107.
+
+Reading, no rule. If the arm removes leaks at a higher rate than legit answers, the threshold also discriminates. If at equal rates, the fall in wrong answers is the fall in the automatic count times the leak share.
+
+Predictions. P1: R107 removes leak and legit items at rates within .15 of each other. P2: R107 removes between .30 and .55 of the items overall. Limits: tens of items, and an old store.
+
+## 142. SS141 results: the thresholds remove correct answers and leaks at similar rates (2026-11-04)
+
+Source: results/live_learning/confirm/label_thresholds.json, 96 of the author's labelled items routed by the default router, 58 legit and 38 leak.
+
+| Arm | Legit removed | Leak removed | Test half: legit, leak |
+|---|---|---|---|
+| R107 | 25 of 58 (.431) | 21 of 38 (.553) | 10 of 22 (.455), 12 of 23 (.522) |
+| Rall | 48 of 58 (.828) | 30 of 38 (.789) | 16 of 22 (.727), 18 of 23 (.783) |
+
+Predictions. P1 held: the rates differ by .122. P2 held: R107 removes 46 of 96 (.479).
+
+Reading. R107 removes a little more of the wrong answers than of the correct ones, a difference these counts cannot separate from none, and Rall removes both alike. So the thresholds lower wrong stored answers about in proportion to the automatic count, and they also return the base model's answer on near questions that the stored fact would have answered. Entry 139's fall of .126 in the automatic count is not all gain. An answer to the near-relation question needs a signal that tells the two apart, which the score does not do here.
+
+## 143. Decision of the author: the store with no note is the default (2026-11-04)
+
+Decision. The author makes the store with no note the default, removes the note from the write path and the serving path, and prefers the simpler architecture. This replaces the consequence written in entry 136 ("the note stays"). That sentence was written by the analyst as a recommendation following from a rule, and a product decision belongs to the author.
+
+What this does not say. The store did not pass the rule of entry 136, and it is not reported as having passed. On CounterFact paraphrases it stands at -.020 with lower bound -.045 against a margin of -.03, so a loss of up to 4.5 points is not excluded. The earlier evaluations with adapter and note remain as run.
+
+Grounds, on Qwen2.5-1.5B at rank 2 only. Edit prompts +.021, with an interval that excludes zero. Leak level with the current store. Answers kept under a wrong route .535 against about .37 for adapter and note (entry 116), not on one sample. No stored text enters the prompt.
+
+Cost. Every fact trains an adapter. In the tiered store 16 to 21 percent did. A write takes about 14 seconds on the first rung, and each fact stores 373 KB. A note answered about 90 percent of facts on 7B, and on 3B and 7B the default kappa rejects most adapters, so this default is untested beyond 1.5B and needs kappa measured there first.
+
+Change. `Ledger.write`: same answer in a slot joins it, otherwise rewrites by the base model, then the ladder of entry 136, the first rung under kappa is stored, and none commits nothing. `Ledger.ask`: the routed adapter alone, under the serving system prompt. An entry with no adapter is not named as a source. `DeltaStore.answer` generates up to 64 tokens, as the evaluations did, not 24. Earlier runners and their results are unchanged; those that call `store.answer` directly would now generate longer outputs if rerun.
+
+Parity check, pinned before it runs. Runner: confirm/ledger_parity.py, the real model, 16 facts of SS136: 4 first-attempt facts per dataset and 2 per rung from R1, L2, L4 and L8, taken in id order. It holds if the rewrites match, every fact stores at the same rung, D differs by at most .01, at least 95 percent of edit and paraphrase answers are identical to the saved ones, and each query routes to its own entry. The stored adapters are padded into the store's layout, which entry 94 found changes logits by 1 to 3 ulps, so a few answers may differ. If it fails, the default is not moved until the cause is found.
+
+Prediction. P1: it holds, with 100 percent identical answers on first-attempt facts.

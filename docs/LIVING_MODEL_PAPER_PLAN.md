@@ -1,5 +1,7 @@
 # Living model - two-paper plan (2026-10-09, user decision)
 
+Historical. The current text is `paper/main.tex`, and its claims differ from this draft.
+
 Decision: **two papers**.
 
 ## Paper 1 - drawn now, from the frozen evidence

@@ -411,6 +411,10 @@ class RouterV7(RouterV4):
         return (j if sim >= self.taus[j] else None), sim
 
 
+# SS138: per-relation thresholds for the default relation encoder at tau 0.7501. They need
+# a "relation" on the entry; any other relation, or an entry without one, keeps tau.
+RELATION_TAU = {"P103": 0.7835, "P30": 0.7968, "P37": 0.8281, "P495": 0.8128}
+
 SCORERS = {
     "minilm": ("bi", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", ""),
     "mpnet": ("bi", "sentence-transformers/all-mpnet-base-v2", ""),

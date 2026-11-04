@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -20,31 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from router_v4_calibrate import build_dev  # noqa: E402
 
-from relic.router import find_subject  # noqa: E402
+from relic.adapters import REWRITE_SYSTEM, REWRITE_USER, parse_rewrites  # noqa: E402
 
 CONFIRM = Path("results/live_learning/confirm")
-N_KEYS = 3
-SYSTEM = "You rewrite prompts."
-USER = (
-    "Rewrite the following incomplete sentence or question in three different ways that "
-    'ask for the same information. Keep the name "{subject}" exactly as written. Write one '
-    "rewrite per line, without numbering.\n\n{probe}"
-)
-_BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
-
-
-def parse(text: str, probe: str, subject: str) -> list[str]:
-    out = []
-    for line in text.splitlines():
-        line = _BULLET.sub("", line).strip().strip('"').strip()
-        if not line or line == probe.strip() or line in out:
-            continue
-        if find_subject(line, subject) is None:
-            continue
-        out.append(line)
-        if len(out) == N_KEYS:
-            break
-    return out
+SYSTEM, USER, parse = REWRITE_SYSTEM, REWRITE_USER, parse_rewrites
 
 
 def main(argv=None):

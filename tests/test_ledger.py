@@ -87,7 +87,7 @@ def test_same_answer_merges_below_the_threshold_for_replacing():
             return [0.8 for _ in keys]
 
     led = make_ledger()
-    led.scorer, led.duplicate_theta = Band(), 0.75
+    led.scorer = Band()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
     # 0.8 is enough to merge the same answer, and not enough to replace with another
     same = led.commit(fact("b", "Ann", "The birthplace of Ann is", "Oslo"))
@@ -105,6 +105,106 @@ def test_a_write_under_an_alias_finds_the_slot_of_the_full_name():
     assert event["action"] == "update" and event["superseded"] == "a"
 
 
+def ladder_ledger(monkeypatch, klds):
+    """A ledger whose training returns a fresh delta and whose gate reads `klds` in order."""
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.store.kl_lambda = 1.0
+    calls = []
+
+    def train(store, pairs, seed):
+        calls.append((len(pairs), seed, store.kl_lambda))
+        return delta()
+
+    monkeypatch.setattr(module, "train_adapter", train)
+    monkeypatch.setattr(led, "_rewrites", lambda f: ["Where was Ann born?"])
+    values = iter(klds)
+    monkeypatch.setattr(led.store, "_expert_kld", lambda d, p: next(values))
+    return led, calls
+
+
+def test_write_stores_the_first_rung_under_the_limit(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [2.0, float("nan"), 0.5])
+    event = led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert event["action"] == "insert" and event["rung"] == "L2"
+    assert calls == [(3, 126, 1.0), (3, 127, 1.0), (3, 126, 2.0)]
+    assert "a" in led.store.deltas and led.store.kl_lambda == 1.0
+
+
+def test_write_commits_nothing_when_every_rung_fails(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [2.0] * 7)
+    before = led.state_hash()
+    event = led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert event["action"] == "rejected" and len(event["tried"]) == 7
+    assert calls[-1] == (2, 126, 1.0)  # the last rung has no rewrites
+    assert led.state_hash() == before and not led.entries
+
+
+def test_a_repeated_fact_trains_nothing(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [0.5])
+    led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert (
+        led.write(fact("b", "Ann", "Ann was born in", "Oslo"))["action"] == "duplicate"
+    )
+    assert len(calls) == 1
+
+
+def test_ask_serves_the_adapter_with_no_note(monkeypatch):
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"), delta())
+    seen = {}
+
+    def serve(store, fid, q, system=None):
+        seen.update(fid=fid, system=system)
+        return "Oslo"
+
+    monkeypatch.setattr(module, "serve_expert", serve)
+    out = led.ask("Ann was born in")
+    assert out["entry"] == "a" and seen == {"fid": "a", "system": None}
+
+
+def test_an_entry_with_no_adapter_is_not_named_as_the_source(monkeypatch):
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
+    monkeypatch.setattr(module, "base_answer", lambda store, q: "base")
+    assert led.ask("Ann was born in") == {"answer": "base", "entry": None, "score": 1.0}
+
+
+def test_a_reused_id_for_another_fact_is_refused_and_changes_nothing():
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"), delta())
+    before = led.state_hash()
+    with pytest.raises(ValueError, match="held by another fact"):
+        led.commit(fact("a", "Bob", "Bob plays", "jazz"))
+    assert led.state_hash() == before and led.entries["a"]["subject"] == "Ann"
+
+
+def test_hash_covers_the_thresholds():
+    led = make_ledger()
+    h = led.state_hash()
+    led.tau = 0.8
+    assert led.state_hash() != h
+    led.tau = 0.75
+    led.relation_tau = {"P37": 0.83}
+    assert led.state_hash() != h
+
+
+def test_a_relation_threshold_reaches_the_router():
+    led = make_ledger()
+    led.relation_tau = {"P37": 2.0}
+    led.commit({**fact("a", "Ann", "Ann was born in", "Oslo"), "relation": "P37"})
+    router, _ = led.router
+    assert router.route("Ann was born in")[0] is None
+    led.relation_tau = {}
+    led._router = None
+    assert led.router[0].route("Ann was born in")[0] == 0
+
+
 def test_hash_covers_phrasings():
     led = make_ledger()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
@@ -115,8 +215,9 @@ def test_hash_covers_phrasings():
 
 def test_hash_covers_the_delta_and_is_order_independent():
     a, b = make_ledger(), make_ledger()
-    ann, bob = fact("a", "Ann", "Ann plays", "jazz"), fact(
-        "b", "Bob", "Bob plays", "rock"
+    ann, bob = (
+        fact("a", "Ann", "Ann plays", "jazz"),
+        fact("b", "Bob", "Bob plays", "rock"),
     )
     a.commit(ann, delta()), a.commit(bob)
     b.commit(bob), b.commit(ann, delta())

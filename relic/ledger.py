@@ -17,8 +17,15 @@ from pathlib import Path
 
 import torch
 
-from relic.adapters import fact_pairs, train_adapter
-from relic.metrics import hit, sym_kl
+from relic.adapters import (
+    LADDER,
+    REWRITE_SYSTEM,
+    REWRITE_USER,
+    fact_pairs,
+    parse_rewrites,
+    train_adapter,
+)
+from relic.metrics import sym_kl
 from relic.model import chat, load_model, make_lora
 from relic.router import (
     RouterV7,
@@ -27,7 +34,7 @@ from relic.router import (
     resolve_reference,
     usable_aliases,
 )
-from relic.serving import base_answer, rag_system, serve_expert
+from relic.serving import base_answer, serve_expert
 
 R = 16  # rank per fact
 CAP = 64  # capacity of the merged adapter, in facts; routed serving has no such limit
@@ -346,7 +353,7 @@ class DeltaStore:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            max_new_tokens=24,
+            max_new_tokens=64,
         )
 
 
@@ -386,12 +393,13 @@ class Ledger:
         tau: float,
         slot_theta: float,
         duplicate_theta: float | None = None,
+        relation_tau: dict | None = None,
     ):
         self.store, self.scorer = store, scorer
         self.tau, self.slot_theta = tau, slot_theta
-        self.duplicate_theta = (
-            slot_theta if duplicate_theta is None else duplicate_theta
-        )
+        self.relation_tau = dict(relation_tau or {})
+        # SS104: a same-answer write merges wherever a query would be routed to the entry
+        self.duplicate_theta = tau if duplicate_theta is None else duplicate_theta
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
         self._delta_digest: dict[str, str] = {}
@@ -436,7 +444,6 @@ class Ledger:
         self._delta_digest.pop(fid, None)
         self.store.deltas.pop(fid, None)
         self.store.keys.pop(fid, None)
-        self.store.notes.pop(fid, None)
         self._router = None
 
     def _record(self, action: str, fid: str, **extra) -> dict:
@@ -454,6 +461,9 @@ class Ledger:
         """Apply one write atomically: insert, duplicate (new phrasing) or update."""
         with self.lock:
             old = self.slot(fact)
+            if fact["id"] in self.entries and fact["id"] != old:
+                # committing would serve the old entry's adapter with this fact's note
+                raise ValueError(f"{fact['id']}: id is held by another fact")
             if old is not None and self._same_answer(old, fact):
                 if fact["probe"] != self.entries[old]["probe"] and (
                     fact["probe"] not in self.phrasings[old]
@@ -468,7 +478,6 @@ class Ledger:
             self.entries[fact["id"]] = fact
             self.phrasings[fact["id"]] = [p for p in kept if p != fact["probe"]]
             self.store.keys[fact["id"]] = fact["probe"]
-            self.store.notes[fact["id"]] = fact["teach"]
             if delta is not None:
                 self.store.deltas[fact["id"]] = delta
                 self._delta_digest[fact["id"]] = _delta_digest(delta)
@@ -482,24 +491,50 @@ class Ledger:
             self._drop(fid)
             return self._record("revoke", fid)
 
+    def _rewrites(self, fact: dict) -> list[str]:
+        """Phrasings by the base model, from the subject and the edit prompt alone."""
+        store, full = self.store, self.store.deltas
+        store.deltas = {}
+        store.materialize()
+        prompt = REWRITE_USER.format(subject=fact["subject"], probe=fact["probe"])
+        text = chat(
+            store.tok,
+            store.model,
+            [
+                {"role": "system", "content": REWRITE_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            max_new_tokens=96,
+        )
+        store.deltas = full
+        store.materialize()
+        return parse_rewrites(text, fact["probe"], fact["subject"])
+
     def write(self, fact: dict, kappa: float = KAPPA) -> dict:
-        """The tiered write path: a note if it answers the edit prompt, else an adapter.
+        """Train the fact's adapter: the first rung of the ladder under the divergence limit.
 
         The store's one model is parked while a candidate trains, so a write holds the
-        lock throughout. A candidate above the divergence limit commits nothing.
+        lock throughout. If no rung passes, the write commits nothing.
         """
         with self.lock:
             old = self.slot(fact)
             if old is not None and self._same_answer(old, fact):
                 return self.commit(fact)
-            note = rag_system("instruct", [fact], 0)
-            if hit(base_answer(self.store, fact["probe"], system=note), fact["answer"]):
-                return self.commit(fact)
-            delta = train_adapter(self.store, fact_pairs(fact))
-            kld = self.store._expert_kld(delta, HELDOUT_CANARIES)
-            if not kld <= kappa:  # a NaN divergence is rejected, not committed
-                return {"action": "rejected", "entry": fact["id"], "kld": kld}
-            return {**self.commit(fact, delta), "kld": kld}
+            short = fact_pairs(fact)
+            full = short + [(r, fact["answer"]) for r in self._rewrites(fact)]
+            store, weight = self.store, self.store.kl_lambda
+            tried = {}
+            try:
+                for name, seed, kl_lambda, rewrites in LADDER:
+                    store.kl_lambda = kl_lambda
+                    delta = train_adapter(store, full if rewrites else short, seed)
+                    kld = store._expert_kld(delta, HELDOUT_CANARIES)
+                    tried[name] = kld
+                    if kld <= kappa:  # a NaN divergence is rejected, not committed
+                        return {**self.commit(fact, delta), "kld": kld, "rung": name}
+            finally:
+                store.kl_lambda = weight
+            return {"action": "rejected", "entry": fact["id"], "tried": tried}
 
     # -- reads ------------------------------------------------------------
     @property
@@ -509,7 +544,8 @@ class Ledger:
             extra = {
                 f"{f['subject']}\t{f['probe']}": self.phrasings[f["id"]] for f in facts
             }
-            self._router = (RouterV7(facts, self.scorer, self.tau, extra), facts)
+            router = RouterV7(facts, self.scorer, self.tau, extra, self.relation_tau)
+            self._router = (router, facts)
         return self._router
 
     def ask(self, query: str, history=()) -> dict:
@@ -522,29 +558,31 @@ class Ledger:
             router, facts = self.router
             query = resolve_reference(query, history, router)
             j, score = router.route(query)
-            if j is None:
-                answer = base_answer(self.store, query)
-                return {"answer": answer, "entry": None, "score": score}
-            fact = facts[j]
-            note = rag_system("instruct", facts, j)
-            if fact["id"] in self.store.deltas:
-                answer = serve_expert(self.store, fact["id"], query, system=note)
-            else:
-                answer = base_answer(self.store, query, system=note)
-            return {"answer": answer, "entry": fact["id"], "score": score}
+            fid = None if j is None else facts[j]["id"]
+            if fid not in self.store.deltas:  # an entry acts only through its adapter
+                return {
+                    "answer": base_answer(self.store, query),
+                    "entry": None,
+                    "score": score,
+                }
+            answer = serve_expert(self.store, fid, query)
+            return {"answer": answer, "entry": fid, "score": score}
 
     def state_hash(self) -> str:
-        """A function of the active set: the model, the router setting and each entry.
+        """A function of the active set: the model, the router settings and each entry.
 
         A delta is hashed once when it is committed; hashing every tensor of a large
         store on each commit would make a commit linear in the size of the store.
         """
         h = hashlib.sha256()
-        for s in (self.store.base_hash, self.store.router_config):
+        limits = [self.tau, self.slot_theta, self.duplicate_theta]
+        limits += [f"{r}={t}" for r, t in sorted(self.relation_tau.items())]
+        for s in (self.store.base_hash, self.store.router_config, *map(str, limits)):
             _hash_text(h, s)
         for fid in sorted(self.entries):
             entry = self.entries[fid]
             fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
+            fields.append(entry.get("relation", ""))
             names = sorted(entry.get("aliases", ()))
             for s in [*fields, entry["probe"], *sorted(self.phrasings[fid]), *names]:
                 _hash_text(h, s)
@@ -579,7 +617,6 @@ class Ledger:
             self.store.deltas = state["deltas"]
             self.store.router_config = state["router_config"]
             self.store.keys = {f: e["probe"] for f, e in self.entries.items()}
-            self.store.notes = {f: e["teach"] for f, e in self.entries.items()}
             self._delta_digest = {
                 f: _delta_digest(d) for f, d in state["deltas"].items()
             }

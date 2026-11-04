@@ -11,7 +11,7 @@ from pathlib import Path
 
 from relic.ledger import DeltaStore, Ledger
 from relic.metrics import hit
-from relic.router import make_scorer
+from relic.router import RELATION_TAU, make_scorer
 
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 NEW = {
@@ -23,7 +23,7 @@ NEW = {
     "teach": "The mother tongue of Danielle Darrieux is English",
     "aliases": ["Danielle Yvonne Darrieux"],
 }
-# a counterfactual target that the note alone rarely produces, so the adapter tier is used
+# a counterfactual target far from what the base model says
 HARD = {
     "id": "f2",
     "subject": "Toko Yasuda",
@@ -37,7 +37,9 @@ UPDATE = {**NEW, "id": "f3", "answer": "Swedish", "teach": f"{NEW['probe']} Swed
 
 def main() -> None:
     store = DeltaStore(MODEL, steps=16, capacity=1)
-    ledger = Ledger(store, make_scorer("relenc"), 0.7501, 0.8985, 0.7501)
+    ledger = Ledger(
+        store, make_scorer("relenc"), 0.7501, 0.8985, relation_tau=RELATION_TAU
+    )
     empty = ledger.state_hash()
     off_topic = "What is the capital of France?"
     before = ledger.ask(off_topic)
@@ -62,7 +64,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as d:
         path = Path(d) / "store.ledger"
         ledger.save(path)
-        reloaded = Ledger(store, ledger.scorer, 0.7501, 0.8985, 0.7501)
+        reloaded = Ledger(
+            store, ledger.scorer, 0.7501, 0.8985, relation_tau=RELATION_TAU
+        )
         reloaded.load(path)
         assert reloaded.state_hash() == ledger.state_hash()
 

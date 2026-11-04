@@ -48,7 +48,7 @@ mehmetardahakbilen2005@gmail.com).}}
 \maketitle
 
 \begin{abstract}
-Knowledge editing writes facts into a model's weights but cannot remove an
+Writing facts into a model's shared weights makes it hard to remove an
 individual fact, identify the fact behind an answer, or limit an update's effect on
 unrelated inputs. We present RELIC, which keeps the base model
 frozen and stores each fact as an entry served as a note in the context, a low-rank
@@ -97,13 +97,14 @@ success~\cite{yang2025mirage}. Removing a single edit from weights that hold man
 is an unlearning problem, for which current methods are approximate and difficult to
 verify~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse,liu2025rethinking}.
 Retrieval-augmented generation~\cite{lewis2020rag} keeps facts outside the model, so
-removal is an index deletion, but instruction-tuned models often ignore retrieved text
-that contradicts their parametric knowledge~\cite{longpre2021conflicts,xie2024chameleon}.
+removal is an index deletion, but whether a model follows retrieved text that contradicts its
+parametric knowledge depends on the model and the evidence~\cite{longpre2021conflicts,xie2024chameleon}.
 
 We treat additions to and removals from the model's stored knowledge as transactions in
 the database sense~\cite{haerder1983transactions}: an addition is accepted only if it
 passes a check, a removal returns the store to its earlier state, and each operation is
-logged. We call the resulting system RELIC (Revocable Entries for Language model
+logged. Here a transaction means an atomic operation by a single writer, with no isolation between
+processes. We call the resulting system RELIC (Revocable Entries for Language model
 Insertions and Corrections). The base model is never updated, each fact is a separate entry that consists of
 a note and, if needed, a low-rank adapter, and a router whose parameters are fixed
 before any fact is stored applies at most one entry to a query. Exact removal and answer attribution are then
@@ -167,9 +168,14 @@ locality. Later work studies ripple effects and multi-hop
 consistency~\cite{cohen2024ripple,zhong2023mquake}, forgetting over long edit
 sequences~\cite{gupta2024forgetting}, damage to general abilities~\cite{gu2024harms},
 and the difference between teacher-forced and free generation~\cite{yang2025mirage}.
-RELIC's adapters behind an index follow the MELO design. RELIC differs in the
-operations it provides around it: a divergence check at write time, removal of
-individual facts, attribution of answers, and the combination with notes.
+The closest designs are recent preprints. SoLA stores each edit as a frozen LoRA, activates it by
+semantic routing and revokes it by removing its key~\cite{luo2026sola}. RRDA combines a router, an
+explicit edit memory and edit and locality adapters, and finds that the memory gives most of the edit
+gain~\cite{zhang2026rrda}. RELIC's architecture is of this kind, so what this paper adds lies in its
+measurements: the cost of a wrong route to one fact, the share of facts that need an adapter across base
+models, removal under repeated writes, and the rejection of adapters by divergence on held-out prompts,
+each registered before it was run. We did not find these readings elsewhere, in a search that was not
+systematic and that read the 2026 preprints in part.
 Table~\ref{tab:positioning} compares these operations across approaches.
 
 \input{tables/positioning}
@@ -180,9 +186,9 @@ models~\cite{khandelwal2020knnlm} and in-context editing~\cite{zheng2023ike} kee
 knowledge outside the weights, as do SERAC, which combines a scope classifier with a
 counterfactual model~\cite{mitchell2022serac}, and RECIPE, which retrieves continuous
 prompts~\cite{chen2024recipe}. MemGPT manages such memory across
-sessions~\cite{packer2023memgpt}. Because models tend to prefer parametric knowledge
-over conflicting context~\cite{longpre2021conflicts,xie2024chameleon}, our notes are
-served with an explicit instruction to follow the context.
+sessions~\cite{packer2023memgpt}. Models can prefer parametric knowledge over conflicting context~\cite{longpre2021conflicts}, although
+coherent evidence often overrides it~\cite{xie2024chameleon}, so our notes are served with an explicit
+instruction to follow the context.
 
 \subsection{Adapters, Merging and Routing}
 LoRA~\cite{hu2022lora} and its variants~\cite{hayou2024loraplus,liu2024dora,
@@ -207,7 +213,7 @@ evaluated with forget and retain sets~\cite{maini2024tofu,shi2025muse,
 liu2025rethinking}. In mixture-of-experts models, an update to the router can redirect
 queries away from the expert that holds the knowledge without removing it, and SEUF and
 GRIP constrain the router to prevent this~\cite{zhuang2025seuf,zhu2026grip}. RELIC
-resembles SISA with one shard per fact. Its router has no state that depends on the stored facts, so removing a
+resembles SISA with one shard per fact. Its router has no trained state that depends on the stored facts, so removing a
 fact cannot change routing decisions for queries unrelated to it
 (Proposition~\ref{prop:locality}).
 
@@ -221,7 +227,7 @@ distillation term of Learning without Forgetting~\cite{li2018lwf}, and storing o
 adapter per fact is a form of parameter isolation~\cite{rusu2016progressive}. For
 monolithic models, attributing outputs to training data requires influence
 approximations~\cite{koh2017influence,grosse2023influence}. With one entry per fact,
-attribution reduces to reading the router's decision.
+the router's decision names the entry used; whether its adapter caused the answer is a separate check.
 
 % ===========================================================================
 \section{Problem Formulation}
@@ -404,13 +410,17 @@ relation encoder of the default configuration (Section~\ref{sec:leak}).
 
 \subsection{Removal, Update and Logging}
 
-\revoke$(i)$ deletes entry $i$. Because a fact can be stored more than once in different
-phrasings, removal by content deletes every entry with the same subject and answer. An
-update is a removal followed by an addition. For serving, the selected adapter is written
+A write first looks for the slot of its subject and relation: a stored entry with the same subject whose relation
+text the encoder scores above a threshold. A write with the same answer joins that entry as another phrasing, at the
+routing threshold $\tau$, since a query would be sent to the entry anyway and merging loses nothing stored. A write with
+another answer replaces the entry only above a stricter threshold, $\theta_{\mathrm{slot}}=0.8985$ (1\% false
+positives on the development split), since a replacement drops a fact; below it, it becomes an entry of its own.
+\revoke$(i)$ deletes entry $i$ with its phrasings, and so the fact, however many times it was written. For serving, the selected adapter is written
 into a LoRA slot of the model and all other slots are set to zero. The log records the
 identifier, the outcome of the check, $D$, the training time and the state hash.
 Attribution is checked by leaving one adapter out: an answer is attributed to fact $i$ if
-the target appears when $\delta_i$ is active and not when it is suspended.
+the target appears when $\delta_i$ is active and not when it is suspended. An entry with no adapter is
+named by the router and is not covered by this check.
 
 The system is implemented in Python on Hugging Face Transformers and PEFT. Commits from threads of one process
 are serial under a lock, and saving replaces the store file atomically. There is no isolation between processes
@@ -423,12 +433,14 @@ records form the log, and the leave-one-out check is a separate script. We have 
 \label{alg:txn}
 \begin{algorithmic}[1]
 \Function{Add}{$e$, $i$}
+  \If{a slot of $e$ holds $a_e$} \State add $x_e$ as a phrasing; log$(\textsc{dup},i)$ and \Return \EndIf
   \State $k\gets E(\text{relation text of } x_e)$
   \If{$f_{\theta_0}(x_e\mid n_e)$ contains $a_e$} \State $\delta\gets\varnothing$
   \Else
     \State $\delta\gets\arg\min\mathcal{L}$ on a fresh copy of $\theta_0$ \Comment{Eq.~\eqref{eq:loss}}
     \If{$D(\delta)>\kappa$} \State log$(\textsc{reject},i)$ and \Return \EndIf
   \EndIf
+  \State replace the slot's entry above $\theta_{\mathrm{slot}}$, if any
   \State $S\gets S\cup\{(i,n_e,\delta,k,s_e)\}$; log$(\textsc{add},i,h(S))$
 \EndFunction
 \Function{Serve}{$q$}
@@ -568,6 +580,15 @@ stored. Removal by content, which also deletes the \vZsContentExtra\ entries wit
 subject and answer, returns all 100. Retention of the other facts is \vCfRetainPct\% and
 \vZsRetainPct\%, and a removal takes about 2.5\,ms.
 
+Removal by content is a repair for a store that holds copies. Write-time slots avoid the copies. We replayed the writes of
+both stores through the slot rule, keeping each kept entry's adapter. On zsRE \slZsMerged\ writes merge and return rises from
+\slZsOld\ to \slZsReturn, with no merge of different answers; on CounterFact one duplicate and one update occur, and none across
+relations. Paraphrase accuracy is non-inferior at \slCfParaPct\% and \slZsParaPct\%. Our first rule used
+$\theta_{\mathrm{slot}}$ for both kinds of write and reached only 0.90, because writes and reads disagreed between the two
+thresholds. We registered the asymmetric rule after seeing those failures, so we tested it on 1000 zsRE records that played no part
+in the design, chosen to have several records per subject. After a removal, \slFreshPerPct\% of the queries are still routed to an
+entry of the subject with one entry per write and \slFreshAsymPct\% with slots (upper end \slFreshUpperPct\%). Slots are the default write path.
+
 \subsection{Tiered Store}
 \label{sec:tiered}
 
@@ -691,9 +712,19 @@ questions about neighboring relations falls from \tcNearGlobalPct\% to \tcNearRe
 points, 95\% CI \tcNearDiffCI), at a cost of \tcParaCfDiff\ points of paraphrase routing on CounterFact and
 \tcParaZsDiff\ on zsRE. A single threshold set the same way costs too much paraphrase routing and was rejected.
 The thresholds require a relation identifier, which zsRE lacks, so they equal the global threshold there. Part of
-the fall is lost correct answers, as the labels above suggest. A middle tier that serves only the note between the
+the fall is lost correct answers, as the labels above suggest. On 400 fresh CounterFact facts, served, the automatic
+near-relation leak fell from \ntGlobalNearPct\% to \ntRelNearPct\% at \ntParaDiff\ points of paraphrase accuracy, and these
+thresholds are now part of the write path. Calibrating on more questions reached \ntAllNearPct\% but fell short of its registered
+margin, with paraphrase accuracy at \ntAllParaPct\% against \ntGlobalParaPct\%. The router's score separates these questions from
+paraphrases with an AUROC of \ntAuroc, so most of this leakage depends on where the threshold sits. A middle tier that serves only the note between the
 routing threshold and a higher one reduced this leakage by about 10 points but cost 4.6 points of CounterFact
 paraphrases, more than its registered margin, so it was rejected as a default.
+
+\emph{Hard negatives.} We also retrained the encoder with negatives drawn from the relations it confuses most, with the threshold
+reset on the development split. Keeping the held-out relations, routing of questions about neighboring relations falls from
+\hnBaseNearPct\% to \hnANearPct\%, but routing of other-relation prompts rises from \hnBaseOtherPct\% to \hnAOtherPct\%, beyond the registered
+limit. Training on every relation raises CounterFact paraphrase routing to \hnBParaPct\% and also raises routing of neighboring-relation
+questions to \hnBNearPct\%. Neither replaces the encoder, so mined negatives move the leakage and do not remove it.
 
 \subsection{Aliases and Pronouns}
 \label{sec:alias}
@@ -705,8 +736,10 @@ conversation names, unless a later turn names someone who is not stored. Paraphr
 by an alias are routed correctly \alCfParaNamedPct\% and \alZsParaNamedPct\% of the time, against
 \alCfParaPlainPct\% and \alZsParaPlainPct\% without aliases. Edit prompts with a pronoun after a turn that names the
 subject reach \alCfPronPct\% and \alZsPronPct\%, and paraphrases \alCfPronParaPct\% and \alZsPronParaPct\%; the
-CounterFact paraphrases carry a leading sentence the pronoun can land on. Without the history none of them is routed. If
-a later turn names an unstored subject, \alCfLaterPct\% and \alZsLaterPct\% are routed. Routing of natural
+CounterFact paraphrases carry a leading sentence the pronoun can land on. Without the history none of them is routed. With adapter and note, edit prompts that use an alias are answered
+\alCfAnsAliasPct\% and \alZsAnsAliasPct\% of the time, and those that use a pronoun \alCfAnsPronPct\% and \alZsAnsPronPct\%.
+Proposition~\ref{prop:locality} covers a query as it reaches the router. The rewrite reads the store, so removing a fact can change the subject that a pronoun on a later turn is rewritten to.
+If a later turn names an unstored subject, \alCfLaterPct\% and \alZsLaterPct\% are routed. Routing of natural
 questions (\alNaturalPct\%) and other-relation prompts (\alOtherPct\%) does not change. All registered
 conditions hold, so both are the default. An approximate match in the first run turned the word ``more'' in a
 filler turn into the alias ``Morven,'' which sent every later pronoun to one entry on CounterFact; the rewrite now
@@ -768,6 +801,18 @@ facts that the base model does not answer, and removing one of its facts require
 retraining the group. Grouping is therefore an alternative to the tiered store for
 reducing storage, at the cost of coarser removal and some leakage.
 
+Shards chosen by the router, in the manner of SISA~\cite{bourtoule2021sisa}, do not yet
+pay for themselves. On a pilot of 96 facts, with $k$ from 8 to 32 and rank from 2 to 16, no
+arm met the preregistered rule, and all failed on paraphrases with the note against
+\shRefParaPct\% for per-fact adapters at a margin of 3 points. The closest arm at any size
+stores \shRandomSixteenKB{} KB per fact and reaches \shRandomSixteenParaPct\%. Eight facts
+at rank 2 store \shEightTwoKB{} KB per fact and reach \shEightTwoParaPct\%, with a forced
+leak of \shEightTwoLeakPct\% against \shRefLeakPct\% for the per-fact adapters. Retraining a
+shard without one fact took \shRemoveEight{} s for $k=8$ and \shRemoveThirtyTwo{} s for
+$k=32$, and two runs with one seed were bitwise equal in one process. The pilot does not
+separate the cost of sharing from the cost of the grouped recipe, which replaces LoRA+
+because LoRA+ collapses when grouped.
+
 % ===========================================================================
 \section{Discussion and Limitations}
 \label{sec:limits}
@@ -825,6 +870,31 @@ reached the paraphrase accuracy of the rank-2 adapter on 50 CounterFact facts (r
 against \asRtwoD{}), while their divergence on the two training canaries stayed below
 \rfInMax{}. The KL anchor constrains the intervention only on the two prompts it is
 computed on, whereas the intervened positions produce the answer to every query.
+A soft prompt of ten trained tokens per fact (\spKB\,KB) did not replace the adapter either.
+On 279 fresh facts it reached \spParaPct\% on paraphrases alone against \spRefParaPct\% for the
+rank-2 adapter, and \spParaNotePct\% against \spRefParaNotePct\% with the note.
+Training the adapter on up to three rewrites of the edit prompt, written by the base model, did not
+pass its registered rule either. On 150 CounterFact facts, paraphrases alone rose from
+\aoRefCfParaPct\% to \aoRewCfParaPct\%, close to the \aoRefCfNotePct\% of the current adapter with
+its note, but the forced leak on the subject's other relation rose from \aoRefEThPct\% to
+\aoRewEThPct\%, and answers kept under a wrong route, on 200 zsRE questions, fell from
+\aoRefRoutePct\% to \aoRewRoutePct\%. Adding phrasings trades generality for locality here, and the
+reading does not separate the phrasings from the larger number of updates they bring.
+Served through the router and the write gate, that store with no note still failed its rule, for a
+different reason. The router sends few of those prompts to the adapter: the leak was \srvFallEThPct\%
+against \srvCurEThPct\% for the current store, and \srvFallNatPct\% against \srvCurNatPct\% on natural
+questions about another relation, read with these results in hand. On CounterFact paraphrases it reached
+\srvFallCfParaPct\% against \srvCurCfParaPct\%, because the gate rejected adapters that then fell back to
+the shorter recipe; with the gate off it reached \srvOffCfParaPct\%.
+A retry for rejected adapters, trying another seed and then larger anchor weights until one passes the
+gate, removed that cost and the store still failed. On 800 fresh facts, \ladRejected\ of them rejected
+at the first attempt, the ladder store reached the rates of the store with the gate off, with
+\ladLadCfParaPct\% on CounterFact paraphrases against \ladCurCfParaPct\% for the current store. The
+paired difference was \ladCfGap, with a one-sided lower bound of \ladCfLower\ against a margin of
+$-0.03$. It reached \ladLadEditPct\% on edit prompts against \ladCurEditPct\%, and the leak did not
+separate the stores (\ladLadNatPct\% and \ladCurNatPct\% on natural questions, \ladNearPct\% on near
+relations). As registered, the note stays. Since the rejected facts no longer differ, the note appears
+to answer some paraphrases the adapter does not; the near-relation leak is a limit of the router.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -853,8 +923,8 @@ Each problem was documented before and after it was corrected.
 
 RELIC stores each fact learned after deployment as a separate entry on a frozen
 language model, consisting of a note and, where needed, a low-rank adapter, and selects
-entries with a router whose parameters do not depend on the stored facts. Removal and attribution are
-exact by construction. A first version met its requirements on the prompts used to store
+entries with a router whose parameters do not depend on the stored facts. Removal is exact by construction, and the
+router's decision names the entry behind an answer. A first version met its requirements on the prompts used to store
 the facts but failed on paraphrases, on other questions about stored subjects and in the
 calibration of its check. Revising the router and the check, and serving notes and
 adapters together, raised CounterFact paraphrase accuracy from 32.3\% to
@@ -870,7 +940,9 @@ of natural questions about them, and relations that the router has not seen in t
 the main open problem. Because a wrong route keeps only \wrBothPct\% of the base model's correct factual
 answers, this open problem bounds how far the system can be trusted. Across five base models the share of facts that
 need an adapter ranges from \scHalfNeedPct\% to \scOneFiveQNeedPct\% without following model size, so the adapter is
-an optional tier. Calibrating the divergence limits for each base model remains to be done.
+an optional tier. A store with no note, with a retry for adapters the gate rejects, removed the cost of the gate on 800
+fresh facts and still fell short of its registered margin on CounterFact paraphrases, so the note stays. Calibrating the
+divergence limits for each base model remains to be done.
 
 % ===========================================================================
 \appendices
@@ -880,7 +952,7 @@ an optional tier. Calibrating the divergence limits for each base model remains 
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 120 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 139 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

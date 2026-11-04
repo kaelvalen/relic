@@ -533,9 +533,119 @@ try:
         emit(f"al{tag}Pron", d["C1_probe"]["named"], fixed=True)
         emit(f"al{tag}PronPara", d["C1_paraphrase"]["named"], fixed=True)
         emit(f"al{tag}Later", d["C2"]["routed"], fixed=True)
+    served = json.load(open(R + "alias_eval_served.json"))["datasets"]
+    for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
+        emit(f"al{tag}AnsAlias", served[ds]["served_both"]["A1"]["word"], fixed=True)
+        emit(f"al{tag}AnsPron", served[ds]["served_both"]["C1_probe"]["word"], fixed=True)
     false = al["datasets"]["counterfact"]["false"]
     emit("alNatural", false["F4_natural"]["named"], fixed=True)
     emit("alOther", false["F1_other_relation"]["named"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS104 asymmetric slots (prefix "sl").
+try:
+    sl = json.load(open(R + "slot_eval_asym.json"))["datasets"]
+    fresh = json.load(open(R + "slot_fresh.json"))
+    emit("slZsReturn", sl["zsre"]["removal"]["return"]["rate"])
+    out.append(f"\\newcommand{{\\slZsMerged}}{{{sl['zsre']['actions']['duplicate']}}}")
+    out.append(f"\\newcommand{{\\slZsOld}}{{{sl['zsre']['removal']['old']:.2f}}}")
+    emit("slZsPara", sl["zsre"]["serving"]["paraphrase_both"]["new"], fixed=True)
+    emit("slCfPara", sl["counterfact"]["serving"]["paraphrase_both"]["new"], fixed=True)
+    emit("slFreshPer", fresh["per_entry"]["residual_share"])
+    emit("slFreshAsym", fresh["asymmetric"]["residual_share"])
+    emit("slFreshUpper", fresh["asymmetric"]["upper_95_one_sided"])
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS110 hard negatives from a confusion matrix (prefix "hn").
+try:
+    hn = json.load(open(R + "hardneg_eval.json"))["readings"]
+    for name, arm in (("Base", "baseline"), ("A", "hardA"), ("B", "hardB")):
+        emit(f"hn{name}Near", hn[arm]["natural_near"]["rate"], fixed=True)
+        emit(f"hn{name}Other", hn[arm]["e3"]["rate"], fixed=True)
+        emit(f"hn{name}Para", hn[arm]["cf_paraphrase"]["rate"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS112 shard adapters.
+try:
+    s = json.load(open(R + "shard_eval.json"))
+    ref = s["reference"]
+    emit("shRefPara", ref["paraphrase_note"], fixed=True)
+    emit("shRefLeak", ref["e3_leak"], fixed=True)
+    for tag, arm in [("EightTwo", "8/2/relation"), ("RandomSixteen", "16/16/random")]:
+        a = s["arms"][arm]
+        emit(f"sh{tag}Para", a["paraphrase_note"], fixed=True)
+        emit(f"sh{tag}Leak", a["e3_leak"], fixed=True)
+        out.append(f"\\newcommand{{\\sh{tag}KB}}{{{a['bytes_per_fact'] / 1000:.0f}}}")
+    emit_diff("shEightTwoLeakDiff", s["arms"]["8/2/relation"]["e3_leak_minus_ref"])
+    for tag, arm in [("Eight", "8/16/relation"), ("ThirtyTwo", "32/16/relation")]:
+        out.append(f"\\newcommand{{\\shRemove{tag}}}{{{s['arms'][arm]['removal']['seconds']:.0f}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS113 soft prompt.
+try:
+    s = json.load(open(R + "soft_prompt.json"))
+    sf, rf = s["summary"]["soft"], s["summary"]["r2_lp_int8"]
+    out.append(f"\\newcommand{{\\spKB}}{{{s['bytes_per_fact'] / 1000:.0f}}}")
+    emit("spProbe", sf["pooled"]["probe"], fixed=True)
+    emit("spPara", sf["pooled"]["paraphrase"], fixed=True)
+    emit("spRefPara", rf["pooled"]["paraphrase"], fixed=True)
+    emit("spParaNote", sf["pooled"]["paraphrase_note"], fixed=True)
+    emit("spRefParaNote", rf["pooled"]["paraphrase_note"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS126 the adapter alone on rewrites (prefix "ao").
+try:
+    s = json.load(open(R + "adapter_only.json"))["summary"]
+    for tag, arm in (("Ref", "A0"), ("Rew", "A1")):
+        emit(f"ao{tag}CfPara", s[arm]["cf"]["paraphrase"], fixed=True)
+        emit(f"ao{tag}ETh", s[arm]["e3_leak"], fixed=True)
+        emit(f"ao{tag}Route", s[arm]["wrong_route_word"], fixed=True)
+    emit("aoRefCfNote", s["A0"]["cf"]["paraphrase_note"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS130 the same adapters through the router and the gate (prefix "srv").
+try:
+    s = json.load(open(R + "served_adapter.json"))["summary"]
+    for tag, store in (("Cur", "current"), ("Fall", "fallback"), ("Off", "gate_off")):
+        emit(f"srv{tag}CfPara", s[store]["paraphrase_cf"], fixed=True)
+        emit(f"srv{tag}ETh", s[store]["e3"], fixed=True)
+        emit(f"srv{tag}Nat", s[store]["natural"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS136 the store with no note and a retry ladder, 800 fresh facts (prefix "lad").
+try:
+    r = json.load(open(R + "fresh_ladder.json"))
+    s = r["summary"]
+    for tag, store in (("Cur", "current"), ("Lad", "ladder"), ("Off", "gate_off")):
+        emit(f"lad{tag}Edit", s[store]["edit"], fixed=True)
+        emit(f"lad{tag}Para", s[store]["paraphrase"], fixed=True)
+        emit(f"lad{tag}CfPara", s[store]["paraphrase_cf"], fixed=True)
+        emit(f"lad{tag}Nat", s[store]["natural"], fixed=True)
+    emit("ladNear", s["ladder"]["natural_near"], fixed=True)
+    d = s["ladder"]["minus_current"]["paraphrase_cf"]
+    out.append(f"\\newcommand{{\\ladCfGap}}{{{d['diff']:+.3f}}}")
+    out.append(f"\\newcommand{{\\ladCfLower}}{{{d['lower_95_one_sided']:+.3f}}}")
+    out.append(f"\\newcommand{{\\ladRejected}}{{{len(r['rejected_by_A1'])}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
+# SS138 thresholds per relation on fresh facts, as served (prefix "nt").
+try:
+    r = json.load(open(R + "near_threshold.json"))
+    s = r["stores"]["current"]
+    for tag, arm in (("Global", "global"), ("Rel", "R107"), ("All", "Rall")):
+        emit(f"nt{tag}Near", s[arm]["near"]["rate"], fixed=True)
+        emit(f"nt{tag}Para", s[arm]["paraphrase_cf"]["rate"], fixed=True)
+    emit("ntAuroc", r["auroc"]["pooled"], fixed=True)
+    d = s["R107"]["paraphrase_cf"]["minus_global"]["diff"]
+    out.append(f"\\newcommand{{\\ntParaDiff}}{{{100 * d:.2f}}}")
 except FileNotFoundError as e:
     missing.append(e.filename)
 

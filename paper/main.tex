@@ -51,20 +51,21 @@ mehmetardahakbilen2005@gmail.com).}}
 Writing facts into a model's shared weights makes it hard to remove an
 individual fact, identify the fact behind an answer, or limit an update's effect on
 unrelated inputs. We present RELIC, which keeps the base model
-frozen and stores each fact as an entry served as a note in the context, a low-rank
-adapter, or both. A router whose parameters are fixed before any fact is stored
+frozen and stores each fact as an entry: a low-rank
+adapter, evaluated here also with a note in the context. A router whose parameters are fixed before any fact is stored
 selects at most one entry per query, so exact removal and answer attribution follow from
 the data structure. We measure the other properties in a pre-registered study with
 1000 facts each from CounterFact and zsRE on Qwen2.5-1.5B-Instruct. Training anchors, notes,
 general-purpose encoders and relevance tests only move along a threshold trade-off between
 paraphrase accuracy and leakage. A relation encoder trained offline on disjoint data does better:
-CounterFact paraphrase accuracy is \xCfParaBothPct\% at \xCfEthreeLeakBothPct\% leakage on
-CounterFact templates, and zsRE paraphrase accuracy is \xZsParaBothPct\%. Leakage into neighboring relations
+CounterFact paraphrase accuracy is \xCfParaBothPct\% at \xCfEthreeLeakBothPct\% leakage,
+and zsRE paraphrase accuracy is \xZsParaBothPct\%. Leakage into neighboring relations
 remains: \nqNearLeakCorrPct\% of natural questions about them, written by another model, receive a
 wrong stored answer. A wrong route is costly, keeping \wrBothPct\% of the base model's correct factual
-answers, although none of 1000 MMLU and ARC questions is routed. Across five base models up to 7B parameters
-and two families, \scHalfNeedPct\% to \scOneFiveQNeedPct\% of facts need an adapter, \scSevenNeedPct\% at 7B,
-with the fewest at the smallest model. The adapter is thus an optional tier. The divergence check must use held-out prompts, and its limits must be recalibrated
+answers, although none of 1000 MMLU and ARC questions is routed. Across five base models,
+\scHalfNeedPct\% to \scOneFiveQNeedPct\% of facts are not answered by their note, with the fewest at the smallest model.
+A store with no note, now the default, fell short of its registered margin on CounterFact paraphrases
+(\ladLadCfParaPct\% against \ladCurCfParaPct\%). The divergence check must use held-out prompts, and its limits must be recalibrated
 for each base model.
 \end{abstract}
 
@@ -105,8 +106,8 @@ the database sense~\cite{haerder1983transactions}: an addition is accepted only 
 passes a check, a removal returns the store to its earlier state, and each operation is
 logged. Here a transaction means an atomic operation by a single writer, with no isolation between
 processes. We call the resulting system RELIC (Revocable Entries for Language model
-Insertions and Corrections). The base model is never updated, each fact is a separate entry that consists of
-a note and, if needed, a low-rank adapter, and a router whose parameters are fixed
+Insertions and Corrections). The base model is never updated, each fact is a separate entry that holds a
+low-rank adapter (the main evaluation below also serves a note), and a router whose parameters are fixed
 before any fact is stored applies at most one entry to a query. Exact removal and answer attribution are then
 properties of the data structure (Section~\ref{sec:problem}). Whether stored facts are
 answered, whether unrelated queries are unaffected, and whether removal restores the base
@@ -453,6 +454,12 @@ records form the log, and the leave-one-out check is a separate script. We have 
 \end{algorithmic}
 \end{algorithm}
 
+\emph{Default write path.} Algorithm~\ref{alg:txn} shows the tiered store of the main evaluation. The default store
+has no note. A write trains on the fact and on up to three rewrites of its edit prompt by the base model, and tries a
+ladder of retries: another seed, then KL weights of 2, 4, 8 and 16, then no rewrites. The first adapter under $\kappa$ is
+stored, and if none passes the write commits nothing. Serving applies the routed adapter alone. The propositions hold
+with every note empty.
+
 % ===========================================================================
 % ===========================================================================
 \section{Experimental Setup}
@@ -700,7 +707,7 @@ relations, and with adapter and note \nqNearLeakPct\% of the latter contain the 
 Many of these outputs are correct, because neighboring relations coincide for the subjects
 involved. We labeled the \nqLabelled{} sampled outputs that the automatic rule counts as
 leakage, without seeing which router had served them; the labels were made by the language
-model used in the analysis, not by a human annotator. Of the outputs with a clear verdict,
+model used in the analysis, blind to the router. The author labeled 200 such outputs independently; on items neither marked unsure the two agree with a Cohen's kappa of \hlKappa, and the author's labels put this leakage at \hlCorrPct\%. Of the outputs with a clear verdict,
 \nqLegitSharePct\% give a correct answer, which puts leakage at \nqNearLeakCorrPct\% for questions
 about neighboring relations and \nqLeakCorrPct\% overall. Most of the remaining leaks give an
 answer of the wrong type, such as a continent for a country.
@@ -716,7 +723,8 @@ the fall is lost correct answers, as the labels above suggest. On 400 fresh Coun
 near-relation leak fell from \ntGlobalNearPct\% to \ntRelNearPct\% at \ntParaDiff\ points of paraphrase accuracy, and these
 thresholds are now part of the write path. Calibrating on more questions reached \ntAllNearPct\% but fell short of its registered
 margin, with paraphrase accuracy at \ntAllParaPct\% against \ntGlobalParaPct\%. The router's score separates these questions from
-paraphrases with an AUROC of \ntAuroc, so most of this leakage depends on where the threshold sits. A middle tier that serves only the note between the
+paraphrases with an AUROC of \ntAuroc, so most of this leakage depends on where the threshold sits. The threshold does not tell a wrong answer from a correct one:
+of the items the author labeled, it removes \hlLeakGonePct\% of the leaks and \hlLegitGonePct\% of the correct answers. A middle tier that serves only the note between the
 routing threshold and a higher one reduced this leakage by about 10 points but cost 4.6 points of CounterFact
 paraphrases, more than its registered margin, so it was rejected as a default.
 
@@ -893,8 +901,10 @@ at the first attempt, the ladder store reached the rates of the store with the g
 paired difference was \ladCfGap, with a one-sided lower bound of \ladCfLower\ against a margin of
 $-0.03$. It reached \ladLadEditPct\% on edit prompts against \ladCurEditPct\%, and the leak did not
 separate the stores (\ladLadNatPct\% and \ladCurNatPct\% on natural questions, \ladNearPct\% on near
-relations). As registered, the note stays. Since the rejected facts no longer differ, the note appears
-to answer some paraphrases the adapter does not; the near-relation leak is a limit of the router.
+relations). Since the rejected facts no longer differ, the note appears to answer some paraphrases the adapter does not;
+the near-relation leak is a limit of the router. By the registered rule the note would stay. We made this store the default
+because it is simpler, without a claim that it passed, and it reproduces exactly through the library's write path on 16 facts.
+This choice rests on one model at rank 2, and removal, retention and benchmarks have not been read on this store.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -907,7 +917,7 @@ adapter-and-note results insensitive to the score (at most \saBothDropPct\ point
 the note arm on zsRE is flattered by it (\saNoteZsSubPct\% against \saNoteZsWordPct\%), so the shares in
 Section~\ref{sec:scale} use the word boundary. zsRE is used with reference answers rather than counterfactual
 targets. The editing baselines use 200 facts. The saved stores identify the base model by name and not by a hash of
-its weights. The labels of the natural questions were not assigned by a human annotator.
+its weights. The corrected rate from the author's labels rests on \hlItems{} items.
 
 \emph{Errors during the study.} Besides the evaluation error of Appendix~\ref{sec:v3}, the
 record contains an initialization that set both LoRA factors to zero so that some
@@ -922,7 +932,7 @@ Each problem was documented before and after it was corrected.
 \section{Conclusion}
 
 RELIC stores each fact learned after deployment as a separate entry on a frozen
-language model, consisting of a note and, where needed, a low-rank adapter, and selects
+language model, a low-rank adapter, evaluated first with a note in the context, and selects
 entries with a router whose parameters do not depend on the stored facts. Removal is exact by construction, and the
 router's decision names the entry behind an answer. A first version met its requirements on the prompts used to store
 the facts but failed on paraphrases, on other questions about stored subjects and in the
@@ -941,7 +951,8 @@ the main open problem. Because a wrong route keeps only \wrBothPct\% of the base
 answers, this open problem bounds how far the system can be trusted. Across five base models the share of facts that
 need an adapter ranges from \scHalfNeedPct\% to \scOneFiveQNeedPct\% without following model size, so the adapter is
 an optional tier. A store with no note, with a retry for adapters the gate rejects, removed the cost of the gate on 800
-fresh facts and still fell short of its registered margin on CounterFact paraphrases, so the note stays. Calibrating the
+fresh facts and fell short of its registered margin on CounterFact paraphrases. We made it the default for its simplicity, and
+the main evaluation on it remains to be done. Calibrating the
 divergence limits for each base model remains to be done.
 
 % ===========================================================================
@@ -952,7 +963,7 @@ divergence limits for each base model remains to be done.
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 139 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 144 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

@@ -6,9 +6,12 @@ trained with LoRA+ (B at 8 times the learning rate of A) and stored in int8.
 
 from __future__ import annotations
 
+import re
+
 import torch
 
 from relic.model import load_model
+from relic.router import find_subject
 
 SEED = 81
 R2 = dict(r=2, targets=["q_proj", "v_proj"], layers=None, fa=False)
@@ -135,6 +138,43 @@ def train_adapter(store, pairs: list, seed: int = SEED) -> dict:
         return pad(int8_delta(train_one(store, R2, pairs, b_mult=8, seed=seed)))
     finally:
         store.model.to("cuda:0")
+
+
+# SS126: phrasings the base model writes from the subject and the edit prompt alone
+REWRITE_SYSTEM = "You rewrite prompts."
+REWRITE_USER = (
+    "Rewrite the following incomplete sentence or question in three different ways that "
+    'ask for the same information. Keep the name "{subject}" exactly as written. Write one '
+    "rewrite per line, without numbering.\n\n{probe}"
+)
+N_REWRITES = 3
+_BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
+
+# SS136: tried in order, and the first adapter under the divergence limit is stored:
+# (name, adapter seed, KL weight, trained on the rewrites)
+LADDER = (
+    ("A1", 126, 1.0, True),
+    ("R1", 127, 1.0, True),
+    ("L2", 126, 2.0, True),
+    ("L4", 126, 4.0, True),
+    ("L8", 126, 8.0, True),
+    ("L16", 126, 16.0, True),
+    ("A0", 126, 1.0, False),
+)
+
+
+def parse_rewrites(text: str, probe: str, subject: str) -> list[str]:
+    out = []
+    for line in text.splitlines():
+        line = _BULLET.sub("", line).strip().strip('"').strip()
+        if not line or line == probe.strip() or line in out:
+            continue
+        if find_subject(line, subject) is None:
+            continue
+        out.append(line)
+        if len(out) == N_REWRITES:
+            break
+    return out
 
 
 def fact_pairs(fact: dict) -> list[tuple[str, str]]:

@@ -105,6 +105,76 @@ def test_a_write_under_an_alias_finds_the_slot_of_the_full_name():
     assert event["action"] == "update" and event["superseded"] == "a"
 
 
+def ladder_ledger(monkeypatch, klds):
+    """A ledger whose training returns a fresh delta and whose gate reads `klds` in order."""
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.store.kl_lambda = 1.0
+    calls = []
+
+    def train(store, pairs, seed):
+        calls.append((len(pairs), seed, store.kl_lambda))
+        return delta()
+
+    monkeypatch.setattr(module, "train_adapter", train)
+    monkeypatch.setattr(led, "_rewrites", lambda f: ["Where was Ann born?"])
+    values = iter(klds)
+    monkeypatch.setattr(led.store, "_expert_kld", lambda d, p: next(values))
+    return led, calls
+
+
+def test_write_stores_the_first_rung_under_the_limit(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [2.0, float("nan"), 0.5])
+    event = led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert event["action"] == "insert" and event["rung"] == "L2"
+    assert calls == [(3, 126, 1.0), (3, 127, 1.0), (3, 126, 2.0)]
+    assert "a" in led.store.deltas and led.store.kl_lambda == 1.0
+
+
+def test_write_commits_nothing_when_every_rung_fails(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [2.0] * 7)
+    before = led.state_hash()
+    event = led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert event["action"] == "rejected" and len(event["tried"]) == 7
+    assert calls[-1] == (2, 126, 1.0)  # the last rung has no rewrites
+    assert led.state_hash() == before and not led.entries
+
+
+def test_a_repeated_fact_trains_nothing(monkeypatch):
+    led, calls = ladder_ledger(monkeypatch, [0.5])
+    led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
+    assert (
+        led.write(fact("b", "Ann", "Ann was born in", "Oslo"))["action"] == "duplicate"
+    )
+    assert len(calls) == 1
+
+
+def test_ask_serves_the_adapter_with_no_note(monkeypatch):
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"), delta())
+    seen = {}
+
+    def serve(store, fid, q, system=None):
+        seen.update(fid=fid, system=system)
+        return "Oslo"
+
+    monkeypatch.setattr(module, "serve_expert", serve)
+    out = led.ask("Ann was born in")
+    assert out["entry"] == "a" and seen == {"fid": "a", "system": None}
+
+
+def test_an_entry_with_no_adapter_is_not_named_as_the_source(monkeypatch):
+    import relic.ledger as module
+
+    led = make_ledger()
+    led.commit(fact("a", "Ann", "Ann was born in", "Oslo"))
+    monkeypatch.setattr(module, "base_answer", lambda store, q: "base")
+    assert led.ask("Ann was born in") == {"answer": "base", "entry": None, "score": 1.0}
+
+
 def test_a_reused_id_for_another_fact_is_refused_and_changes_nothing():
     led = make_ledger()
     led.commit(fact("a", "Ann", "Ann was born in", "Oslo"), delta())

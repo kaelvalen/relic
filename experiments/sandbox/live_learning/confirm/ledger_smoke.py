@@ -23,7 +23,7 @@ NEW = {
     "teach": "The mother tongue of Danielle Darrieux is English",
     "aliases": ["Danielle Yvonne Darrieux"],
 }
-# a counterfactual target that the note alone rarely produces, so the adapter tier is used
+# a counterfactual target far from what the base model says
 HARD = {
     "id": "f2",
     "subject": "Toko Yasuda",

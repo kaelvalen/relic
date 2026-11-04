@@ -636,6 +636,19 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS138 thresholds per relation on fresh facts, as served (prefix "nt").
+try:
+    r = json.load(open(R + "near_threshold.json"))
+    s = r["stores"]["current"]
+    for tag, arm in (("Global", "global"), ("Rel", "R107"), ("All", "Rall")):
+        emit(f"nt{tag}Near", s[arm]["near"]["rate"], fixed=True)
+        emit(f"nt{tag}Para", s[arm]["paraphrase_cf"]["rate"], fixed=True)
+    emit("ntAuroc", r["auroc"]["pooled"], fixed=True)
+    d = s["R107"]["paraphrase_cf"]["minus_global"]["diff"]
+    out.append(f"\\newcommand{{\\ntParaDiff}}{{{100 * d:.2f}}}")
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS106 three tiers, SS107 thresholds per relation, SS97 the score audit.
 try:
     t = json.load(open(R + "tau_calib.json"))["readings"]

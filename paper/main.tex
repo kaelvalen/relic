@@ -712,7 +712,11 @@ questions about neighboring relations falls from \tcNearGlobalPct\% to \tcNearRe
 points, 95\% CI \tcNearDiffCI), at a cost of \tcParaCfDiff\ points of paraphrase routing on CounterFact and
 \tcParaZsDiff\ on zsRE. A single threshold set the same way costs too much paraphrase routing and was rejected.
 The thresholds require a relation identifier, which zsRE lacks, so they equal the global threshold there. Part of
-the fall is lost correct answers, as the labels above suggest. A middle tier that serves only the note between the
+the fall is lost correct answers, as the labels above suggest. On 400 fresh CounterFact facts, served, the automatic
+near-relation leak fell from \ntGlobalNearPct\% to \ntRelNearPct\% at \ntParaDiff\ points of paraphrase accuracy, and these
+thresholds are now part of the write path. Calibrating on more questions reached \ntAllNearPct\% but fell short of its registered
+margin, with paraphrase accuracy at \ntAllParaPct\% against \ntGlobalParaPct\%. The router's score separates these questions from
+paraphrases with an AUROC of \ntAuroc, so most of this leakage depends on where the threshold sits. A middle tier that serves only the note between the
 routing threshold and a higher one reduced this leakage by about 10 points but cost 4.6 points of CounterFact
 paraphrases, more than its registered margin, so it was rejected as a default.
 
@@ -948,7 +952,7 @@ divergence limits for each base model remains to be done.
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 137 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 139 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

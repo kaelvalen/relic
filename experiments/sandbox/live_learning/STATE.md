@@ -2,12 +2,10 @@
 
 ## Current state (2026-11-04)
 
-Branch `review-2026-11`. The record runs to entry 139 of `docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`; the next
-free entry is 140. Commits after c41b846 and the `prereg-*` tags are local. The last line of work tried a store
-with no note (entries 126 to 137). It removes the cost of the gate and fails its rule on CounterFact paraphrases,
-so the note stays. Per-relation thresholds held on fresh facts (entries 138, 139) and are now `relation_tau` on
-`Ledger`. Open: the near-relation leakage that remains, the human label sheet
-`results/live_learning/confirm/human_labels_sheet.csv`, and the model revision in the state hash. Long jobs go through `results/live_learning/confirm/queue_runner.sh`. The GPU is shared, so check
+The record runs to entry 144 of `docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`; the next free entry is 145. Most `prereg-*` tags are local. The store with no note is the default by the author's
+decision (entry 143), after failing its rule on CounterFact paraphrases (entry 137), and `Ledger` reproduces it (entry
+144). Per-relation thresholds are `relation_tau` on `Ledger`. Open: the main evaluation on this store, near-relation
+leakage, this store beyond 1.5B, and the model revision in the state hash. Long jobs go through `results/live_learning/confirm/queue_runner.sh`. The GPU is shared, so check
 `nvidia-smi` first and never stop another project's process.
 
 Everything below is the earlier log, kept as written.

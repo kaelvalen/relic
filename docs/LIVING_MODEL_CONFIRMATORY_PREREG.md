@@ -3482,3 +3482,11 @@ Change. `Ledger.write`: same answer in a slot joins it, otherwise rewrites by th
 Parity check, pinned before it runs. Runner: confirm/ledger_parity.py, the real model, 16 facts of SS136: 4 first-attempt facts per dataset and 2 per rung from R1, L2, L4 and L8, taken in id order. It holds if the rewrites match, every fact stores at the same rung, D differs by at most .01, at least 95 percent of edit and paraphrase answers are identical to the saved ones, and each query routes to its own entry. The stored adapters are padded into the store's layout, which entry 94 found changes logits by 1 to 3 ulps, so a few answers may differ. If it fails, the default is not moved until the cause is found.
 
 Prediction. P1: it holds, with 100 percent identical answers on first-attempt facts.
+
+## 144. Parity results: `Ledger` builds the store SS136 tested (2026-11-04)
+
+Source: results/live_learning/confirm/ledger_parity.json. It holds on every part: on 16 facts the rewrites match, every fact stores at the same rung, the largest difference in D is 0, and all 31 edit and paraphrase answers are identical to the saved ones and route to their own entry. confirm/ledger_smoke.py ran end to end. P1 held, and the rung facts match as well.
+
+Sequence. The branch with the change was merged to main by the author at 14:01, before this check finished at 14:04. The condition of entry 143 is met, so nothing has to move back.
+
+Scope. This shows that the write path and the serving path reproduce the tested store. It adds no new reading of quality: removal, retention, the 1000 wrong-route questions, benchmarks, aliases and pronouns have not been read on the store with no note. The main tables of the paper and the README still come from the earlier stores with adapter and note.

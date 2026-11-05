@@ -636,6 +636,18 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS102, SS141 the author's labels (prefix "hl").
+try:
+    h = json.load(open(R + "human_labels.json"))
+    out.append(f"\\newcommand{{\\hlKappa}}{{{h['two_class']['kappa']:.3f}}}")
+    emit("hlCorr", h["corrected_near_leak"]["near_leak_corrected"], fixed=True)
+    out.append(f"\\newcommand{{\\hlItems}}{{{h['corrected_near_leak']['labelled']}}}")
+    t = json.load(open(R + "label_thresholds.json"))["all"]["R107"]
+    emit("hlLegitGone", t["legit"]["share"], fixed=True)
+    emit("hlLeakGone", t["leak"]["share"], fixed=True)
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS138 thresholds per relation on fresh facts, as served (prefix "nt").
 try:
     r = json.load(open(R + "near_threshold.json"))

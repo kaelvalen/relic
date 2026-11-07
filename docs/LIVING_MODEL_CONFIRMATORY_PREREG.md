@@ -2172,7 +2172,7 @@ adapter facts (162 CF) would take 60 MB instead of 1.4 GB.
 ## 90. SS85 labels: who labels (deviation, 2026-10-20, before any label exists)
 
 SS85 pinned that the author labels the 120 sampled routed answers. The author asked the
-analysing model (Claude) to label them instead. Procedure, fixed before labelling: only
+analysing model to label them instead. Procedure, fixed before labelling: only
 the 106 items that the scorer uses (the response with adapter and note contains the
 stored target and the base response does not) are labelled; the other 14 cannot change
 any figure and stay unlabelled. The items are shown to the labeller without the router

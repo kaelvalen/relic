@@ -674,11 +674,9 @@ try:
     )
     emit("nlWrongBoth", sum(x["saved"]["both_r2"] for x in w) / len(w), fixed=True)
     ev = r["events"]
-    emit(
-        "nlRetry",
-        sum(e.get("rung") not in (None, "A1") for e in ev) / len(ev),
-        fixed=True,
-    )
+    trained = [e for e in ev if e["action"] != "duplicate"]
+    failed = [e for e in trained if e.get("rung") != "A1"]  # a later rung, or rejected
+    emit("nlRetry", len(failed) / len(trained), fixed=True)
     saved = json.load(open(R + "cf_n1000_r2_v8_eval.json"))["examples"]["serving"]
     emit(
         "nlParaBoth",

@@ -3506,3 +3506,35 @@ Predictions. P1: 4 to 7 percent of facts fail the first attempt, and at most .5 
 Token length, written before the run. The saved evaluations of the main stores and SS100 generated 24 tokens; `DeltaStore.answer` now generates 64. Every paired comparison with a saved reading therefore cuts the new response to its first 24 tokens, which equals generating 24 with greedy decoding, and reports the 64-token reading beside it. This also limits entry 143: its figure of .535 for the store with no note was generated at 64 tokens on 200 questions, and its comparison of about .37 at 24 tokens on 1000, so part of that gap may be length. Reading (v) settles it.
 
 Limits. One model, rank 2, seen facts. About 8 to 12 hours of GPU.
+
+## 146. SS145, the CounterFact half (2026-11-07)
+
+Status. The queue started the run once the GPU was free. The CounterFact half finished at 00:16 on 2026-11-05. The zsRE half stopped after 550 of 1000 writes, its parts are on disk, and the author asked that it not be restarted for now. The rule of entry 145 needs both halves, so this entry reads the parts that rest on CounterFact and decides nothing for zsRE.
+
+Source: results/live_learning/confirm/notless_eval_cf.json. Paired readings cut the new responses to 24 tokens, as entry 145 says.
+
+| Reading, 1000 CounterFact facts | Store with no note | Rank 2, adapter and note (SS94, SS100, SS101) |
+|---|---|---|
+| Edit prompts, word boundary | .995 | .995 |
+| Paraphrases, word boundary | .844 | .885 |
+| Paraphrases with relation thresholds | .840 | not read |
+| E3 leak, with relation thresholds | .038 | .044 |
+| E2 leak | .005 | .017 |
+| Synthetic distractors routed | 0 | 0 |
+| Natural near leak, one threshold / relation thresholds | .274 / .146 | |
+| Natural uniform leak | .002 / 0 | |
+| Removal of 100: gone, return to base | 1.00, 1.00 | 1.00, 1.00 |
+| Retention of the others | .998 | .999 |
+| Wrong route kept, 998 questions, 24 tokens | .558 | .369 |
+| MMLU and ARC routed | 0 of 1000 | 0 of 1000 |
+| MMLU and ARC forced through a random entry, minus base | -.017 | -.022 |
+
+Paraphrase, paired: -.041, 95 percent interval -.059 to -.023. Wrong route, paired against adapter and note: +.189, lower bound +.159; against the rank-2 adapter alone of the earlier recipe (.667): -.107. At 64 tokens wrong route is .560, so the gap to adapter and note is not a matter of length.
+
+Write path. Of the 999 writes that trained, 818 passed at the first attempt and 181 did not (18.1 percent); R1 stored 45, L2 52, L4 43, L8 23, L16 15; 3 have no entry; 1 write joined an entry and 1 replaced one. A write took 20.9 s at the median and 29.9 s on average, on a GPU shared at times.
+
+Rule, CounterFact parts. (i) retention .998 and (ii) return 1.00 hold on CounterFact. (iii) no distractor and no MMLU or ARC question is routed. (iv) E3 .038 holds. (v) holds. The zsRE parts of (i) to (iii) are open.
+
+Predictions. P1 failed: 18.1 percent failed the first attempt, against 4 to 7; the second part held, 0.3 percent have no entry. P2 held on CounterFact. P3 failed on CounterFact: .844 is under the .885 of adapter and note, not level with it. P4 held on CounterFact. P5 held on CounterFact, with wrong route .558. P6 failed: forced MMLU and ARC cost 1.7 points, interval -3.3 to -0.1, against at most 1.5; adapter and note cost 2.2.
+
+Reading. On the facts of the main store the note is worth 4.1 points of CounterFact paraphrase, twice the gap on fresh facts (entry 137), and more facts need a retry (18 against 5 percent). The store with no note keeps a wrong route far less harmful than adapter and note, though more harmful than the earlier adapter alone, which trained on no rewrites. Removal and retention hold.

@@ -2172,7 +2172,7 @@ adapter facts (162 CF) would take 60 MB instead of 1.4 GB.
 ## 90. SS85 labels: who labels (deviation, 2026-10-20, before any label exists)
 
 SS85 pinned that the author labels the 120 sampled routed answers. The author asked the
-analysing model (Claude) to label them instead. Procedure, fixed before labelling: only
+analysing model to label them instead. Procedure, fixed before labelling: only
 the 106 items that the scorer uses (the response with adapter and note contains the
 stored target and the base response does not) are labelled; the other 14 cannot change
 any figure and stay unlabelled. The items are shown to the labeller without the router
@@ -3490,3 +3490,51 @@ Source: results/live_learning/confirm/ledger_parity.json. It holds on every part
 Sequence. The branch with the change was merged to main by the author at 14:01, before this check finished at 14:04. The condition of entry 143 is met, so nothing has to move back.
 
 Scope. This shows that the write path and the serving path reproduce the tested store. It adds no new reading of quality: removal, retention, the 1000 wrong-route questions, benchmarks, aliases and pronouns have not been read on the store with no note. The main tables of the paper and the README still come from the earlier stores with adapter and note.
+
+## 145. The main evaluation on the default store (pinned 2026-11-04, before the run)
+
+Question. The main tables come from stores with adapter and note. What do the readings of those tables give on the default store, built through the library's own write path?
+
+Runner: confirm/notless_eval.py. Facts: the 1000 CounterFact and 1000 zsRE facts of the main stores, in stored order. Build: `Ledger.write` for each, one after the other, so slots merge repeated facts as they would in use. Qwen2.5-1.5B, rank 2 in int8, the ladder of entry 136, kappa 0.968. These facts have been seen, so the readings are for comparison with the main tables, and the fresh-fact reading stays entry 137.
+
+Readings, word boundary and substring, under one threshold and under `RELATION_TAU`, which applies to CounterFact only. Edit prompts and paraphrases answered, paired with the saved rank-2 store with adapter and note. E3 and E2 leak on CounterFact: the stored answer in the output and not in the base model's. Natural questions of SS85 on CounterFact, near and uniform. Synthetic distractors on both, and zsRE loc questions, routed share. Removal of the first 100 facts by the entry that holds each: gone, return to base, and retention of the others. Forced wrong route on the 1000 questions of SS100 with the same wrong entries, CounterFact store, paired with saved `adapter_r2` and `both_r2`. MMLU and ARC, the 1000 questions of SS101: routed share, and forced through a random entry with seed 145, paired with base. Pronouns on edit prompts after a turn that names the subject, answered. Write path: rung shares, facts with no entry, seconds per write.
+
+Rule, for the claims and not for the default, which entry 143 settles. A claim stands for the default store if: (i) retention at least .98 on both; (ii) return to base at least .98 on both; (iii) no distractor routed, and MMLU and ARC routed at most 1 in 1000; (iv) E3 leak at most .06 under `RELATION_TAU`; (v) wrong route retained above `both_r2`, lower bound of the paired difference above 0. A part that fails is reported, and the claim is withdrawn for the default. A failure of (i) or (ii) goes back to the author.
+
+Predictions. P1: 4 to 7 percent of facts fail the first attempt, and at most .5 percent have no entry. P2: edit prompts at least .98 on both. P3: paraphrases about .90 on CounterFact and .94 on zsRE, under the .885 and .975 of the rank-2 store with note on zsRE and level or above it on CounterFact. P4: retention at least .99 and return at least .98. P5: (iii), (iv) and (v) hold, with wrong route about .55. P6: forced MMLU and ARC cost at most 1.5 points, less than the 2.2 of adapter and note.
+
+Token length, written before the run. The saved evaluations of the main stores and SS100 generated 24 tokens; `DeltaStore.answer` now generates 64. Every paired comparison with a saved reading therefore cuts the new response to its first 24 tokens, which equals generating 24 with greedy decoding, and reports the 64-token reading beside it. This also limits entry 143: its figure of .535 for the store with no note was generated at 64 tokens on 200 questions, and its comparison of about .37 at 24 tokens on 1000, so part of that gap may be length. Reading (v) settles it.
+
+Limits. One model, rank 2, seen facts. About 8 to 12 hours of GPU.
+
+## 146. SS145, the CounterFact half (2026-11-07)
+
+Status. The queue started the run once the GPU was free. The CounterFact half finished at 00:16 on 2026-11-05. The zsRE half stopped after 550 of 1000 writes, its parts are on disk, and the author asked that it not be restarted for now. The rule of entry 145 needs both halves, so this entry reads the parts that rest on CounterFact and decides nothing for zsRE.
+
+Source: results/live_learning/confirm/notless_eval_cf.json. Paired readings cut the new responses to 24 tokens, as entry 145 says.
+
+| Reading, 1000 CounterFact facts | Store with no note | Rank 2, adapter and note (SS94, SS100, SS101) |
+|---|---|---|
+| Edit prompts, word boundary | .995 | .995 |
+| Paraphrases, word boundary | .844 | .885 |
+| Paraphrases with relation thresholds | .840 | not read |
+| E3 leak, with relation thresholds | .038 | .044 |
+| E2 leak | .005 | .017 |
+| Synthetic distractors routed | 0 | 0 |
+| Natural near leak, one threshold / relation thresholds | .274 / .146 | |
+| Natural uniform leak | .002 / 0 | |
+| Removal of 100: gone, return to base | 1.00, 1.00 | 1.00, 1.00 |
+| Retention of the others | .998 | .999 |
+| Wrong route kept, 998 questions, 24 tokens | .558 | .369 |
+| MMLU and ARC routed | 0 of 1000 | 0 of 1000 |
+| MMLU and ARC forced through a random entry, minus base | -.017 | -.022 |
+
+Paraphrase, paired: -.041, 95 percent interval -.059 to -.023. Wrong route, paired against adapter and note: +.189, lower bound +.159; against the rank-2 adapter alone of the earlier recipe (.667): -.107. At 64 tokens wrong route is .560, so the gap to adapter and note is not a matter of length.
+
+Write path. Of the 999 writes that trained, 818 passed at the first attempt and 181 did not (18.1 percent); R1 stored 45, L2 52, L4 43, L8 23, L16 15; 3 have no entry; 1 write joined an entry and 1 replaced one. A write took 20.9 s at the median and 29.9 s on average, on a GPU shared at times.
+
+Rule, CounterFact parts. (i) retention .998 and (ii) return 1.00 hold on CounterFact. (iii) no distractor and no MMLU or ARC question is routed. (iv) E3 .038 holds. (v) holds. The zsRE parts of (i) to (iii) are open.
+
+Predictions. P1 failed: 18.1 percent failed the first attempt, against 4 to 7; the second part held, 0.3 percent have no entry. P2 held on CounterFact. P3 failed on CounterFact: .844 is under the .885 of adapter and note, not level with it. P4 held on CounterFact. P5 held on CounterFact, with wrong route .558. P6 failed: forced MMLU and ARC cost 1.7 points, interval -3.3 to -0.1, against at most 1.5; adapter and note cost 2.2.
+
+Reading. On the facts of the main store the note is worth 4.1 points of CounterFact paraphrase, twice the gap on fresh facts (entry 137), and more facts need a retry (18 against 5 percent). The store with no note keeps a wrong route far less harmful than adapter and note, though more harmful than the earlier adapter alone, which trained on no rewrites. Removal and retention hold.

@@ -393,7 +393,9 @@ try:
             emit(f"tsPara{g}{e}", sum(row["route_correct"]) / 3, fixed=True)
             emit(f"tsEthree{g}{e}", sum(row["e3_fpr"]) / 3, fixed=True)
     emit("tsRatio", ts["P1"]["ratio_B_A"])
-    emit_diff("tsInflDiff", {"diff": ts["P3"]["I_diff"], "ci95": ts["P3"]["I_diff_ci95"]})
+    emit_diff(
+        "tsInflDiff", {"diff": ts["P3"]["I_diff"], "ci95": ts["P3"]["I_diff_ci95"]}
+    )
 except FileNotFoundError as e:
     missing.append(e.filename)
 
@@ -502,9 +504,7 @@ try:
     for arm, name in names.items():
         row = sc["arms"][arm]
         emit(f"sc{name}Need", row["pooled_needs_adapter"], fixed=True)
-        out.append(
-            f"\\newcommand{{\\sc{name}Mem}}{{{row['memory_mb'] / 1024:.1f}}}"
-        )
+        out.append(f"\\newcommand{{\\sc{name}Mem}}{{{row['memory_mb'] / 1024:.1f}}}")
         for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
             d = row["datasets"][ds]
             emit(f"sc{name}Need{tag}", d["needs_adapter"], fixed=True)
@@ -536,7 +536,9 @@ try:
     served = json.load(open(R + "alias_eval_served.json"))["datasets"]
     for tag, ds in (("Cf", "counterfact"), ("Zs", "zsre")):
         emit(f"al{tag}AnsAlias", served[ds]["served_both"]["A1"]["word"], fixed=True)
-        emit(f"al{tag}AnsPron", served[ds]["served_both"]["C1_probe"]["word"], fixed=True)
+        emit(
+            f"al{tag}AnsPron", served[ds]["served_both"]["C1_probe"]["word"], fixed=True
+        )
     false = al["datasets"]["counterfact"]["false"]
     emit("alNatural", false["F4_natural"]["named"], fixed=True)
     emit("alOther", false["F1_other_relation"]["named"], fixed=True)
@@ -581,7 +583,9 @@ try:
         out.append(f"\\newcommand{{\\sh{tag}KB}}{{{a['bytes_per_fact'] / 1000:.0f}}}")
     emit_diff("shEightTwoLeakDiff", s["arms"]["8/2/relation"]["e3_leak_minus_ref"])
     for tag, arm in [("Eight", "8/16/relation"), ("ThirtyTwo", "32/16/relation")]:
-        out.append(f"\\newcommand{{\\shRemove{tag}}}{{{s['arms'][arm]['removal']['seconds']:.0f}}}")
+        out.append(
+            f"\\newcommand{{\\shRemove{tag}}}{{{s['arms'][arm]['removal']['seconds']:.0f}}}"
+        )
 except FileNotFoundError as e:
     missing.append(e.filename)
 
@@ -636,6 +640,53 @@ try:
 except FileNotFoundError as e:
     missing.append(e.filename)
 
+# SS145 the default store on the main CounterFact facts (prefix "nl"); responses cut to 24 tokens.
+try:
+    from transformers import AutoTokenizer
+
+    from relic.metrics import hit, word_hit
+
+    r = json.load(open(R + "notless_eval_cf.json"))
+    tok = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-1.5B-Instruct")
+
+    def cut(text):
+        return tok.decode(
+            tok(text, add_special_tokens=False)["input_ids"][:24],
+            skip_special_tokens=True,
+        )
+
+    def reading(name):
+        xs = [x for x in r["rows"] if x["reading"] == name]
+        return sum(word_hit(cut(x["response"]), x["answer"]) for x in xs) / len(xs)
+
+    emit("nlEdit", reading("edit"), fixed=True)
+    emit("nlPara", reading("paraphrase"), fixed=True)
+    rem = r["removal"]
+    emit(
+        "nlReturn", sum(x["return"] for x in rem["rows"]) / len(rem["rows"]), fixed=True
+    )
+    emit("nlRetain", rem["retention"], fixed=True)
+    w = r["wrong_route"]
+    emit(
+        "nlWrong",
+        sum(hit(cut(x["response"]), x["answer"]) for x in w) / len(w),
+        fixed=True,
+    )
+    emit("nlWrongBoth", sum(x["saved"]["both_r2"] for x in w) / len(w), fixed=True)
+    ev = r["events"]
+    trained = [e for e in ev if e["action"] != "duplicate"]
+    failed = [e for e in trained if e.get("rung") != "A1"]  # a later rung, or rejected
+    emit("nlRetry", len(failed) / len(trained), fixed=True)
+    saved = json.load(open(R + "cf_n1000_r2_v8_eval.json"))["examples"]["serving"]
+    emit(
+        "nlParaBoth",
+        sum(word_hit(x["paraphrase"]["responses"]["both"], x["answer"]) for x in saved)
+        / len(saved),
+        fixed=True,
+    )
+except FileNotFoundError as e:
+    missing.append(e.filename)
+
 # SS102, SS141 the author's labels (prefix "hl").
 try:
     h = json.load(open(R + "human_labels.json"))
@@ -667,7 +718,9 @@ try:
     emit("tcNearGlobal", t["natural_near_routed"]["global"]["rate"], fixed=True)
     emit("tcNearRel", t["natural_near_routed"]["R"]["rate"], fixed=True)
     emit_diff("tcNearDiff", t["natural_near_routed"]["R"]["minus_global"])
-    emit_diff("tcParaCfDiff", t["counterfact_paraphrase_route_correct"]["R"]["minus_global"])
+    emit_diff(
+        "tcParaCfDiff", t["counterfact_paraphrase_route_correct"]["R"]["minus_global"]
+    )
     emit_diff("tcParaZsDiff", t["zsre_paraphrase_route_correct"]["R"]["minus_global"])
     a = json.load(open(R + "score_audit.json"))["datasets"]
     both = [

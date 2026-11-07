@@ -1,7 +1,7 @@
 # Living model - confirmatory summary (updated 2026-11-04)
 
 One-page record of the confirmatory phase. Sources: `LIVING_MODEL_CONFIRMATORY_PREREG.md`
-SS33-78, then entries to 144 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
+SS33-78, then entries to 146 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
 new - it consolidates. The paper (`paper/main.tex`) reports the same numbers.
 
 ## The claim
@@ -96,7 +96,7 @@ distractor no-leak 0.992 / 0.975, return to base after removal 0.96 / 0.80, rete
 The 2026-10-09 open decision (paper identity) is settled: the paper is a systems paper
 about the transactional store and its measured guarantees.
 
-## Since 2026-10-11 (entries to 144)
+## Since 2026-10-11 (entries to 146)
 
 Each line is a reading from the pre-registration record; the README's table of checks has them with their entries.
 
@@ -118,4 +118,7 @@ Each line is a reading from the pre-registration record; the README's table of c
 - Prior work. The architecture is published in SoLA and RRDA, both before this repository. See the paper's related work.
 - Thresholds per relation (entries 138, 139). On 400 fresh CounterFact facts as served, the automatic near-relation leak falls from
   0.296 to 0.171 at 0.25 points of paraphrase, and the write path takes them as `relation_tau`. zsRE has no relation identifier.
-- Open. The main evaluation on the store with no note, a signal that separates near-relation leaks from correct answers, that store beyond 1.5B, and the state hash, which names the model without its revision.
+- The main evaluation, CounterFact half (entry 146). On the 1000 main-store facts the store with no note answers 0.995 of edit
+  prompts and 0.844 of paraphrases against 0.885 with adapter and note; removal returns 1.00 and retention is 0.998; a wrong route
+  keeps 0.558 of correct answers against 0.369 at the same length. 18% of facts needed a retry, and a write took 21 s at the median.
+- Open. The zsRE half of the main evaluation (stopped at 550 of 1000), a signal that separates near-relation leaks from correct answers, that store beyond 1.5B, and the state hash, which names the model without its revision.

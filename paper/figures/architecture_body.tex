@@ -1,0 +1,66 @@
+% The architecture of the default store; drawn once, used by the paper and the standalone build.
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  step/.style={draw=#1!65!black, fill=#1!10, rounded corners=4pt, align=center,
+    minimum height=12mm, text width=27mm, inner sep=3pt, line width=0.7pt},
+  step/.default=black,
+  test/.style={draw=#1!65!black, fill=#1!10, diamond, aspect=2.0, align=center,
+    inner sep=0pt, text width=21mm, font=\sffamily\footnotesize, line width=0.7pt},
+  arr/.style={-{Latex[length=2.4mm,width=1.8mm]}, line width=0.8pt, draw=black!75},
+  soft/.style={arr, dashed, draw=blue!55!black},
+  lab/.style={font=\sffamily\scriptsize\bfseries, inner sep=1.5pt, text=black!70},
+  sub/.style={font=\sffamily\scriptsize, text=black!65},
+  lane/.style={draw=#1!45, fill=#1!4, rounded corners=8pt, line width=0.6pt},
+  lanetitle/.style={font=\sffamily\bfseries, text=#1!60!black, anchor=south west},
+]
+% ---------------------------------------------------------------- write a fact
+\node[step=orange] (fact) at (0,0) {Fact\\[-1pt]{\scriptsize subject, prompt, answer}};
+\node[step=orange] (rew) at (3.7,0) {Rewrite\\[-1pt]{\scriptsize the base model writes\\[-2pt]three more phrasings}};
+\node[step=orange] (train) at (7.4,0) {Train an adapter\\[-1pt]{\scriptsize rank-2 LoRA, KL anchor,\\[-2pt]base stays frozen}};
+\node[test=orange] (gate) at (11.6,0) {Does it disturb\\[-1pt]40 unseen prompts\\[-1pt]less than $\kappa$?};
+\node[step=green] (commit) at (15.9,0) {Commit\\[-1pt]{\scriptsize one new entry}};
+\node[step=orange] (ladder) at (7.4,-2.1) {Next rung\\[-1pt]{\scriptsize another seed, then a\\[-2pt]stronger anchor}};
+\node[step=red] (reject) at (3.4,-2.1) {Reject\\[-1pt]{\scriptsize the store does not change}};
+
+\draw[arr] (fact) -- (rew);
+\draw[arr] (rew) -- (train);
+\draw[arr] (train) -- (gate);
+\draw[arr] (gate) -- node[lab, above] {yes} (commit);
+\draw[arr] (gate.south) |- node[lab, pos=0.25, right] {no} (ladder.east);
+\draw[arr] (ladder) -- (train);
+\draw[arr] (ladder) -- node[lab, above] {none left} (reject);
+
+% ---------------------------------------------------------------- the ledger
+\node[draw=blue!65!black, fill=blue!8, rounded corners=6pt, line width=0.8pt,
+  text width=166mm, align=center, inner sep=6pt] (ledger) at (7.95,-4.1)
+  {\textbf{Ledger}: one entry per fact $=$ (id, subject, relation key, adapter $\delta_i$, 373\,KB)\\[1pt]
+   {\footnotesize log of every operation with a state hash \quad$\cdot$\quad
+   remove$(i)$ deletes the entry \quad$\cdot$\quad the base model is never changed}};
+\draw[arr] (commit.south) -- (commit.south |- ledger.north);
+
+% ---------------------------------------------------------------- answer a question
+\node[step=teal] (q) at (0,-7.1) {Question\\[-1pt]{\scriptsize and the earlier turns}};
+\node[test=teal] (subj) at (4.2,-7.1) {Is a stored\\[-1pt]subject named?\\[-1pt]{\scriptsize name, alias, pronoun}};
+\node[test=teal] (rel) at (8.7,-7.1) {Same relation?\\[-1pt]{\scriptsize encoder score $\ge\theta_r$}};
+\node[step=blue] (adapt) at (12.6,-7.1) {Base $+\,\delta_i$\\[-1pt]{\scriptsize at most one entry}};
+\node[step=green] (ans) at (15.9,-7.1) {Answer\\[-1pt]{\scriptsize and the entry id}};
+\node[step=black] (base) at (8.7,-9.3) {Base model alone\\[-1pt]{\scriptsize answers as before}};
+
+\draw[arr] (q) -- (subj);
+\draw[arr] (subj) -- node[lab, above] {yes} (rel);
+\draw[arr] (rel) -- node[lab, above] {yes} (adapt);
+\draw[arr] (adapt) -- (ans);
+\draw[arr] (subj.south) |- node[lab, pos=0.25, left] {no} (base.west);
+\draw[arr] (rel) -- node[lab, right] {no} (base);
+\draw[arr] (base.east) -| node[lab, pos=0.25, below] {id $=\bot$} (ans.south);
+\draw[soft] (ledger.south -| rel.north) -- node[sub, right] {relation keys} (rel.north);
+\draw[soft] (ledger.south -| adapt.north) -- node[sub, right] {$\delta_i$} (adapt.north);
+
+% ---------------------------------------------------------------- lanes
+\begin{scope}[on background layer]
+  \node[lane=orange, fit=(fact)(commit)(gate)(reject)(ladder), inner xsep=5mm, inner ysep=4mm] (wl) {};
+  \node[lane=teal, fit=(q)(ans)(subj)(base), inner xsep=5mm, inner ysep=4mm] (rl) {};
+\end{scope}
+\node[lanetitle=orange] at (wl.north west) {Writing a fact};
+\node[lanetitle=teal] at (rl.north west) {Answering a question};
+\end{tikzpicture}

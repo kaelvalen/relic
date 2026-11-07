@@ -8,7 +8,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext,newtxmath}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,backgrounds,fit}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.17}
 \usepackage{graphicx}
@@ -904,7 +904,12 @@ separate the stores (\ladLadNatPct\% and \ladCurNatPct\% on natural questions, \
 relations). Since the rejected facts no longer differ, the note appears to answer some paraphrases the adapter does not;
 the near-relation leak is a limit of the router. By the registered rule the note would stay. We made this store the default
 because it is simpler, without a claim that it passed, and it reproduces exactly through the library's write path on 16 facts.
-This choice rests on one model at rank 2, and removal, retention and benchmarks have not been read on this store.
+Built through that path on the 1000 CounterFact facts of the main store, it answers \nlEditPct\% of edit prompts and
+\nlParaPct\% of paraphrases against \nlParaBothPct\% for the rank-2 store with adapter and note, so the note is worth more on
+these facts than on fresh ones, and \nlRetryPct\% of facts needed a retry. Removal returns \nlReturnPct\% of 100 removed facts
+to the base answer and keeps \nlRetainPct\% of the others, and a forced wrong route keeps \nlWrongPct\% of the base model's
+correct answers against \nlWrongBothPct\% with adapter and note, at the same answer length. The zsRE half of this evaluation
+is not finished, and the choice rests on one model at rank 2.
 
 \emph{Exploratory extensions.} Small experiments with 6 to 18 facts on when to promote a
 fact from note to adapter, on updates across sessions and on a vision-language model are
@@ -963,7 +968,7 @@ divergence limits for each base model remains to be done.
 Table~\ref{tab:hparams} lists the configuration of the confirmatory runs and
 Table~\ref{tab:recipes} compares adapter training variants. The exploratory and
 confirmatory pre-registration records are included in the repository, and each number
-in this paper corresponds to an entry in them (entries 64 to 144 for the re-evaluation, the
+in this paper corresponds to an entry in them (entries 64 to 146 for the re-evaluation, the
 revisions, the leakage experiments and the later readings). Code, records, input manifests and per-query logs are in the project
 repository. The saved stores (8.7\,GB each) and the raw result files are not under
 version control and will be released separately.

@@ -72,16 +72,29 @@ served through the router with thresholds per relation (entries 136 to 144).
 This store did not pass its registered rule against a store with adapter and note: on CounterFact
 paraphrases it stands at -0.020 with a lower bound of -0.045 against a margin of -0.03. It leads on edit
 prompts by 0.021, the interval excludes zero, and the leak is level. It is the default by the author's
-decision (entry 143), which prefers the simpler architecture. Removal, retention, the 1000 wrong-route
-questions, benchmarks, aliases and pronouns have not been read on it. On a forced wrong route it keeps
-0.535 of the base model's correct answers on 200 questions.
+decision (entry 143), which prefers the simpler architecture.
+
+On the 1000 CounterFact facts of the main store (entry 146; the zsRE half is not finished):
+
+| Reading | Store with no note | Rank 2, adapter and note |
+| :-- | :-- | :-- |
+| Edit prompts answered | 0.995 | 0.995 |
+| Paraphrases answered | 0.844 | 0.885 |
+| Other relation of a stored subject: leakage | 0.038 | 0.044 |
+| Removed facts returning to the base answer (100 removed) | 1.00 | 1.00 |
+| Retention of the other facts | 0.998 | 0.999 |
+| Wrong route: base model's correct answers kept (998 questions) | 0.558 | 0.369 |
+| MMLU and ARC questions routed | 0 of 1000 | 0 of 1000 |
+
+Here the note is worth 4 points of paraphrase, and 18% of facts needed a retry on the ladder. A wrong route
+costs far less than with adapter and note, at the same answer length.
 
 ### Earlier stores, with adapter and note
 
 Qwen2.5-1.5B-Instruct, 1000 facts per dataset, every query served through the router,
 adapter and note served together unless stated. Source:
 [`docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`](docs/LIVING_MODEL_CONFIRMATORY_PREREG.md),
-entries 64 to 144.
+entries 64 to 146.
 
 | Reading | CounterFact, router v4 (MiniLM) | CounterFact, default router | zsRE, default router |
 | :-- | :-- | :-- | :-- |
@@ -166,7 +179,8 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
   count is 0.296 of such questions with one threshold and 0.171 with thresholds per relation (entry 139). The
   thresholds remove correct answers about as often as leaks, so this needs a signal that tells them apart.
 - The store with no note was measured on 1.5B at rank 2 only. On 3B and 7B the default divergence limit
-  rejects most adapters, so measure it first. Each fact costs an adapter: 373 KB and about 14 s to train.
+  rejects most adapters, so measure it first. Each fact costs an adapter: 373 KB, and a write took 21 s at the
+  median on the main CounterFact store.
 - A wrong route is costly. Served as the system serves it, with adapter and note, an
   unrelated fact keeps 40% of the base model's correct answers; the note alone keeps 51%
   and the adapter alone 71% (entry 100, 1000 questions). The router's false-route rate is

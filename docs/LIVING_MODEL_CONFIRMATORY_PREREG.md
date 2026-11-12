@@ -3645,3 +3645,27 @@ Predictions. P1: both inputs beat entry 150's .10 on unseen edit prompts, the be
 Limits. One pool, one model, one dataset, short pairs, 100 unseen facts, no router. About two hours of GPU.
 
 Correction to entry 151, before the run (2026-11-12). A check of the inputs on 5 facts of the draw found the answer half of Ea about 130 times smaller than the sentence half (norm .97 against 128.8); the hypernetwork's first layer normalises the joined vector as one, so Ea would carry almost none of the answer's identity and could not test the question. Eb's halves are 61 against 129. Each half is now scaled to a root mean square of 1 before the two are joined, for Ea and Eb alike. The smoke run had read 4 unseen facts at 20 steps; no reading of the pinned run had been made. Nothing else changes.
+
+## 152. SS151 results: seeing the answer lifts unseen facts to .77, not to 1.00, and no generated adapter passes the divergence limit (2026-11-12)
+
+Source: results/live_learning/confirm/hyper_enc.json and hyper_enc.log; weights hyper_enc_Ea.pt and hyper_enc_Eb.pt.
+
+| Arm | Training facts, edit | Unseen, edit | Unseen, paraphrase | Under the divergence limit | Median divergence | Seconds per adapter |
+|---|---|---|---|---|---|---|
+| H0-Ea | .00 | .00 | .00 | .00 | 43.7 | .008 |
+| H0-Eb | .99 | .77 | .73 | .00 | 2.18 | .009 |
+| H2-Eb | | .99 | .99 | .00 | 2.46 | 4.3 |
+| R2 | | .00 | .01 | 1.00 | .04 | 4.4 |
+| H4-Eb | | 1.00 | .99 | .00 | 2.59 | 5.0 |
+| R4 | | .16 | .07 | 1.00 | .10 | 5.2 |
+| T0, entry 150 | | 1.00 | .78 | 1.00 | | 8.7 |
+
+Eb was the better input and carried H2 and H4. Ea's training diverged: the loss rose from 4.0 at the first step to 15.9 by step 300 and ended at 18.2, so H0-Ea reads an optimisation failure, not the input. Eb's loss fell to .0024, with a canary KL of .0016 on the training canaries against a median of 2.18 on the held-out ones.
+
+Rule. (i) fails: the better H0 answers 77 of 100 unseen edit prompts, not 100. As pinned, the hypernetwork line that replaces trained adapters closes. (ii) Hk reaches T0's 1.00 at 4 passes against T0's 16 and beats Rk at both k, but every Hk adapter is over the divergence limit, so under the design's ladder none of the 100 facts would be stored.
+
+Predictions. P1 failed: Ea .00, and Eb's .77 is above the predicted band of .20 to .50. P2 held. P3 failed for Ea (.00); held for Eb (.99). P4 held: 1.00 against .16. P5 held: .99 against .00.
+
+Reading. The answer's identity was the missing piece for carrying to unseen facts: .10 in entry 150, .77 here, from the input alone. It came with a loss of locality: no generated adapter, and none fine-tuned from one, stays under the limit that every T0 and Rk adapter meets, and the gap between training and held-out canaries says the hypernetwork kept the canaries it was trained on and not the model's behaviour in general. Paraphrase rates near edit rates (.73 against .77, .99 against .99, where T0 has .78 against 1.00) fit adapters that push the answer broadly; this was not measured.
+
+Limits. As entry 151. One seed; Ea's divergence was not rerun.

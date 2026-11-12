@@ -3598,3 +3598,28 @@ Rule. Phase 1 is proposed to the author if (i) H1000 answers at least .80 of the
 Predictions. P1: training facts, H300 at least .90 and H1000 at least .80. P2: unseen edit prompts, H300 between .02 and .20, H1000 between .10 and .40, H1000 above H300. P3: unseen paraphrases below unseen edit prompts for both. P4: at least .90 of generated adapters under the divergence limit. P5: T0 at least .95 on unseen edit prompts. P6: the rule holds.
 
 Limits. One model, one dataset, short pairs, no router, 100 unseen facts. A failure here speaks to this recipe and these sizes.
+
+## 150. SS149 results: the generated adapter works on its training facts and barely beyond them (2026-11-12)
+
+Source: results/live_learning/confirm/hyper_spike.json and hyper_spike.log; weights hyper_spike_300.pt and hyper_spike_1000.pt.
+
+Implementation, as run. The self-check failed at first: the hook added the adapter's term in bf16 after rounding it, while peft adds in fp32 and rounds once, and over 56 modules the logits differed by 2.2 against a movement of 5.0. With the hook adding as peft does, the difference is 0.0000. The vocabulary projection runs only at the positions a loss reads, and each batch of 8 runs as two halves of 4 with each half's loss halved; both leave loss and gradient unchanged and bring peak memory from 7.5 to 5.5 GB. 0.5 s per step, 25 to 27 minutes per pool.
+
+| Arm | Training facts, edit | Unseen, edit | Unseen, paraphrase | Under the divergence limit | Seconds per adapter |
+|---|---|---|---|---|---|
+| Base model | | .00 | .01 | | |
+| H300 | .92 (.87 to .97) | .08 (.03 to .14) | .06 (.02 to .11) | 1.00 | .008 |
+| H1000 | .95 (.90 to .99) | .10 (.05 to .16) | .11 (.05 to .17) | .84 | .008 |
+| T0, trained | | 1.00 | .78 (.70 to .86) | 1.00 | 8.7 |
+
+Training loss at the last step: .0001 for H300 and .0035 for H1000, from about 4.6 at the first. Unseen edit minus base, paired: H300 +.08 (.03 to .14), H1000 +.10 (.05 to .16).
+
+Rule. (i) holds: .95 on training facts. (ii) holds at its edge: .10 on unseen edit prompts against at least .10, lower end of the paired interval .05 above zero. As pinned, phase 1 is proposed to the author.
+
+Predictions. P1 held: .92 and .95. P2 held: .08 and .10, H1000 above H300, though the intervals overlap and the rise of .02 cannot be told from none. P3 failed for H1000: .11 on paraphrases against .10 on edit prompts; held for H300. P4 failed for H1000: .84 under the limit; held for H300. P5 held: 1.00. P6 held.
+
+Reading. The hypernetwork can write adapters that work through the frozen model: it fits its training facts, and a generated adapter costs 8 ms against 8.7 s. It does not yet carry that to facts it has not seen: one unseen fact in ten, against all of them for a trained adapter, and 3.3 times more training facts moved this by two points, within noise. The rule's letter is met, but the scaling question of phase 1 starts from a slope this run cannot distinguish from flat. More training facts also made the adapters less local: .84 of H1000's adapters pass the divergence limit against all of H300's.
+
+Diagnosis, not a result. The input is the mean of the hidden states over the teach sentence, where the answer is one or two tokens of about fifteen; an adapter that must make the model say a given word may need that word's identity more directly than a mean keeps it. This is a change of recipe and needs its own entry.
+
+Limits. As entry 149. 100 unseen facts, so .10 has an interval of .05 to .16.

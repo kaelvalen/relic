@@ -3538,3 +3538,19 @@ Rule, CounterFact parts. (i) retention .998 and (ii) return 1.00 hold on Counter
 Predictions. P1 failed: 18.1 percent failed the first attempt, against 4 to 7; the second part held, 0.3 percent have no entry. P2 held on CounterFact. P3 failed on CounterFact: .844 is under the .885 of adapter and note, not level with it. P4 held on CounterFact. P5 held on CounterFact, with wrong route .558. P6 failed: forced MMLU and ARC cost 1.7 points, interval -3.3 to -0.1, against at most 1.5; adapter and note cost 2.2.
 
 Reading. On the facts of the main store the note is worth 4.1 points of CounterFact paraphrase, twice the gap on fresh facts (entry 137), and more facts need a retry (18 against 5 percent). The store with no note keeps a wrong route far less harmful than adapter and note, though more harmful than the earlier adapter alone, which trained on no rewrites. Removal and retention hold.
+
+## 147. Does an entailment score tell correct near answers from leaks? (pinned 2026-11-12, before the run; no language model)
+
+Question. Entry 142 found that the router's score, and every threshold on it, removes correct answers and leaks on near-relation questions at similar rates. The score compares the relation text of the question with that of the stored prompt and never sees the stored answer, while whether the answer is right depends on it, for instance a continent stored against a question about a country. This entry asks whether a frozen entailment model that reads the whole stored fact, answer included, separates the two. If it does not, the near-relation leak is not a router problem that text signals can fix at this scale.
+
+Items. The 96 items of entry 142: the author's legit and leak labels whose question the default router routes, at tau .7501, to the fact the label is about, built by the same code (confirm/label_sheet.py, now shared by the `thresholds` and `nli` commands). The test half is the subject split of entry 107.
+
+Signal. cross-encoder/nli-deberta-v3-large, revision bab4bc7178836f731dcfd18c06ca9def0a137712, frozen, on CPU. Premise: the stored fact as the sheet gives it (for example "Panzarini Hills is located in the continent Europe"). Hypothesis: `The answer to the question "<question>" is <stored target>.` The primary score is the softmax probability of entailment. The secondary score is entailment minus contradiction. Nothing is tuned on these items before the reading.
+
+Readings. (a) AUROC of the primary score for legit against leak on all 96 items, with a 95 percent bootstrap interval (10000 resamples over items, seed 147); the same for the router's score and for the secondary score. (b) Operating point: on the half of entry 107 that is not the test half, the threshold that keeps 90 percent of legit items; on the test half, the share of legit and of leak items below it.
+
+Rule. The signal goes to a pinned router entry on fresh facts, served, if (i) its AUROC is at least .70 with the lower end of the interval above .50, and (ii) on the test half it removes at least .20 more of the leak items than of the legit items. If (i) fails, no further text-only signal is tried on the near-relation question at this scale, and the paper reports the corrected leak as the reading of that defect.
+
+Predictions. P1: primary AUROC between .70 and .85. P2: router score AUROC under .65 on the same items. P3: (ii) holds. P4: the secondary score is within .03 of the primary. P5: the rule holds.
+
+Limits. 96 items, 58 legit and 38 leak, from one store and one question generator; the author's labels were read in entries 140 to 142, though not with this signal. One entailment model and one hypothesis template, pinned here; a failure does not rule out a better model. The reading leaves out unsure items, where the relations can differ by case.

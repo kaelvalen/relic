@@ -3623,3 +3623,23 @@ Reading. The hypernetwork can write adapters that work through the frozen model:
 Diagnosis, not a result. The input is the mean of the hidden states over the teach sentence, where the answer is one or two tokens of about fifteen; an adapter that must make the model say a given word may need that word's identity more directly than a mean keeps it. This is a change of recipe and needs its own entry.
 
 Limits. As entry 149. 100 unseen facts, so .10 has an interval of .05 to .16.
+
+## 151. Does the generated adapter carry to unseen facts when the hypernetwork sees the answer? (pinned 2026-11-12, before the run)
+
+Question. Entry 150 found generated adapters that fit their training facts but answer .10 of unseen edit prompts. Its diagnosis: the input was the mean of the last layer's hidden states over the teach sentence, where the answer is one or two tokens of about fifteen, and the last layer's state at a token is shaped to predict the next token, not to keep the token itself. This entry gives the hypernetwork the answer's identity directly.
+
+Author's decision, 2026-11-12. The hypernetwork line continues only if a generated adapter, with no further training, answers the unseen edit prompts at 1.00, the rate of today's trained adapter T0 in entry 150. The author set this threshold after being told it closes the line unless the gap closes completely.
+
+Facts, pool and recipe. As entry 149, at the pool of 1000 only, with the same 100 unseen facts, seed 149, 3000 steps of 8 facts, the same loss, heads and serving path. Only the input changes.
+
+Inputs. Ea: the last layer's mean over the teach sentence, joined with the mean of the input embeddings of the answer's tokens. Eb: the same mean, joined with the mean over the answer's tokens of layer 14's hidden states. The answer's tokens are those whose character span starts at or after the end of the edit prompt in the teach sentence.
+
+Arms. H0-Ea and H0-Eb: the generated adapter. On the one of the two with the higher unseen edit rate (Ea if tied): H2 and H4, the generated adapter, unpadded and in float, as the starting point of 2 and 4 passes of today's training over the short pairs (`train_one` with R2, LoRA+ factor 8, KL weight 1, seed 126); and R2 and R4, the same passes from a fresh start, the control. Every adapter is stored as the store stores one (int8, padded) and served through `serve_expert`, forced.
+
+Readings. As entry 149 for every arm: training-fact edit (H0 arms), unseen edit and paraphrase, the share under the divergence limit, seconds per adapter. For H2, H4, R2 and R4 the seconds include loading the base model, as a write does today.
+
+Rule. (i) The line continues if H0-Ea or H0-Eb answers 100 of the 100 unseen edit prompts. Otherwise the hypernetwork line that replaces trained adapters closes, and storage goes back to the other routes of the design document. (ii) Reported, no rule: whether Hk reaches T0's 1.00 with fewer passes than T0's 16, and whether it beats Rk at the same k; a fast write path is a separate question for the author.
+
+Predictions. P1: both inputs beat entry 150's .10 on unseen edit prompts, the better between .20 and .50. P2: neither reaches 1.00, so (i) fails. P3: training facts at least .90 for both. P4: H4 at least .95 on unseen edit prompts and above R4. P5: H2 above R2 by at least .20.
+
+Limits. One pool, one model, one dataset, short pairs, 100 unseen facts, no router. About two hours of GPU.

@@ -3727,3 +3727,30 @@ Predictions. P1 held. P2 failed: .91. P3 held. P4 held: +.23. P5 held: .030 agai
 Reading. The projection does what it is built for: a forced wrong route keeps .91 of the base model's answers against .68, and the divergence falls elevenfold. It costs the fact, and the paraphrases most: the directions that carry most of an ordinary prompt's energy are also those through which a rephrased question reaches the adapter, so an adapter confined to the rest answers the edit prompt it was trained on and little else. At this granularity, locality and generalisation draw on the same directions; a projection learned from CounterFact edit prompts cannot tell the fact's own subject from another's.
 
 Limits. As entry 153. A projection keyed to the subject's tokens rather than to every token, or shares below .90, were not tried; either is a new entry.
+
+## 156. SS154 results: the router is blind in Turkish; a multilingual encoder repairs it and misses the English margin by .0001 (2026-11-12)
+
+Source: results/live_learning/confirm/xling_route.json and xling_route.log; encoder results/live_learning/confirm/relation_encoder_mmpnet (52.7 s, last loss 1.17, the 11 held-out relations of SS76).
+
+Implementation, as run. Queries with no candidate entry were left out of the AUROC and are counted: the subject was found in 1026 of 1031 English rephrasings, 729 Turkish edit questions and 726 Turkish rephrasings (the translation changed or inflected the name in the others), 1031 English and 1026 Turkish E3 queries.
+
+AUROC, positives against E3, 1031 facts (356 on held-out relations):
+
+| Encoder | English | Turkish | English, held out | Turkish, held out |
+|---|---|---|---|---|
+| relenc | .975 (.969 to .981) | .532 (.518 to .546) | .957 | .496 |
+| mpnet | .891 | .505 | .913 | .485 |
+| mmpnet | .877 | .887 | .891 | .900 |
+| relenc-m | .960 (.951 to .967) | .939 (.928 to .949) | .934 | .919 |
+
+relenc-m minus relenc, paired: Turkish +.407 (+.390 to +.425); English -.0155 (-.0201 to -.0110); on held-out relations, Turkish +.423, English -.022 (-.033 to -.013).
+
+relenc at today's operating point: right entry for English rephrasings .552, Turkish edit questions .005, Turkish rephrasings .002; E3 routed, English .015, Turkish .002.
+
+Rule. (i) holds. (ii) fails: the lower end is -.0201 against a margin of -.02. As pinned, relenc-m does not go on and the router stays.
+
+Predictions. P1 held: .532 against .975. P2 held: .005 and .002 against .552. P3 failed: Turkish E3 is routed less, .002 against .015. P4 held: mmpnet's Turkish AUROC is above its English. P5 held. P6 failed, by .0001.
+
+Reading. Today's router cannot read Turkish: its score separates a Turkish question about the stored fact from one about another relation of the same subject no better than chance, and at the operating point it routes almost no Turkish question, right or wrong. The demo's cross-lingual leak was the rare exception; the common failure in Turkish is the lost fact, not the leak. The multilingual base already carries the relation across languages (.887 Turkish untrained); the same triplets bring it to .939 in Turkish and .960 in English, .016 below today's encoder in English. A second finding, in English: BMIKE's rephrasings are questions, and today's operating point routes only .552 of them to the right entry, against the paraphrase rates of the CounterFact readings; the stored keys are cloze prompts.
+
+Limits. As entry 154. The English margin was missed by a hair; a recipe that keeps the English score, for example triplets in both languages, is a new entry.

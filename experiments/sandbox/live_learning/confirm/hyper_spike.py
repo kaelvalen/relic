@@ -232,14 +232,18 @@ def train(store, hooks, facts, emb, steps, seed=SEED, log=None) -> Hyper:
 
 
 @torch.no_grad()
-def make_delta(hyper, emb_row) -> dict:
-    """One fact's adapter in the store's layout: int8, padded, as train_adapter stores it."""
+def raw_delta(hyper, emb_row) -> dict:
+    """One fact's generated adapter at rank 2, in float, in the variant's naming."""
     ab = hyper(emb_row[None].cuda())
-    raw = {
+    return {
         param_name(layer, m): {"A": a[0].float().cpu(), "B": b[0].float().cpu()}
         for (layer, m), (a, b) in ab.items()
     }
-    return pad(int8_delta(raw))
+
+
+def make_delta(hyper, emb_row) -> dict:
+    """One fact's adapter in the store's layout: int8, padded, as train_adapter stores it."""
+    return pad(int8_delta(raw_delta(hyper, emb_row)))
 
 
 def read(store, delta, fact, with_para: bool) -> dict:

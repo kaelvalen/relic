@@ -3643,3 +3643,5 @@ Rule. (i) The line continues if H0-Ea or H0-Eb answers 100 of the 100 unseen edi
 Predictions. P1: both inputs beat entry 150's .10 on unseen edit prompts, the better between .20 and .50. P2: neither reaches 1.00, so (i) fails. P3: training facts at least .90 for both. P4: H4 at least .95 on unseen edit prompts and above R4. P5: H2 above R2 by at least .20.
 
 Limits. One pool, one model, one dataset, short pairs, 100 unseen facts, no router. About two hours of GPU.
+
+Correction to entry 151, before the run (2026-11-12). A check of the inputs on 5 facts of the draw found the answer half of Ea about 130 times smaller than the sentence half (norm .97 against 128.8); the hypernetwork's first layer normalises the joined vector as one, so Ea would carry almost none of the answer's identity and could not test the question. Eb's halves are 61 against 129. Each half is now scaled to a root mean square of 1 before the two are joined, for Ea and Eb alike. The smoke run had read 4 unseen facts at 20 steps; no reading of the pinned run had been made. Nothing else changes.

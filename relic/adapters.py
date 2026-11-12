@@ -86,10 +86,15 @@ def set_delta(m, delta=None) -> None:
                 p.copy_(delta[key][k].to(p.device, p.dtype))
 
 
-def train_one(store, spec, pairs, b_mult=8, seed=SEED):
-    """b_mult: B learning rate as a multiple of A's (8 = LoRA+, 1 = baseline)."""
+def train_one(store, spec, pairs, b_mult=8, seed=SEED, init=None):
+    """b_mult: B learning rate as a multiple of A's (8 = LoRA+, 1 = baseline).
+
+    init: a delta of the variant's shape to start from instead of a fresh LoRA (SS151).
+    """
     base = load_model(store.model_name)[1]
     m = make_variant(base, spec, seed)
+    if init is not None:
+        set_delta(m, init)
     a = [p for n, p in m.named_parameters() if "lora_A" in n and p.requires_grad]
     b = [p for n, p in m.named_parameters() if "lora_B" in n and p.requires_grad]
     groups = [{"params": b, "lr": b_mult * store.lr}]
@@ -130,12 +135,12 @@ def pad(delta: dict, r: int = STORE_RANK) -> dict:
     return out
 
 
-def train_adapter(store, pairs: list, seed: int = SEED) -> dict:
+def train_adapter(store, pairs: list, seed: int = SEED, init=None) -> dict:
     """The adopted adapter for one fact, ready for the store."""
     store.model.to("cpu")
     torch.cuda.empty_cache()
     try:
-        return pad(int8_delta(train_one(store, R2, pairs, b_mult=8, seed=seed)))
+        return pad(int8_delta(train_one(store, R2, pairs, b_mult=8, seed=seed, init=init)))
     finally:
         store.model.to("cuda:0")
 

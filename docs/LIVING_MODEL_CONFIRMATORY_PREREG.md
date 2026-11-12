@@ -3687,3 +3687,21 @@ Rule, for an arm N against T, paired over facts and over wrong-route pairs. N is
 Predictions. P1: T answers .98 or more edit prompts and .70 to .85 paraphrases, as entry 150's T0. P2: N90 keeps edit prompts at .98 or more. P3: N99 answers fewer edit prompts than N90. P4: N90 keeps more wrong-route answers than T, by .05 or more. P5: N90's median divergence is below T's. P6: N90 passes the rule.
 
 Limits. One model, CounterFact only, 100 facts, short pairs without the ladder and its rewrites, no router: the wrong route is forced. The projection's corpus is CounterFact edit prompts, close to the facts' own domain; the wrong-route questions are zsRE.
+
+## 154. Does the router keep its decision in Turkish, and does a multilingual relation encoder? (pinned 2026-11-12, before the run; no language model)
+
+Question. In the demo of 2026-11-12, a Turkish question about the population of a stored subject was routed to that subject's stored wine fact: a cross-lingual E3 leak. The relation encoder is all-mpnet-base-v2 trained on English triplets (SS76). This entry measures the router's decision in Turkish against English on the same facts, and asks whether a multilingual encoder trained on the same triplets keeps the English decision and repairs the Turkish one.
+
+Data. BMIKE-53 (ACL 2025, MIT licence), CounterFact, Turkish test file, `raw/bmike_counterfact_tr.json`, sha256 6e024ff5…0eb9: 1031 facts, each with English and Turkish edit questions (`src`) and rephrasings (`rephrase`), every case id in our CounterFact. The store holds one English entry per fact (subject, the CounterFact edit prompt, relation id), 1031 entries, no adapters.
+
+Queries. Positive, should route to the fact's own entry: English rephrase; Turkish `src`; Turkish rephrase. Negative, E3, should route to nothing: for fact i, the `src` of fact j, the next fact in file order whose relation differs and whose `src` contains its subject verbatim, with j's subject replaced by i's; built the same way in English and in Turkish from the same j. Queries whose subject the router does not find are counted as not routed and kept.
+
+Encoders. relenc, today's (SS76). mpnet, all-mpnet-base-v2 untrained. mmpnet, paraphrase-multilingual-mpnet-base-v2 untrained. relenc-m: paraphrase-multilingual-mpnet-base-v2 trained by `train_relation_encoder.py` with the SS76 triplets, seed, batch, learning rate and schedule unchanged; only the base model changes.
+
+Readings, per encoder and language. AUROC of the router's score, positives (score of the fact's own entry) against E3 (the highest score among the found candidates; E3 queries with no candidate are left out of the AUROC and counted), with a bootstrap interval over facts (10000, seed 154). For relenc only, at today's operating point (tau .7501 with `RELATION_TAU`): routed share of each positive set to the right entry, and routed share of E3. AUROC also on the 11 relations SS76 held out.
+
+Rule. relenc-m goes on to calibration and the routed evaluation in a new entry if (i) its Turkish AUROC minus relenc's Turkish AUROC, paired over facts, has a lower end above 0, and (ii) its English AUROC minus relenc's English AUROC has a lower end of at least -.02. Otherwise the router stays and the result is reported.
+
+Predictions. P1: relenc's Turkish AUROC is at least .05 below its English AUROC. P2: at today's operating point, relenc routes fewer Turkish than English positives to the right entry. P3: relenc routes a larger share of Turkish E3 queries than of English E3. P4: mmpnet untrained has a smaller Turkish-English gap than relenc. P5: relenc-m passes (i). P6: relenc-m passes (ii).
+
+Limits. CounterFact only, one translated benchmark whose translations are machine-made; subject substitution in Turkish may break suffix harmony, which the router masks with the subject. The BMIKE facts are not disjoint by subject from SS76's training facts; the held-out relations are the clean reading. No answers are generated.

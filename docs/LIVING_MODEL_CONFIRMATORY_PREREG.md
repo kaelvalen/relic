@@ -3554,3 +3554,25 @@ Rule. The signal goes to a pinned router entry on fresh facts, served, if (i) it
 Predictions. P1: primary AUROC between .70 and .85. P2: router score AUROC under .65 on the same items. P3: (ii) holds. P4: the secondary score is within .03 of the primary. P5: the rule holds.
 
 Limits. 96 items, 58 legit and 38 leak, from one store and one question generator; the author's labels were read in entries 140 to 142, though not with this signal. One entailment model and one hypothesis template, pinned here; a failure does not rule out a better model. The reading leaves out unsure items, where the relations can differ by case.
+
+## 148. SS147 results: the entailment score ranks better than the router's but does not pass (2026-11-12)
+
+Source: results/live_learning/confirm/label_nli.json, the 96 items of entry 142, 58 legit and 38 leak. The `thresholds` command, after the change of entry 147, reproduces label_thresholds.json byte for byte.
+
+| Score | AUROC, legit against leak | 95 percent interval |
+|---|---|---|
+| Entailment (primary) | .756 | .655 to .850 |
+| Entailment minus contradiction | .764 | .664 to .855 |
+| Router score | .685 | .572 to .787 |
+
+Operating point. The threshold that keeps 90 percent of legit items on the calibration half is an entailment probability of .0003. On the test half, 22 legit and 23 leak, it removes .045 of legit and .174 of leak items, a difference of .128.
+
+Rule. (i) holds: .756, lower end .655. (ii) fails: .128 against at least .20. The signal does not go to a router entry. As (i) holds, the clause that closes text-only signals does not apply.
+
+Predictions. P1 held: .756. P2 failed: the router score reaches .685, above the predicted .65, with the lower end above .50. P3 failed. P4 held: .008 apart. P5 failed.
+
+Reading. The two labels sit apart in the entailment score (median .944 for legit, .003 for leak; 36 of 58 legit and 4 of 38 leak above .5), but 17 legit items score under .01, and the threshold that keeps 90 percent of legit items must therefore sit almost at zero, where it removes few leaks. Of these 17, 10 are every item whose question asks what languages a subject speaks, writes or signs, all labelled legit; the hypothesis `The answer to the question ... is <target>` reads a single language as the whole answer to a plural question, which the premise does not entail. The leaks the model accepts are mostly a continent stored against a question about the administrative territorial entity, a type the model does not check. This diagnosis was made after the reading and is not a result. A second template, or a second model, would be a change chosen on these items, and the author's labelled items are now all read; it needs fresh labels.
+
+Correction to entry 142. Its reading holds at the thresholds it read, but the router's score is not blind to the label: over all routed items it ranks legit above leak with AUROC .685. The thresholds of SS138 sit where this ranking buys little.
+
+Limits. As entry 147. One template and one model; 45 items on the test half.

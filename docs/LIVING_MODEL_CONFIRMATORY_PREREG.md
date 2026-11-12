@@ -3705,3 +3705,25 @@ Rule. relenc-m goes on to calibration and the routed evaluation in a new entry i
 Predictions. P1: relenc's Turkish AUROC is at least .05 below its English AUROC. P2: at today's operating point, relenc routes fewer Turkish than English positives to the right entry. P3: relenc routes a larger share of Turkish E3 queries than of English E3. P4: mmpnet untrained has a smaller Turkish-English gap than relenc. P5: relenc-m passes (i). P6: relenc-m passes (ii).
 
 Limits. CounterFact only, one translated benchmark whose translations are machine-made; subject substitution in Turkish may break suffix harmony, which the router masks with the subject. The BMIKE facts are not disjoint by subject from SS76's training facts; the held-out relations are the clean reading. No answers are generated.
+
+## 155. SS153 results: the null-space projection keeps wrong routes and loses the fact's paraphrases (2026-11-12)
+
+Source: results/live_learning/confirm/ns_route.json and ns_route.log.
+
+Directions removed per layer, of 1536: N90 12 to 104 (median 33), N99 397 to 956.
+
+| Arm | Edit | Paraphrase | Under the limit | Median divergence | Wrong route kept (300) | Seconds per adapter |
+|---|---|---|---|---|---|---|
+| T | 1.00 | .78 (.70 to .86) | 1.00 | .33 | .68 | 8.5 |
+| N90 | .91 | .32 (.23 to .41) | 1.00 | .030 | .91 | 8.8 |
+| N99 | .42 | .13 (.07 to .20) | 1.00 | .017 | .94 | 8.7 |
+
+Minus T, paired: N90 edit -.09 (-.15 to -.04), paraphrase -.46 (-.56 to -.36), wrong route kept +.23 (+.18 to +.29); N99 edit -.58, paraphrase -.65, wrong route kept +.26 (+.21 to +.32).
+
+Rule. Neither arm passes: (iii) and (iv) hold for both, (i) and (ii) fail for both. The default stays.
+
+Predictions. P1 held. P2 failed: .91. P3 held. P4 held: +.23. P5 held: .030 against .33. P6 failed.
+
+Reading. The projection does what it is built for: a forced wrong route keeps .91 of the base model's answers against .68, and the divergence falls elevenfold. It costs the fact, and the paraphrases most: the directions that carry most of an ordinary prompt's energy are also those through which a rephrased question reaches the adapter, so an adapter confined to the rest answers the edit prompt it was trained on and little else. At this granularity, locality and generalisation draw on the same directions; a projection learned from CounterFact edit prompts cannot tell the fact's own subject from another's.
+
+Limits. As entry 153. A projection keyed to the subject's tokens rather than to every token, or shares below .90, were not tried; either is a new entry.

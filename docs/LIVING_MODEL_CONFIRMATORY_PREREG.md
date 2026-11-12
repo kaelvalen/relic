@@ -3576,3 +3576,25 @@ Reading. The two labels sit apart in the entailment score (median .944 for legit
 Correction to entry 142. Its reading holds at the thresholds it read, but the router's score is not blind to the label: over all routed items it ranks legit above leak with AUROC .685. The thresholds of SS138 sit where this ranking buys little.
 
 Limits. As entry 147. One template and one model; 45 items on the test half.
+
+## 149. Phase 0 of the hypernetwork: can a generated adapter work at all? (pinned 2026-11-12, before the run)
+
+Design: docs/LIVING_MODEL_HYPERNETWORK_DESIGN.md, phase 0. The author asked that this phase be pinned and reported like any run.
+
+Question. Can a network that reads a fact write a rank-2 adapter that makes the model give the stored answer, first on facts it was trained on and then on facts it has not seen? This decides whether phase 1 is worth its GPU time, not whether the hypernetwork replaces trained adapters.
+
+Facts. CounterFact only, `draw_facts(1100, seed=149)` with the subjects of the draws of entries 126 and 136 excluded, on top of everything `draw_facts` already excludes. The first 1000 are the training pool, whose first 300 are the small pool; the last 100 are the unseen facts, of relations the pools also hold. Held-out relations are phase 1.
+
+Hypernetwork. Input: the mean of the frozen base model's last hidden states over the fact's teach sentence. A trunk maps it to 512 dimensions; for each of the 28 layers and each of `q_proj` and `v_proj`, a shared head per module reads the trunk output and a learned layer embedding and writes A and B of a rank-2 adapter, the shape the store serves, scale 2. The head starts where a fresh LoRA starts: B zero, A the same random matrix for every fact. About 6 million parameters, trained with AdamW at 1e-4 for 3000 steps of 8 facts, seed 149, at both pool sizes.
+
+Loss. The objective of a write today on the short pairs (teach sentence to "Noted: ...", edit prompt to answer), amortised over facts: the answer's loss plus the KL to the base model on the two training canaries, weight 1, the base model frozen. Rewrites are left out in this phase, so the reference is the A0 recipe, not the ladder.
+
+Arms. H300 and H1000: the generated adapter, no further training. T0: today's trained adapter on the same short pairs (`train_adapter`, seed 126, KL weight 1), on the 100 unseen facts only. Every adapter is served as the store serves one: int8, padded, through `serve_expert`, forced to its fact without the router.
+
+Readings. Edit prompt answered (word boundary) on the first 100 training facts, which both pools hold, and on the 100 unseen facts; paraphrase answered on the unseen facts; the base model's rate on the same prompts; the share of adapters under the divergence limit on the held-out canaries (`KAPPA` .968); seconds to make an adapter. A self-check before the run requires that the hook that applies a generated adapter during training gives the same logits as the store's own serving of that adapter.
+
+Rule. Phase 1 is proposed to the author if (i) H1000 answers at least .80 of the edit prompts of its training facts, and (ii) H1000 answers at least .10 of the unseen edit prompts, with the lower end of the paired interval against the base model above zero. If (i) fails, the next entry is a change of recipe, not phase 1. If (i) holds and (ii) fails, the hypernetwork stores and does not generalise at this size; phase 1's larger pools are the test, and the author decides.
+
+Predictions. P1: training facts, H300 at least .90 and H1000 at least .80. P2: unseen edit prompts, H300 between .02 and .20, H1000 between .10 and .40, H1000 above H300. P3: unseen paraphrases below unseen edit prompts for both. P4: at least .90 of generated adapters under the divergence limit. P5: T0 at least .95 on unseen edit prompts. P6: the rule holds.
+
+Limits. One model, one dataset, short pairs, no router, 100 unseen facts. A failure here speaks to this recipe and these sizes.

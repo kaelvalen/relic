@@ -3669,3 +3669,21 @@ Predictions. P1 failed: Ea .00, and Eb's .77 is above the predicted band of .20 
 Reading. The answer's identity was the missing piece for carrying to unseen facts: .10 in entry 150, .77 here, from the input alone. It came with a loss of locality: no generated adapter, and none fine-tuned from one, stays under the limit that every T0 and Rk adapter meets, and the gap between training and held-out canaries says the hypernetwork kept the canaries it was trained on and not the model's behaviour in general. Paraphrase rates near edit rates (.73 against .77, .99 against .99, where T0 has .78 against 1.00) fit adapters that push the answer broadly; this was not measured.
 
 Limits. As entry 151. One seed; Ea's divergence was not rerun.
+
+## 153. Does a null-space projection make a wrong route cheaper without losing the fact? (pinned 2026-11-12, before the run)
+
+Question. A wrong route keeps the base model's correct answer on about .55 of questions (entry 145, P5), and 18 percent of facts need a second rung under the divergence limit. Both come from what an adapter does to inputs other than its fact's. AlphaEdit (Fang et al., ICLR 2025) projects an edit onto the null space of the inputs whose behaviour must be preserved, so that the edit cannot move them. This entry applies the idea to the per-fact rank-2 adapter: in each layer, the adapter's A acts on the input only after the input is projected away from the main directions of ordinary inputs to that layer.
+
+Projection. For each of the 28 layers, the second moment C of the input to `q_proj` (the same input as `v_proj`) is summed over every token of the 1000 pool facts of entry 149 (seed 149, disjoint by subject from the facts read here), each edit prompt as a user turn after the serving system prompt "Answer briefly.", with the generation prompt. The eigenvectors of C are taken from the largest eigenvalue down until they hold a share p of its trace; P = I - U Uᵀ removes them. During training a hook feeds P x to `lora_A`, so the adapter is B A P; the stored A is A P, so serving, storage and removal are unchanged. P is computed once per base model from text, and nothing in it depends on a stored fact.
+
+Arms, all with today's short-pair recipe of entry 150's T0 (`train_adapter`: rank 2, LoRA+ factor 8, 16 passes, KL weight 1 on the training canaries, seed 126), int8 and padded, served forced: T, no projection; N90, p = .90; N99, p = .99.
+
+Facts. The 100 unseen CounterFact facts of entries 149 and 151.
+
+Readings, per arm. Edit prompt and paraphrase answered (word boundary). Divergence on the held-out canaries, and the share under the limit (`KAPPA`). Forced wrong route: the rows of entry 100's `wrong_route.json` whose base answer has the answer at a word boundary, in file order; fact k's adapter is forced on rows 3k, 3k+1 and 3k+2, and the answer is kept or not (word boundary), 300 pairs, the same pairs in every arm. For each p, the number of directions removed per layer. Seconds per adapter.
+
+Rule, for an arm N against T, paired over facts and over wrong-route pairs. N is a candidate for the default, to be read on the full evaluation of entry 145 in a new entry, if (i) edit prompts at least .98; (ii) paraphrase minus T, lower end of the 95 percent interval at least -.05; (iii) wrong route kept minus T, lower end above 0; (iv) under the limit at least T's share. If both pass, N90, the milder projection, goes on. Otherwise the default stays and the result is reported.
+
+Predictions. P1: T answers .98 or more edit prompts and .70 to .85 paraphrases, as entry 150's T0. P2: N90 keeps edit prompts at .98 or more. P3: N99 answers fewer edit prompts than N90. P4: N90 keeps more wrong-route answers than T, by .05 or more. P5: N90's median divergence is below T's. P6: N90 passes the rule.
+
+Limits. One model, CounterFact only, 100 facts, short pairs without the ladder and its rewrites, no router: the wrong route is forced. The projection's corpus is CounterFact edit prompts, close to the facts' own domain; the wrong-route questions are zsRE.

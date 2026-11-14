@@ -36,12 +36,13 @@ from adapter_only import CONFIRM, MODEL  # noqa: E402
 from general_eval import prompt  # noqa: E402
 
 from relic.ledger import DeltaStore, Ledger, chat_messages  # noqa: E402
-from relic.router import RELATION_TAU, make_scorer  # noqa: E402
+from relic.router import make_scorer  # noqa: E402
 
 SEED = 163
 K, WARMUP, REPEATS = 100, 10, 5
-THETA, SLOT = 0.7501, 0.8985
-PARTS = ("route_s", "swap_s", "first_token_s", "total_s")
+# total_s is the time to first token: route + swap + first token. swap_back_s, the return
+# to the full set after the token, is timed on its own and is not part of it.
+PARTS = ("route_s", "swap_s", "first_token_s", "swap_back_s", "total_s")
 
 
 def sync() -> None:
@@ -82,7 +83,13 @@ def time_base(store, q: str) -> dict:
     token = first_token(store, q)
     sync()
     t1 = time.perf_counter()
-    return {"route_s": 0.0, "swap_s": 0.0, "first_token_s": t1 - t0, "token": token}
+    return {
+        "route_s": 0.0,
+        "swap_s": 0.0,
+        "first_token_s": t1 - t0,
+        "swap_back_s": 0.0,
+        "token": token,
+    }
 
 
 def time_store(ledger, q: str) -> dict:
@@ -104,16 +111,24 @@ def time_store(ledger, q: str) -> dict:
     token = first_token(store, q)
     sync()
     t3 = time.perf_counter()
-    if fid is not None:  # untimed: back to the full set, as Serve leaves it
+    if fid is not None:  # back to the full set, as Serve leaves it
         store.deltas = full
         store.materialize()
+    sync()
+    t4 = time.perf_counter()
     return {
         "route_s": t1 - t0,
         "swap_s": t2 - t1,
         "first_token_s": t3 - t2,
+        "swap_back_s": t4 - t3,
         "token": token,
         "entry": fid,
     }
+
+
+def load_ledger(path, store, scorer) -> Ledger:
+    """The ledger with the settings and prompts its file records; the hash is checked."""
+    return Ledger.from_file(path, store, scorer)
 
 
 def summary(rows: list[dict]) -> dict:
@@ -148,10 +163,8 @@ def main(argv=None) -> None:
         ap.error(f"refusing to overwrite {out}")
 
     store = DeltaStore(MODEL, steps=16, capacity=1)
-    ledger = Ledger(
-        store, make_scorer("relenc"), THETA, SLOT, relation_tau=RELATION_TAU
-    )
-    ledger.load(args.ledger)  # refuses a file whose state hash does not match
+    # the settings and prompts come from the file; a changed file is refused
+    ledger = load_ledger(args.ledger, store, make_scorer("relenc"))
     queries = query_set(ledger, k)
     _ = ledger.router  # built once, as a serving process holds it
 

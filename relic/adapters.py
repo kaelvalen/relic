@@ -21,12 +21,19 @@ STORE_RANK = 16  # the store model's slot width; narrower adapters are padded in
 B_MULT = 8  # LoRA+: B learns at 8 times the learning rate of A
 
 
+class NonFiniteAdapter(ValueError):
+    """An adapter with a NaN or an infinite value; it is never stored."""
+
+
 def quantize_rows(t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Symmetric int8 with one fp16 absmax scale per row: (int8 values, fp16 scales).
 
     A row whose scale is 0 in fp16 (all zeros, or an absmax that underflows) gets the
-    scale 1, so its values quantize to 0.
+    scale 1, so its values quantize to 0. A non-finite value raises: rounding would turn
+    a NaN row into zeros.
     """
+    if not bool(torch.isfinite(t).all()):
+        raise NonFiniteAdapter("non-finite value in an adapter tensor")
     scale = (t.float().abs().amax(dim=1, keepdim=True) / 127.0).half().float()
     scale = torch.where(scale > 0, scale, torch.ones_like(scale))
     q = (t.float() / scale).round().clamp(-127, 127).to(torch.int8)

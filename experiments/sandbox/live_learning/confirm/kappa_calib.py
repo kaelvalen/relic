@@ -49,6 +49,7 @@ from relic.ledger import (  # noqa: E402
     DeltaStore,
     Ledger,
 )
+from relic.metrics import word_hit  # noqa: E402
 from relic.serving import trim  # noqa: E402
 
 SEED = 160
@@ -146,6 +147,70 @@ def harmful(store, ledger, facts, anchor: str) -> list[dict]:
     finally:
         store.lr, store.steps = lr, steps
     return rows
+
+
+def base_readings(store, questions, canaries) -> dict:
+    """The base model's answers: which questions it gets right, what it says to canaries."""
+    full = store.deltas
+    store.deltas = {}
+    store.materialize()
+    answers = [store.answer(q["question"]) for q in questions]
+    out = {
+        "correct": [word_hit(a, q["answer"]) for a, q in zip(answers, questions)],
+        "canaries": [store.answer(c) for c in canaries],
+    }
+    store.deltas = full
+    store.materialize()
+    return out
+
+
+def harm(store, packed, questions, canaries, base) -> dict:
+    """With the adapter forced: retention of the base model's correct answers, and the
+    share of canaries whose greedy answer changes."""
+    full = store.deltas
+    store.deltas = {"__harm__": pad(unpack_delta(packed))}
+    store.materialize()
+    try:
+        kept = [
+            word_hit(store.answer(q["question"]), q["answer"])
+            for q, ok in zip(questions, base["correct"])
+            if ok
+        ]
+        changed = [store.answer(c) != b for c, b in zip(canaries, base["canaries"])]
+    finally:
+        store.deltas = full
+        store.materialize()
+    return {
+        "retention": round(sum(kept) / len(kept), 4) if kept else None,
+        "canaries_changed": round(sum(changed) / len(changed), 4) if changed else None,
+    }
+
+
+def auroc(pos, neg) -> float | None:
+    if not pos or not neg:
+        return None
+    wins = sum((p > n) + 0.5 * (p == n) for p in pos for n in neg)
+    return round(wins / (len(pos) * len(neg)), 4)
+
+
+def separation(rows, retention_drop, canary_change) -> dict:
+    """AUROC of D for adapters whose harm is above the author's thresholds."""
+    out = {}
+    for name, threshold, score in (
+        ("retention", retention_drop, lambda h: 1 - h["retention"]),
+        ("canaries", canary_change, lambda h: h["canaries_changed"]),
+    ):
+        if threshold is None:
+            out[name] = "TODO(author): threshold not set"
+            continue
+        bad = [r["d"] for r in rows if score(r["harm"]) > threshold]
+        good = [r["d"] for r in rows if score(r["harm"]) <= threshold]
+        out[name] = {
+            "threshold": threshold,
+            "harmful": len(bad),
+            "auroc": auroc(bad, good),
+        }
+    return out
 
 
 def accepted(rows, kappa) -> dict:

@@ -60,26 +60,50 @@ def fresh_facts(dataset: str):
     return sets[FRESH_SET[dataset]], cf_records, raw_cf
 
 
+def build_ledger(store, scorer, system: str, kappa: float | None = None) -> Ledger:
+    """legacy: entry 146 (LEGACY_PROMPTS, one global threshold, updates that drop the
+    replaced entry). current: the ledger after CHANGES.md, with RELATION_TAU, so every
+    reading routes as the leak readings do."""
+    if system == "legacy":
+        use_prompts(store, LEGACY_PROMPTS)
+        return Ledger(store, scorer, THETA, SLOT, keep_history=False)
+    return Ledger(
+        store,
+        scorer,
+        THETA,
+        SLOT,
+        relation_tau=RELATION_TAU,
+        kappa=KAPPA if kappa is None else kappa,
+        keep_history=True,
+    )
+
+
+def account_holder(holder: dict, f: dict, event: dict) -> dict:
+    """Record which entry holds fact f after its write; the event, in the report's words."""
+    if event["action"] == "reject":  # the ledger's word; parts and reports say rejected
+        event = {**event, "action": "rejected"}
+    if event["action"] == "update":
+        holder.update(
+            {k: event["entry"] for k, v in holder.items() if v == event["superseded"]}
+        )
+    holder[f["id"]] = event["entry"] if event["action"] != "rejected" else None
+    return event
+
+
+def restore_holders(holder: dict, ledger, revokes: list) -> None:
+    """After removal: each fact is held by the active entry whose record or history now
+    holds it, a restored entry included, or by none if it was erased."""
+    where = ledger._locations()
+    holder.update({k: where.get(k) for k in holder})
+
+
 def build(ledger, facts, parts: Path) -> tuple[dict, list]:
     """Each fact through `Ledger.write`; a part on disk every 50 facts, as the GPU is shared."""
     parts.mkdir(exist_ok=True)
     holder, events = {}, []
 
     def account(f, event):
-        if (
-            event["action"] == "reject"
-        ):  # the ledger's word; parts and reports say rejected
-            event = {**event, "action": "rejected"}
-        if event["action"] == "update":
-            holder.update(
-                {
-                    k: event["entry"]
-                    for k, v in holder.items()
-                    if v == event["superseded"]
-                }
-            )
-        holder[f["id"]] = event["entry"] if event["action"] != "rejected" else None
-        events.append({"fact_id": f["id"], **event})
+        events.append({"fact_id": f["id"], **account_holder(holder, f, event)})
 
     done = 0
     for path in sorted(parts.glob("part_*.pt")):
@@ -142,18 +166,8 @@ def main_dataset(
     facts = facts[:n_q] if smoke else facts
 
     store = DeltaStore(MODEL, steps=16, capacity=1)
-    if system == "legacy":
-        use_prompts(store, LEGACY_PROMPTS)
     scorer = make_scorer("relenc")
-    # entry 146 ran before superseded entries were kept (CHANGES.md, item 3)
-    ledger = Ledger(
-        store,
-        scorer,
-        THETA,
-        SLOT,
-        kappa=KAPPA if kappa is None else kappa,
-        keep_history=system == "current",
-    )
+    ledger = build_ledger(store, scorer, system, kappa)
     parts = CONFIRM / f"notless_parts_{tag}{variant}{suffix}"
     holder, events = build(ledger, facts, parts)
     if system == "current":  # the store as written, for later readings such as TTFT
@@ -170,6 +184,11 @@ def main_dataset(
     router, active = ledger.router
     extra = {f"{f['subject']}\t{f['probe']}": ledger.phrasings[f["id"]] for f in active}
     tau_router = RouterV7(active, scorer, THETA, extra, RELATION_TAU)
+    # current system: the ledger routes with RELATION_TAU; one global threshold is read
+    # only as a named comparison, served for every query it routes differently
+    global_router = (
+        RouterV7(active, scorer, THETA, extra) if system == "current" else None
+    )
     base_cache, answers = {}, {}
 
     def base(q):
@@ -188,8 +207,7 @@ def main_dataset(
         route = None if j is None else active[j]["id"]
         jt, _ = tau_router.route(q)
         text = base(q) if route is None else serve(route, q)
-        trim()
-        return {
+        row = {
             "reading": reading,
             "id": fid,
             "q": q,
@@ -201,6 +219,16 @@ def main_dataset(
             "response": text,
             **fields,
         }
+        if global_router is not None:
+            jg, _ = global_router.route(q)
+            row["route_global"] = None if jg is None else active[jg]["id"]
+            row["response_global"] = (
+                text
+                if row["route_global"] == route
+                else (base(q) if jg is None else serve(row["route_global"], q))
+            )
+        trim()
+        return row
 
     rows = []
     for f in facts:
@@ -319,7 +347,29 @@ def main_dataset(
                 "superseded": f["id"] in was_superseded,
             }
         )
+    restored_reads = []
     if ledger.keep_history:
+        # a revoke that brought back a superseded entry: read that entry's own edit
+        # prompt, and hold its facts by it again so that retention counts them
+        restore_holders(holder, ledger, revokes)
+        for ev in revokes:
+            r = ev.get("restored")
+            if not r:
+                continue
+            entry = ledger.entries[r]
+            text, j = after_removal(entry["probe"], base(entry["probe"]))
+            routed = None if j is None else active_after[j]["id"]
+            restored_reads.append(
+                {
+                    "restored": r,
+                    "revoked": ev["entry"],
+                    "routed_to": routed,
+                    "routed_right": routed == r,
+                    "edit_correct": word_hit(text, entry["answer"]),
+                    "response": text,
+                }
+            )
+            trim()
         removed_ids = {f["id"] for f in removed}
         kept = [
             f
@@ -342,6 +392,7 @@ def main_dataset(
         "seconds_per_removal": round(seconds / max(len(revokes), 1), 4),
         "seconds_from_log": [r["seconds"] for r in revokes],
         "restored": [r["restored"] for r in revokes if r.get("restored")],
+        "restored_reads": restored_reads,
     }
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1))
     print(json.dumps(summarize(report), indent=1), flush=True)
@@ -425,11 +476,18 @@ def rate(xs) -> float | None:
 def summarize(report: dict, cut=lambda text: text) -> dict:
     """`cut` shortens a response to the length the saved evaluations generated."""
     rows, out = report["rows"], {}
-    for route in ("route", "route_tau"):
+    routes = ["route", "route_tau"]
+    if any("route_global" in r for r in rows):
+        routes.append("route_global")  # the named comparison of the current system
+    for route in routes:
 
         def text(r, route=route):
+            if route == "route_global":
+                return r.get("response_global", r["response"])
             # a raised threshold only sends a query to the base model
-            return r["response"] if r[route] == r["route"] else r["base"]
+            return (
+                r["response"] if r.get(route, r["route"]) == r["route"] else r["base"]
+            )
 
         def leak(xs):
             return rate(
@@ -444,14 +502,14 @@ def summarize(report: dict, cut=lambda text: text) -> dict:
                 "n": len(xs),
                 "word": rate(word_hit(text(r), r["answer"]) for r in xs),
                 "substring": rate(hit(text(r), r["answer"]) for r in xs),
-                "routed": rate(r[route] is not None for r in xs),
+                "routed": rate(r.get(route, r["route"]) is not None for r in xs),
             }
         for name in ("e3", "e2", "natural"):
             xs = [r for r in rows if r["reading"] == name]
             s[name] = {
                 "n": len(xs),
                 "leak": leak(xs),
-                "routed": rate(r[route] is not None for r in xs),
+                "routed": rate(r.get(route, r["route"]) is not None for r in xs),
             }
         for kind in ("near", "uniform"):
             xs = [
@@ -460,13 +518,13 @@ def summarize(report: dict, cut=lambda text: text) -> dict:
             s[f"natural_{kind}"] = {
                 "n": len(xs),
                 "leak": leak(xs),
-                "routed": rate(r[route] is not None for r in xs),
+                "routed": rate(r.get(route, r["route"]) is not None for r in xs),
             }
         for name in ("distractor", "loc"):
             xs = [r for r in rows if r["reading"] == name]
             s[name] = {
                 "n": len(xs),
-                "routed": rate(r[route] is not None for r in xs),
+                "routed": rate(r.get(route, r["route"]) is not None for r in xs),
                 "same_as_base": rate(text(r) == r["base"] for r in xs),
             }
         out[route] = s
@@ -491,7 +549,13 @@ def summarize(report: dict, cut=lambda text: text) -> dict:
     }
     rem = report["removal"]
     removal_secs = rem.get("seconds_from_log", [])
+    back = rem.get("restored_reads", [])
     out["removal"] = {
+        "restored": {
+            "n": len(back),
+            "edit_accuracy": rate(r["edit_correct"] for r in back),
+            "routed_right": rate(r["routed_right"] for r in back),
+        },
         "with_history": sum(
             r.get("history_depth", 0) > 0 or r.get("superseded", False)
             for r in rem["rows"]

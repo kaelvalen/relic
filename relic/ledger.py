@@ -14,6 +14,7 @@ import json
 import os
 import threading
 import time
+import warnings
 from pathlib import Path
 
 import torch
@@ -24,6 +25,7 @@ from relic.adapters import (
     R2,
     REWRITE_SYSTEM,
     REWRITE_USER,
+    NonFiniteAdapter,
     blob_to_record,
     fact_pairs,
     pack_delta,
@@ -157,6 +159,13 @@ class DeltaStore:
         # the caller, hashed into the state
         self.router_config = ""
         self.revision = getattr(getattr(base, "config", None), "_commit_hash", None)
+        if self.revision is None:
+            warnings.warn(
+                f"{model_name}: the model revision is unknown (no config._commit_hash),"
+                " so the state hash cannot tell two revisions of these weights apart",
+                UserWarning,
+                stacklevel=2,
+            )
         # the hash of stores saved before the model revision was hashed (format 1)
         self.legacy_base_hash = hashlib.sha256(
             f"{model_name}|r{R}|cap{capacity}".encode()
@@ -509,6 +518,8 @@ class Ledger:
         self.keep_history = keep_history
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
+        # {entry: {phrasing: the write id that introduced it, or the entry it came from}}
+        self.owners: dict[str, dict[str, str]] = {}
         self.writes: dict[str, list[dict]] = {}
         self.history: dict[str, list[dict]] = {}
         self.packed: dict[str, dict] = {}
@@ -551,18 +562,37 @@ class Ledger:
     # -- bookkeeping ------------------------------------------------------
     def ids(self) -> set[str]:
         """Every id in use: active entries, their writes, and superseded entries."""
-        out = set(self.entries)
-        for ws in self.writes.values():
-            out |= {w["fact"]["id"] for w in ws}
-        for stack in self.history.values():
+        return set(self._locations())
+
+    def _locations(self) -> dict[str, str]:
+        """{id: the active entry whose record or history holds it}."""
+        out = {}
+        for fid in self.entries:
+            out[fid] = fid
+            for w in self.writes.get(fid, []):
+                out[w["fact"]["id"]] = fid
+            for snap in self.history.get(fid, []):
+                out[snap["entry"]["id"]] = fid
+                for w in snap["writes"]:
+                    out[w["fact"]["id"]] = fid
+        for fid, stack in self.history.items():  # a history whose owner is not active
             for snap in stack:
-                out.add(snap["entry"]["id"])
-                out |= {w["fact"]["id"] for w in snap["writes"]}
+                out.setdefault(snap["entry"]["id"], fid)
+                for w in snap["writes"]:
+                    out.setdefault(w["fact"]["id"], fid)
         return out
 
     def _check_new_id(self, fid: str) -> None:
         if fid in self.ids():
             raise ValueError(f"{fid}: id is held by another fact or write")
+
+    @staticmethod
+    def _check_finite(delta: dict) -> None:
+        tensors = delta["tensors"].values() if "format" in delta else delta.values()
+        for ts in tensors:
+            for t in ts.values():
+                if t.is_floating_point() and not bool(torch.isfinite(t).all()):
+                    raise ValueError("non-finite adapter: refused")
 
     def _set_delta(self, fid: str, delta: dict) -> None:
         """Keep the stored record and the padded adapter that serving swaps in."""
@@ -579,13 +609,15 @@ class Ledger:
         return {
             "entry": self.entries[fid],
             "phrasings": list(self.phrasings[fid]),
-            "writes": list(self.writes.get(fid, [])),
+            "owners": dict(self.owners.get(fid, {})),
+            "writes": [dict(w) for w in self.writes.get(fid, [])],
             "packed": self.packed.get(fid),
             "digest": self._delta_digest.get(fid),
         }
 
     def _remove_active(self, fid: str) -> None:
         del self.entries[fid], self.phrasings[fid]
+        self.owners.pop(fid, None)
         self.writes.pop(fid, None)
         self.packed.pop(fid, None)
         self._delta_digest.pop(fid, None)
@@ -598,12 +630,88 @@ class Ledger:
         fid = entry["id"]
         self.entries[fid] = entry
         self.phrasings[fid] = list(snap["phrasings"])
-        self.writes[fid] = list(snap["writes"])
+        self.owners[fid] = dict(snap["owners"])
+        self.writes[fid] = [dict(w) for w in snap["writes"]]
         self.store.keys[fid] = entry["probe"]
         if snap["packed"] is not None:
             self._set_delta(fid, snap["packed"])
         self._router = None
         return fid
+
+    def _records(self):
+        """(phrasings, owners, writes) of every active entry and every snapshot."""
+        for fid in self.entries:
+            owners = self.owners.setdefault(fid, {})
+            yield self.phrasings[fid], owners, self.writes.get(fid, [])
+        for stack in self.history.values():
+            for snap in stack:
+                yield snap["phrasings"], snap["owners"], snap["writes"]
+
+    def _drop_owned(self, removed: set[str]) -> None:
+        """Remove the phrasings that the removed writes introduced, wherever they live.
+
+        A phrasing that another remaining write of the same record also gives passes to
+        that write, as it would have been added by it had the removed write never happened.
+        """
+        for phrasings, owners, writes in self._records():
+            for p in list(phrasings):
+                if owners.get(p, None) not in removed:
+                    continue
+                heir = next(
+                    (
+                        w
+                        for w in writes[1:]
+                        if w["fact"]["probe"] == p and w["fact"]["id"] not in removed
+                    ),
+                    None,
+                )
+                if heir is not None:
+                    owners[p] = heir["fact"]["id"]
+                    heir["added_phrasing"] = True
+                else:
+                    phrasings.remove(p)
+                    del owners[p]
+
+    def _checkpoint(self) -> dict:
+        """Everything a transaction can change, to put back if it fails halfway."""
+        return {
+            "entries": dict(self.entries),
+            "phrasings": {k: list(v) for k, v in self.phrasings.items()},
+            "owners": {k: dict(v) for k, v in self.owners.items()},
+            "writes": {k: [dict(w) for w in v] for k, v in self.writes.items()},
+            "history": {
+                k: [
+                    {
+                        **s,
+                        "phrasings": list(s["phrasings"]),
+                        "owners": dict(s["owners"]),
+                        "writes": [dict(w) for w in s["writes"]],
+                    }
+                    for s in v
+                ]
+                for k, v in self.history.items()
+            },
+            "packed": dict(self.packed),
+            "digests": dict(self._delta_digest),
+            "deltas": dict(self.store.deltas),
+            "keys": dict(self.store.keys),
+            "log": len(self.log),
+        }
+
+    def _restore(self, cp: dict) -> None:
+        self.entries, self.phrasings = cp["entries"], cp["phrasings"]
+        self.owners, self.writes, self.history = (
+            cp["owners"],
+            cp["writes"],
+            cp["history"],
+        )
+        self.packed, self._delta_digest = cp["packed"], cp["digests"]
+        self.store.deltas.clear()
+        self.store.deltas.update(cp["deltas"])
+        self.store.keys.clear()
+        self.store.keys.update(cp["keys"])
+        del self.log[cp["log"] :]
+        self._router = None
 
     def _rebuild_router(self) -> None:
         self._router = None
@@ -625,11 +733,13 @@ class Ledger:
         """Apply one write atomically: insert, duplicate (new phrasing) or update.
 
         `delta` is an adapter ({module: {"A", "B"}}) or a stored record (pack_delta);
-        `extra` goes into the log record.
+        an adapter with a non-finite value is refused. `extra` goes into the log record.
         """
         with self.lock:
             fid = fact["id"]
             self._check_new_id(fid)
+            if delta is not None:
+                self._check_finite(delta)
             old = self.slot(fact)
             if old is not None and self._same_answer(old, fact):
                 added = fact["probe"] != self.entries[old]["probe"] and (
@@ -637,17 +747,23 @@ class Ledger:
                 )
                 if added:
                     self.phrasings[old].append(fact["probe"])
+                    self.owners.setdefault(old, {})[fact["probe"]] = fid
                 self.writes[old].append({"fact": fact, "added_phrasing": added})
                 self._router = None
                 return self._record("duplicate", old, written=fid, **extra)
             kept, stack = [], []
             if old is not None:
-                kept = [self.entries[old]["probe"], *self.phrasings[old]]
+                # the replaced entry's prompts stay as phrasings, each with its owner
+                inherited = self.owners.get(old, {})
+                kept = [(self.entries[old]["probe"], old)]
+                kept += [(p, inherited.get(p, old)) for p in self.phrasings[old]]
                 if self.keep_history:
                     stack = self.history.pop(old, []) + [self._snapshot(old)]
                 self._remove_active(old)
+            kept = [(p, o) for p, o in kept if p != fact["probe"]]
             self.entries[fid] = fact
-            self.phrasings[fid] = [p for p in kept if p != fact["probe"]]
+            self.phrasings[fid] = [p for p, _ in kept]
+            self.owners[fid] = dict(kept)
             self.writes[fid] = [{"fact": fact, "added_phrasing": False}]
             if stack:
                 self.history[fid] = stack
@@ -677,9 +793,19 @@ class Ledger:
                     return owner, i
         return None
 
+    def _purge(self, owner: str, i: int) -> None:
+        """Erase a superseded entry: its snapshot, and every phrasing its writes gave."""
+        snap = self.history[owner].pop(i)
+        if not self.history[owner]:
+            del self.history[owner]
+        self._drop_owned(
+            {w["fact"]["id"] for w in snap["writes"]} | {snap["entry"]["id"]}
+        )
+
     def revoke(self, fid: str) -> dict:
         """Remove a fact. An active entry goes with all its writes, and the entry it
-        superseded comes back; a superseded entry is erased from the history."""
+        superseded comes back; a superseded entry is erased from the history, with the
+        phrasings its writes gave to the entries after it."""
         with self.lock:
             t0 = time.perf_counter()
             if fid in self.entries:
@@ -693,71 +819,120 @@ class Ledger:
                     f"{fid}: no entry or superseded entry has this id"
                     " (a duplicate write is removed with retract)"
                 )
-            owner, i = found
-            del self.history[owner][i]
-            if not self.history[owner]:
-                del self.history[owner]
+            self._purge(*found)
             self._rebuild_router()
             seconds = round(time.perf_counter() - t0, 6)
             return self._record(
-                "revoke", fid, purged_from=owner, restored=None, seconds=seconds
+                "revoke", fid, purged_from=found[0], restored=None, seconds=seconds
             )
 
     def _can_train(self) -> bool:
         return getattr(self.store, "model", None) is not None
 
-    def retract(self, write_id: str) -> dict:
-        """Remove one write of an active entry, as if it had never been made.
+    def _find_write(self, write_id: str):
+        """(active entry, None, index) or (active entry, history index, index)."""
+        for fid in sorted(self.entries):
+            for k, w in enumerate(self.writes.get(fid, [])):
+                if w["fact"]["id"] == write_id:
+                    return fid, None, k
+            for h, snap in enumerate(self.history.get(fid, [])):
+                for k, w in enumerate(snap["writes"]):
+                    if w["fact"]["id"] == write_id:
+                        return fid, h, k
+        return None
 
-        A duplicate drops its phrasing unless another write of the entry has the same
-        prompt. The entry's own write is replaced by the next remaining write, which is
-        written again (trained, when the ledger has a model), so no adapter trained on the
-        retracted write survives. The last write of an entry is a revoke.
+    def retract(self, write_id: str) -> dict:
+        """Remove one write, as if it had never been made.
+
+        A duplicate is dropped with the phrasings it gave, unless another write of the
+        same record also gives them. The own write of an active entry is replaced by the
+        next write, written again (trained when the ledger has a model), so no adapter
+        trained on the retracted write survives; the own write of a superseded entry is
+        replaced likewise inside the history. The last write of an entry is a revoke. A
+        failure halfway leaves the ledger as it was.
         """
         with self.lock:
             t0 = time.perf_counter()
-            owner = next(
-                (
-                    fid
-                    for fid in sorted(self.writes)
-                    if any(w["fact"]["id"] == write_id for w in self.writes[fid])
-                ),
-                None,
-            )
-            if owner is None:
-                raise KeyError(f"{write_id}: no active entry holds this write")
-            ws = self.writes[owner]
-            i = next(k for k, w in enumerate(ws) if w["fact"]["id"] == write_id)
-            extra: dict = {"write": write_id}
-            if len(ws) == 1:
-                extra["restored"] = self._revoke_active(owner)
-                extra["mode"] = "last"
-            elif i > 0:
-                w = ws.pop(i)
-                probe = w["fact"]["probe"]
-                if w["added_phrasing"]:
-                    heir = next(
-                        (x for x in ws[1:] if x["fact"]["probe"] == probe), None
-                    )
-                    if heir is not None:
-                        heir["added_phrasing"] = True
-                    else:
-                        self.phrasings[owner].remove(probe)
-                extra["mode"] = "duplicate"
-            else:
-                rest = [w["fact"] for w in ws[1:]]
-                self._revoke_active(owner)
-                cause = f"retract:{write_id}"
-                for f in rest:
-                    if self._can_train():
-                        self.write(f, cause=cause)
-                    else:
-                        self.commit(f, cause=cause)
-                extra["mode"] = "rebuilt"
-                extra["rebuilt_from"] = rest[0]["id"]
+            found = self._find_write(write_id)
+            if found is None:
+                raise KeyError(f"{write_id}: no entry or history holds this write")
+            owner, h, i = found
+            cp = self._checkpoint()
+            try:
+                if h is None:
+                    extra = self._retract_active(owner, i, write_id)
+                else:
+                    extra = self._retract_history(owner, h, i, write_id)
+            except BaseException:
+                self._restore(cp)
+                raise
             self._rebuild_router()
             extra["seconds"] = round(time.perf_counter() - t0, 6)
-            return self._record("retract", owner, **extra)
+            return self._record("retract", owner, write=write_id, **extra)
+
+    def _replay(self, facts: list[dict], cause: str) -> tuple[str | None, list[str]]:
+        """Write the facts again in order: (the write stored as an entry, rejected)."""
+        stored, rejected = None, []
+        for f in facts:
+            if self._can_train():
+                event = self.write(f, cause=cause)
+            else:
+                event = self.commit(f, cause=cause)
+            if event["action"] == "reject":
+                rejected.append(f["id"])
+            elif stored is None and event["action"] in ("insert", "update"):
+                stored = f["id"]
+        return stored, rejected
+
+    def _retract_active(self, owner: str, i: int, write_id: str) -> dict:
+        ws = self.writes[owner]
+        if len(ws) == 1:
+            return {"mode": "last", "restored": self._revoke_active(owner)}
+        if i > 0:
+            ws.pop(i)
+            self._drop_owned({write_id})
+            return {"mode": "duplicate"}
+        rest = [w["fact"] for w in ws[1:]]
+        self._revoke_active(owner)
+        stored, rejected = self._replay(rest, f"retract:{write_id}")
+        return {"mode": "rebuilt", "rebuilt_from": stored, "rejected_replays": rejected}
+
+    def _retract_history(self, owner: str, h: int, i: int, write_id: str) -> dict:
+        snap = self.history[owner][h]
+        ws = snap["writes"]
+        if len(ws) == 1:
+            self._purge(owner, h)
+            return {"mode": "history-last"}
+        if i > 0:
+            ws.pop(i)
+            self._drop_owned({write_id})
+            return {"mode": "history-duplicate"}
+        # the superseded entry is rebuilt from its next write; its adapter is retrained
+        # when the ledger has a model, and dropped otherwise
+        rejected = []
+        for k, w in enumerate(ws[1:], 1):
+            packed = self._ladder(w["fact"])["packed"] if self._can_train() else None
+            if self._can_train() and packed is None:
+                rejected.append(w["fact"]["id"])
+                continue
+            heir = w["fact"]
+            snap["entry"] = heir
+            snap["writes"] = [{"fact": heir, "added_phrasing": False}] + [
+                x for x in ws[k + 1 :]
+            ]
+            snap["packed"] = packed
+            snap["digest"] = None if packed is None else packed_digest(packed)
+            if heir["probe"] in snap["phrasings"]:  # now the entry's own prompt
+                snap["phrasings"].remove(heir["probe"])
+                snap["owners"].pop(heir["probe"], None)
+            self._drop_owned({write_id, *rejected})
+            return {
+                "mode": "history-rebuilt",
+                "rebuilt_from": heir["id"],
+                "rejected_replays": rejected,
+            }
+        self._purge(owner, h)
+        return {"mode": "history-last", "rejected_replays": rejected}
 
     def _rewrites(self, fact: dict) -> list[str]:
         """Phrasings by the base model, from the subject and the edit prompt alone."""
@@ -778,12 +953,46 @@ class Ledger:
         store.materialize()
         return parse_rewrites(text, fact["probe"], fact["subject"])
 
+    def _ladder(self, fact: dict) -> dict:
+        """Train the rungs in order; the first finite adapter with D <= kappa is kept.
+
+        An adapter with a non-finite value is rejected before its divergence is read.
+        """
+        short = fact_pairs(fact)
+        full = short + [(r, fact["answer"]) for r in self._rewrites(fact)]
+        store, weight = self.store, self.store.kl_lambda
+        out = {"packed": None, "tried": {}, "rejected_rungs": {}}
+        try:
+            for name, seed, kl_lambda, rewrites in LADDER:
+                store.kl_lambda = kl_lambda
+                try:
+                    packed = train_adapter_packed(
+                        store, full if rewrites else short, seed
+                    )
+                    self._check_finite(packed)
+                except NonFiniteAdapter:
+                    out["rejected_rungs"][name] = "non-finite adapter"
+                    continue
+                except ValueError as e:
+                    if "non-finite" not in str(e):
+                        raise
+                    out["rejected_rungs"][name] = "non-finite adapter"
+                    continue
+                kld = store._expert_kld(pad(unpack_delta(packed)), HELDOUT_CANARIES)
+                out["tried"][name] = kld
+                if kld <= self.kappa:  # a NaN divergence is rejected, not committed
+                    out.update(packed=packed, rung=name, kld=kld, seed=seed)
+                    return out
+        finally:
+            store.kl_lambda = weight
+        return out
+
     def write(self, fact: dict, **extra) -> dict:
         """Train the fact's adapter: the first rung of the ladder under `self.kappa`.
 
         The store's one model is parked while a candidate trains, so a write holds the
         lock throughout. If no rung passes, the write commits nothing and the log records
-        the rejection. `extra` goes into the log record.
+        the rejection, with the reason of each rung. `extra` goes into the log record.
         """
         with self.lock:
             t0 = time.perf_counter()
@@ -792,35 +1001,22 @@ class Ledger:
             if old is not None and self._same_answer(old, fact):
                 seconds = round(time.perf_counter() - t0, 3)
                 return self.commit(fact, seconds=seconds, **extra)
-            short = fact_pairs(fact)
-            full = short + [(r, fact["answer"]) for r in self._rewrites(fact)]
-            store, weight = self.store, self.store.kl_lambda
-            tried = {}
-            try:
-                for name, seed, kl_lambda, rewrites in LADDER:
-                    store.kl_lambda = kl_lambda
-                    packed = train_adapter_packed(
-                        store, full if rewrites else short, seed
-                    )
-                    kld = store._expert_kld(pad(unpack_delta(packed)), HELDOUT_CANARIES)
-                    tried[name] = kld
-                    if kld <= self.kappa:  # a NaN divergence is rejected, not committed
-                        seconds = round(time.perf_counter() - t0, 3)
-                        return self.commit(
-                            fact,
-                            packed,
-                            rung=name,
-                            kld=kld,
-                            seed=seed,
-                            tried=dict(tried),
-                            seconds=seconds,
-                            **extra,
-                        )
-            finally:
-                store.kl_lambda = weight
+            out = self._ladder(fact)
             seconds = round(time.perf_counter() - t0, 3)
-            return self._record(
-                "reject", fact["id"], tried=tried, seconds=seconds, **extra
+            info = {"tried": out["tried"], "rejected_rungs": out["rejected_rungs"]}
+            if out["packed"] is None:
+                return self._record(
+                    "reject", fact["id"], **info, seconds=seconds, **extra
+                )
+            return self.commit(
+                fact,
+                out["packed"],
+                rung=out["rung"],
+                kld=out["kld"],
+                seed=out["seed"],
+                **info,
+                seconds=seconds,
+                **extra,
             )
 
     # -- reads ------------------------------------------------------------
@@ -872,13 +1068,14 @@ class Ledger:
         return parts
 
     @staticmethod
-    def _hash_record(h, fid, entry, phrasings, writes, digest) -> None:
+    def _hash_record(h, fid, entry, phrasings, owners, writes, digest) -> None:
         _hash_text(h, fid)
         _hash_text(h, _canon(entry))
         phrasings = sorted(phrasings)
         _hash_text(h, str(len(phrasings)))
         for p in phrasings:
             _hash_text(h, p)
+            _hash_text(h, str(owners.get(p)))
         ws = sorted(writes, key=lambda w: w["fact"]["id"])
         _hash_text(h, str(len(ws)))
         for w in ws:
@@ -902,6 +1099,7 @@ class Ledger:
                 fid,
                 self.entries[fid],
                 self.phrasings[fid],
+                self.owners.get(fid, {}),
                 self.writes.get(fid, []),
                 self._delta_digest.get(fid),
             )
@@ -913,6 +1111,7 @@ class Ledger:
                     snap["entry"]["id"],
                     snap["entry"],
                     snap["phrasings"],
+                    snap["owners"],
                     snap["writes"],
                     snap["digest"],
                 )
@@ -930,8 +1129,10 @@ class Ledger:
         with self.lock:
             state = {
                 "format": 2,
+                "config": self.config(),
                 "entries": self.entries,
                 "phrasings": self.phrasings,
+                "owners": self.owners,
                 "writes": self.writes,
                 "history": {
                     fid: [{**snap, "packed": _blob(snap["packed"])} for snap in stack]
@@ -948,8 +1149,46 @@ class Ledger:
                 os.fsync(f.fileno())
             os.replace(tmp, path)
 
-    def load(self, path) -> None:
+    def config(self) -> dict:
+        """The settings a ledger is built with, written into its file (Ledger.from_file)."""
+        return {
+            "tau": self.tau,
+            "slot_theta": self.slot_theta,
+            "duplicate_theta": self.duplicate_theta,
+            "relation_tau": dict(self.relation_tau),
+            "kappa": self.kappa,
+            "keep_history": self.keep_history,
+            "prompts": {k: getattr(self.store, k, None) for k in PROMPT_FIELDS},
+        }
+
+    @classmethod
+    def from_file(cls, path, store, scorer) -> Ledger:
+        """The ledger a file was written by: its settings and prompts, then its state.
+
+        The state hash covers these settings, so building the ledger with others and
+        calling load() refuses the file; this reads them from it first.
+        """
         state = torch.load(path, map_location="cpu", weights_only=False)
+        if "config" not in state:
+            raise ValueError(f"{path}: the file does not record its ledger settings")
+        cfg = state["config"]
+        use_prompts(store, cfg["prompts"])
+        ledger = cls(
+            store,
+            scorer,
+            cfg["tau"],
+            cfg["slot_theta"],
+            cfg["duplicate_theta"],
+            cfg["relation_tau"],
+            kappa=cfg["kappa"],
+            keep_history=cfg["keep_history"],
+        )
+        ledger.load(path, state)
+        return ledger
+
+    def load(self, path, state: dict | None = None) -> None:
+        if state is None:
+            state = torch.load(path, map_location="cpu", weights_only=False)
         with self.lock:
             if "format" not in state:
                 self._load_v1(path, state)
@@ -957,9 +1196,19 @@ class Ledger:
             if state["format"] != 2:
                 raise ValueError(f"{path}: unknown state format {state['format']!r}")
             self.entries, self.phrasings = state["entries"], state["phrasings"]
+            self.owners = state.get("owners") or {
+                f: {p: f for p in ps} for f, ps in self.phrasings.items()
+            }
             self.writes = state["writes"]
             self.history = {
-                fid: [{**snap, "packed": _record(snap["packed"])} for snap in stack]
+                fid: [
+                    {
+                        "owners": {p: snap["entry"]["id"] for p in snap["phrasings"]},
+                        **snap,
+                        "packed": _record(snap["packed"]),
+                    }
+                    for snap in stack
+                ]
                 for fid, stack in state["history"].items()
             }
             self.log = state["log"]
@@ -982,8 +1231,9 @@ class Ledger:
     def _load_v1(self, path, state) -> None:
         """A file written before format 2: verify its own hash, then convert it.
 
-        Format 1 kept no superseded entries and no duplicate writes, so the converted
-        ledger has an empty history and one write per entry.
+        Format 1 kept no superseded entries, no duplicate writes and no owners of
+        phrasings, so the converted ledger has an empty history, one write per entry, and
+        each phrasing owned by its entry.
         """
         digests = {f: _delta_digest(d) for f, d in state["deltas"].items()}
         legacy = _legacy_state_hash(
@@ -998,6 +1248,7 @@ class Ledger:
         if legacy != state["state_hash"]:
             raise ValueError(f"{path}: state hash does not match its contents")
         self.entries, self.phrasings = state["entries"], state["phrasings"]
+        self.owners = {f: {p: f for p in ps} for f, ps in self.phrasings.items()}
         self.writes = {
             f: [{"fact": e, "added_phrasing": False}] for f, e in self.entries.items()
         }

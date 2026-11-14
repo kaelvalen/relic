@@ -3754,3 +3754,29 @@ Predictions. P1 held: .532 against .975. P2 held: .005 and .002 against .552. P3
 Reading. Today's router cannot read Turkish: its score separates a Turkish question about the stored fact from one about another relation of the same subject no better than chance, and at the operating point it routes almost no Turkish question, right or wrong. The demo's cross-lingual leak was the rare exception; the common failure in Turkish is the lost fact, not the leak. The multilingual base already carries the relation across languages (.887 Turkish untrained); the same triplets bring it to .939 in Turkish and .960 in English, .016 below today's encoder in English. A second finding, in English: BMIKE's rephrasings are questions, and today's operating point routes only .552 of them to the right entry, against the paraphrase rates of the CounterFact readings; the stored keys are cloze prompts.
 
 Limits. As entry 154. The English margin was missed by a hair; a recipe that keeps the English score, for example triplets in both languages, is a new entry.
+
+## 157. The metric contract: names, definitions and the headline set (decided 2026-11-14; no run)
+
+Purpose. From this entry on, every result is reported under the names and definitions below, so that numbers from different entries, and from this work and the literature, are not read as the same thing when they are not. Earlier entries keep their words; the mapping is given at the end.
+
+Author's decision, 2026-11-14. The headline set and the renaming below, proposed after a review of the metrics in common use for language models (perplexity, BLEU, ROUGE, BERTScore, MMLU, GSM8K, HumanEval, HellaSwag, TruthfulQA, RAG metrics, hallucination rate, toxicity, LLM-as-judge, arena ratings, TTFT, TPOT, throughput) and in knowledge editing (efficacy, generalization, locality, portability).
+
+Why "accuracy" and not "efficacy". In CounterFact (ROME, MEMIT) the efficacy score is the share of edit prompts on which the new object is more probable than the true one under teacher forcing; EasyEdit's reliability is token accuracy under teacher forcing. Ours is free generation scored by a match, the setting in which Mirage (Yang et al., ACL 2025) found single-edit results fall from 96.8 to 38.5 percent. Calling ours "efficacy" invites a comparison with teacher-forced numbers that it is not.
+
+Common definitions. A response is the greedy output of the served system to the query as a user turn after the system prompt "Answer briefly.", at most 64 new tokens. A response is correct if it contains the target at a word boundary (`word_hit`). "Routed" means through the default router with `RELATION_TAU`; "forced" means one named entry applied without the router. Every rate has a bootstrap 95 percent interval over facts; every comparison between arms is a paired difference over the same facts or pairs, with its interval; each entry pins its seed.
+
+Headline set, reported for every store or arm that claims to be a default:
+
+1. Edit accuracy: correct responses to the edit prompts, routed. The edit prompts are in the adapter's training data and are the routing keys, so this measures that a fact is stored and found.
+2. Paraphrase accuracy: correct responses to held-out paraphrases of the edit prompt, routed. The test of generalisation.
+3. Leak rate: on queries that should not use a stored fact, the share whose response contains a stored target that the base model's response to the same query does not. Reported separately for E3 (same subject, another relation), E2 (another subject, same relation) and the natural questions, near and uniform.
+4. Wrong-route retention: on the questions of entry 100 whose base response is correct at a word boundary, the share still correct with an entry forced. The cost of a routing error.
+5. Removal: for removed facts, return (correct exactly when the base model is correct) and the store's state hash equal to the state before the fact was added; for the other facts, retention of edit accuracy.
+6. Capability cost: MMLU and ARC accuracy on the 1000 questions of entry 101 with a random entry forced, minus the base model's, and the share of these questions routed at all.
+7. Cost: bytes stored per fact; seconds per write including the ladder, median; the share of facts with no entry; and time to first token per query, routed against the base model, median over a pinned query set (to be implemented and pinned in its own entry).
+
+Secondary, reported when an entry asks for them: portability (reverse questions, BAKE; multi-hop questions, MQuAKE; another language, BMIKE-53), each as accuracy under the common definitions; router AUROC (positives against E3, as entry 154); the CounterFact efficacy score of ROME (new object more probable than the true one under teacher forcing, one entry forced), only for comparison with the literature and never as a headline; the share of entries under the divergence limit and their median divergence on the held-out canaries.
+
+Not used, with the reason. BLEU, ROUGE and BERTScore: answers are single entities, with no reference text to overlap. GSM8K, MATH, HumanEval, MBPP, HellaSwag, TruthfulQA: not what a stored fact can harm or help beyond what MMLU and ARC already read, and noisy at 1.5B parameters. Toxicity and bias, arena ratings: outside the claims. Perplexity: the canary divergence measures the same side effect more directly. LLM-as-judge: only to validate the matcher on a sample, beside the author's labels, never as a headline.
+
+Mapping from earlier entries. "Efficacy" and "probe hit" in entries before 157 are edit accuracy, scored by substring (`hit`) where the entry says so and by word boundary (`word_hit`) from the entries that adopted it. "Generalisation" and "paraphrase" are paraphrase accuracy. "No-leak" is one minus the leak rate. "Wrong route kept" is wrong-route retention. The paper uses these names when it is written.

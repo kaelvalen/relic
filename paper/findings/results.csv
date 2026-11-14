@@ -28,7 +28,7 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 137,default_fresh,pooled,gate_off,paraphrase_accuracy,0.919,,,800,fresh,word,fresh_ladder.json,
 137,default_fresh,counterfact,gate_off,leak_rate_natural_near,0.302,,,199,fresh,word,fresh_ladder.json,
 137,default_fresh,pooled,default,first_attempt_reject_share,0.0475,,,800,fresh,count,fresh_ladder.json,A1 rejected on 38; R1 12 L2 9 L4 11 L8 4 L16 0 A0 1 no entry 1
-137,default_fresh,pooled,default,wrong_route_retention,0.535,,,200,fresh,word,fresh_ladder.json,forced; 200 zsRE dev questions; A0 0.650
+137,default_fresh,pooled,default,wrong_route_retention,0.535,,,200,fresh,substring,fresh_ladder.json,forced; 200 zsRE dev questions; A0 0.650; substring score
 139,router_thresholds,counterfact,default,leak_rate_natural_near,0.181,,,199,fresh,word,near_threshold.json,with RELATION_TAU (R107); global 0.296
 139,router_thresholds,counterfact,default,paraphrase_accuracy,0.893,,,400,fresh,word,near_threshold.json,with RELATION_TAU; global 0.895
 139,router_thresholds,counterfact,adapter_and_note,leak_rate_natural_near,0.171,,,199,fresh,word,near_threshold.json,R107; Rall 0.075
@@ -48,7 +48,7 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 146,default_seen,counterfact,default,removal_gone,1.00,,,100,seen,word,notless_eval_cf.json,
 146,default_seen,counterfact,default,removal_return,1.00,,,100,seen,word,notless_eval_cf.json,
 146,default_seen,counterfact,default,retention,0.998,,,900,seen,word,notless_eval_cf.json,
-146,default_seen,counterfact,default,wrong_route_retention,0.558,,,998,seen,word,notless_eval_cf.json,24 tokens; 0.560 at 64 tokens
+146,default_seen,counterfact,default,wrong_route_retention,0.558,,,998,seen,substring,notless_eval_cf.json,24 tokens; 0.560 at 64 tokens
 146,default_seen,mmlu_arc,default,routed_share,0,,0.0037,1000,n/a,count,notless_eval_cf.json,0 of 1000
 146,default_seen,mmlu_arc,default,capability_cost,-0.017,-0.033,-0.001,1000,n/a,accuracy,notless_eval_cf.json,forced through a random entry minus base
 146,default_seen,counterfact,default,first_attempt_reject_share,0.181,,,999,seen,count,notless_eval_cf.json,R1 45 L2 52 L4 43 L8 23 L16 15
@@ -59,7 +59,7 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 146,default_seen,counterfact,adapter_and_note_r2,leak_rate_e3,0.044,,,1000,seen,word,store_r2.json,
 146,default_seen,counterfact,adapter_and_note_r2,leak_rate_e2,0.017,,,1000,seen,word,store_r2.json,
 146,default_seen,counterfact,adapter_and_note_r2,retention,0.999,,,,seen,word,store_r2.json,
-146,default_seen,counterfact,adapter_and_note_r2,wrong_route_retention,0.369,,,998,seen,word,wrong_route.json,
+146,default_seen,counterfact,adapter_and_note_r2,wrong_route_retention,0.369,,,998,seen,substring,wrong_route.json,
 146,default_seen,mmlu_arc,adapter_and_note_r2,capability_cost,-0.022,-0.038,-0.006,1000,n/a,accuracy,general_eval.json,entry 116
 116,capability,mmlu_arc,base,accuracy,0.665,,,1000,n/a,accuracy,general_eval.json,MMLU 0.564 (500); ARC-Challenge 0.766 (500)
 116,capability,mmlu_arc,adapter_r16,capability_cost,-0.008,-0.020,0.004,1000,n/a,accuracy,general_eval.json,forced
@@ -188,7 +188,7 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 139,router_thresholds,counterfact,default,diff_leak_rate_natural_near_relation_tau,-0.116,,,199,fresh,word,near_threshold.json,one-sided upper -0.156 relative to global; current store -0.126
 139,router_thresholds,counterfact,default,leak_rate_natural_near_rall,0.080,,,199,fresh,word,near_threshold.json,Rall; paraphrase 0.878
 146,default_seen,counterfact,default_minus_adapter_and_note_r2,diff_paraphrase_accuracy,-0.041,-0.059,-0.023,1000,seen,word,notless_eval_cf.json,24 tokens
-146,default_seen,counterfact,default_minus_adapter_and_note_r2,diff_wrong_route_retention,+0.189,,,998,seen,word,notless_eval_cf.json,one-sided lower +0.159
+146,default_seen,counterfact,default_minus_adapter_and_note_r2,diff_wrong_route_retention,+0.189,,,998,seen,substring,notless_eval_cf.json,one-sided lower +0.159
 146,default_seen,counterfact,default,seconds_per_removal,0.0017,,,100,seen,seconds,notless_eval_cf.json,
 69,divergence_check,pooled,benign_r16,d_heldout_mean,0.364,,,100,dev,divergence,canary_eval.json,training canaries mean 0.022; held-out p95 0.72; max 1.07
 69,divergence_check,pooled,benign_r16,kappa,0.968,,,100,dev,divergence,canary_eval.json,99th percentile of benign held-out D
@@ -211,3 +211,8 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 150,closed_lines,counterfact,hypernet_H1000,train_edit_accuracy,0.95,0.90,0.99,100,seen,word,hyper_spike.json,
 135,write_path,pooled,new_seed,rejected_under_kappa,11,,,19,dev,count,retry_dose2.json,of 19 rejected facts; under kappa with one of two new seeds
 146,default_seen,counterfact,adapter_and_note_r2,removal_return,1.00,,,100,seen,word,store_r2.json,
+114,wrong_route,zsre_dev,adapter_r16,wrong_route_retention_substring,0.705,,,1000,n/a,substring,wrong_route.json,
+114,wrong_route,zsre_dev,adapter_r2,wrong_route_retention_substring,0.668,,,1000,n/a,substring,wrong_route.json,
+114,wrong_route,zsre_dev,note,wrong_route_retention_substring,0.511,,,1000,n/a,substring,wrong_route.json,
+114,wrong_route,zsre_dev,adapter_and_note_r2,wrong_route_retention_substring,0.370,,,1000,n/a,substring,wrong_route.json,
+124,closed_lines,counterfact,shard_8x2,bytes_per_fact_kb,47,,,96,seen,bytes,shard_eval.json,"8 facts per adapter, rank 2"

@@ -168,3 +168,46 @@ entry,section,dataset,arm,metric,value,ci_low,ci_high,n,facts,scoring,source,not
 155,closed_lines,counterfact,trained_T,wrong_route_retention,0.68,,,300,fresh,word,ns_route.json,paraphrase 0.78; median D 0.33
 155,closed_lines,counterfact,nullspace_N90,wrong_route_retention,0.91,,,300,fresh,word,ns_route.json,edit 0.91; paraphrase 0.32; median D 0.030
 155,closed_lines,counterfact,nullspace_N99,wrong_route_retention,0.94,,,300,fresh,word,ns_route.json,edit 0.42; paraphrase 0.13
+137,default_fresh,counterfact,default,edit_accuracy,0.995,,,400,fresh,word,fresh_ladder.json,
+137,default_fresh,counterfact,adapter_and_note,edit_accuracy,0.983,,,400,fresh,word,fresh_ladder.json,0.9825
+137,default_fresh,counterfact,A0_alone,edit_accuracy,0.988,,,400,fresh,word,fresh_ladder.json,0.9875
+137,default_fresh,pooled,default,routed_edit,0.998,,,800,fresh,count,fresh_ladder.json,0.9975; no query routed to another fact
+137,default_fresh,pooled,default,routed_paraphrase,0.961,,,800,fresh,count,fresh_ladder.json,
+137,default_fresh,pooled,default_minus_adapter_and_note,diff_edit_accuracy,+0.021,0.006,0.036,800,fresh,word,fresh_ladder.json,one-sided lower 0.009
+137,default_fresh,pooled,default_minus_adapter_and_note,diff_paraphrase_accuracy,-0.013,-0.031,0.006,800,fresh,word,fresh_ladder.json,-0.0125; one-sided lower -0.0275 against margin -0.03
+137,default_fresh,counterfact,default_minus_adapter_and_note,diff_paraphrase_accuracy,-0.020,-0.050,0.010,400,fresh,word,fresh_ladder.json,one-sided lower -0.045 against margin -0.03
+137,default_fresh,counterfact,default_minus_adapter_and_note,diff_leak_rate_e3,0.000,-0.008,0.008,400,fresh,word,fresh_ladder.json,
+137,default_fresh,counterfact,default_minus_adapter_and_note,diff_leak_rate_natural,0.000,-0.018,0.018,397,fresh,word,fresh_ladder.json,
+137,default_fresh,pooled,default_minus_A0_alone,diff_paraphrase_accuracy,+0.126,,,800,fresh,word,fresh_ladder.json,CounterFact +0.170
+137,default_fresh,pooled,default,rung_share_R1,0.015,,,800,fresh,count,fresh_ladder.json,L2 0.011; L4 0.014; L8 0.005; L16 0; A0 0.001
+139,router_thresholds,counterfact,default,leak_rate_e3_relation_tau,0.043,,,400,fresh,word,near_threshold.json,0.0425
+139,router_thresholds,counterfact,default,leak_rate_natural_relation_tau,0.096,,,397,fresh,word,near_threshold.json,0.0957
+139,router_thresholds,counterfact,default,leak_rate_natural_uniform_relation_tau,0.010,,,198,fresh,word,near_threshold.json,
+139,router_thresholds,counterfact,default,edit_accuracy_relation_tau,0.995,,,400,fresh,word,near_threshold.json,
+139,router_thresholds,zsre,default,paraphrase_accuracy_relation_tau,0.943,,,400,fresh,word,near_threshold.json,zsRE has no relation identifier
+139,router_thresholds,counterfact,default,diff_leak_rate_natural_near_relation_tau,-0.116,,,199,fresh,word,near_threshold.json,one-sided upper -0.156 relative to global; current store -0.126
+139,router_thresholds,counterfact,default,leak_rate_natural_near_rall,0.080,,,199,fresh,word,near_threshold.json,Rall; paraphrase 0.878
+146,default_seen,counterfact,default_minus_adapter_and_note_r2,diff_paraphrase_accuracy,-0.041,-0.059,-0.023,1000,seen,word,notless_eval_cf.json,24 tokens
+146,default_seen,counterfact,default_minus_adapter_and_note_r2,diff_wrong_route_retention,+0.189,,,998,seen,word,notless_eval_cf.json,one-sided lower +0.159
+146,default_seen,counterfact,default,seconds_per_removal,0.0017,,,100,seen,seconds,notless_eval_cf.json,
+69,divergence_check,pooled,benign_r16,d_heldout_mean,0.364,,,100,dev,divergence,canary_eval.json,training canaries mean 0.022; held-out p95 0.72; max 1.07
+69,divergence_check,pooled,benign_r16,kappa,0.968,,,100,dev,divergence,canary_eval.json,99th percentile of benign held-out D
+69,divergence_check,pooled,harmful,d_heldout_min,3.46,,,10,dev,divergence,canary_eval.json,in-sample minimum 2.03 against the old limit 2.0; 10 of 10 rejected
+120,scale,counterfact,qwen2.5-1.5b,above_kappa_share,0.03,,,1000,seen,count,scale/summary.json,zsRE 0.17
+120,scale,counterfact,qwen2.5-0.5b,above_kappa_share,0.06,,,1000,seen,count,scale/summary.json,zsRE 0.37
+120,scale,counterfact,qwen2.5-1.5b-4bit,above_kappa_share,0.01,,,1000,seen,count,scale/summary.json,zsRE 0.20
+120,scale,counterfact,qwen2.5-1.5b-4bit,tiered_paraphrase_accuracy,0.736,,,1000,seen,word,scale/summary.json,edit 0.996; note alone 0.689
+120,scale,zsre,qwen2.5-1.5b-4bit,tiered_paraphrase_accuracy,0.939,,,1000,seen,word,scale/summary.json,edit 0.992; note alone 0.783
+142,labels,counterfact,R107,leak_removed_share,0.553,,,38,seen,author_label,label_thresholds.json,
+76,router,counterfact,minilm,paraphrase_route_correct,0.595,,,1000,seen,count,relenc_split.json,router v4 encoder at its locality threshold
+69,divergence_check,pooled,benign_r16,d_train_mean,0.022,,,100,dev,divergence,canary_eval.json,the two training canaries
+137,default_fresh,counterfact,default_minus_adapter_and_note,diff_paraphrase_accuracy_lower_one_sided,-0.045,,,400,fresh,word,fresh_ladder.json,margin -0.03
+124,closed_lines,counterfact,per_fact_r2,paraphrase_accuracy,0.948,,,96,seen,word,shard_eval.json,with note; the reference of the shard arms
+155,closed_lines,counterfact,trained_T,paraphrase_accuracy,0.78,0.70,0.86,100,fresh,word,ns_route.json,
+155,closed_lines,counterfact,nullspace_N90,paraphrase_accuracy,0.32,0.23,0.41,100,fresh,word,ns_route.json,
+123,closed_lines,counterfact,baseline,natural_near_routed,0.302,,,,seen,count,hardneg_eval.json,default encoder
+122,removal,zsre,per_entry,removal_return,0.84,,,96,seen,word,slot_eval_asym.json,before slots
+115,removal,zsre,per_entry,residual_route_share,0.99,,1.0,1000,fresh,count,slot_fresh.json,
+150,closed_lines,counterfact,hypernet_H1000,train_edit_accuracy,0.95,0.90,0.99,100,seen,word,hyper_spike.json,
+135,write_path,pooled,new_seed,rejected_under_kappa,11,,,19,dev,count,retry_dose2.json,of 19 rejected facts; under kappa with one of two new seeds
+146,default_seen,counterfact,adapter_and_note_r2,removal_return,1.00,,,100,seen,word,store_r2.json,

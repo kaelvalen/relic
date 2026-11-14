@@ -3820,3 +3820,75 @@ Predictions. P1 held: .9987. P2 failed in its second part: relenc-b passes (i), 
 Reading. Machine-translated cloze prompts did not teach the encoder anything the multilingual base and the English triplets had not; with four times the steps at the same learning rate, the encoder lost a little in both languages. The English gap is not the cost of Turkish data: the multilingual base starts lower in English than all-mpnet-base-v2 (.877 against .891 untrained, entry 156), and relenc-m and relenc-b both keep that gap. A router that scores English queries with relenc and other languages with relenc-m would keep the English reading by construction and take relenc-m's Turkish; that is a different design and needs its own entry.
 
 Limits. As entry 158. One seed; the step count grew with the data, so data and steps are confounded.
+
+## 160. Kappa from the adapters the store writes (DRAFT, 2026-11-14; not pinned, not run)
+
+Status. A draft written with the code of branch `fix/ledger-integrity` (CHANGES.md). It is not pinned: no tag exists and nothing has run. The author sets the predictions and the margins marked TODO(author) and pins it before any run.
+
+Why. Items 1 to 5 of CHANGES.md change the system relative to the stores of E137 and E146: one system prompt for training, anchor, divergence and serving (until now three different ones), adapters stored as int8 records, updates that can be undone, and a state hash v2. Kappa 0.968 (E69) is the 99th percentile of the held-out divergence of 100 rank-16 adapters of the first recipe under the old prompts. The store now writes rank-2 adapters trained on rewrites, under the new prompts, and retries a rejected adapter on up to seven rungs. Entry 95 already found the p99 of benign rank-2 adapters at 1.11 against 0.968. This entry replaces the calibration of E69 for the current system; it does not confirm it.
+
+Runner: confirm/kappa_calib.py --prereg SS160, Qwen2.5-1.5B-Instruct, the store's default prompts (all "Answer briefly."), seed 160.
+
+Facts. The development split of router_v4_calibrate.build_dev (500 CounterFact and 500 zsRE facts), which the runner checks to be disjoint by subject from the main stores, E87's draw, E126's draw, the fresh set of E136 and the 1100 facts of E149 to E153. Shuffled with seed 160; the first 300 are benign, the next 50 harmful.
+
+Arms. Benign: the first rung (A1) of Ledger.write for each fact: rewrites by the base model, LoRA+ rank 2, 16 passes, KL weight 1, adapter seed 126, stored as an int8 record. Harmful: the harmful recipe of E69 (learning rate 1e-3, 32 passes) through every rung of the ladder, each rung with the anchor weight it uses in Ledger.write; every rung is trained, so acceptance can be read at any limit.
+
+Readings. D of each benign adapter on the 40 held-out canaries; kappa_new = the 99th percentile, with a 95 percent bootstrap interval (10000 resamples, seed 160); mean, median, p95 and maximum of benign D; bytes per adapter. For the harmful adapters: the share stored at some rung under kappa_new and under 0.968, and the rung that would store each.
+
+Decision rule (draft). (i) kappa_new becomes the divergence limit of the current system, passed as --kappa to entries 161 and 162, if at most TODO(author) of the harmful adapters are stored at some rung under it. (ii) If (i) fails, the ladder does not run under kappa_new, and the author chooses between a lower quantile and a shorter ladder in a new entry before 161 and 162 run.
+
+Predictions. P1: kappa_new is TODO(author). P2: the share of harmful adapters stored under kappa_new is TODO(author), and under 0.968 TODO(author). P3: the harmful adapters that pass do so at rung TODO(author).
+
+Limits. One model, one seed per rung, 300 benign adapters, so the p99 rests on the three largest values. The harmful recipe is the one of E69 and not the worst case.
+
+## 161. The fresh store written through Ledger.write (DRAFT, 2026-11-14; not pinned, not run)
+
+Status. As entry 160: a draft, not pinned, not run.
+
+Why. E137 built its ladder store with retry_dose.train_arm and served it with its own loop; entry 144 showed parity with Ledger on 16 facts only. Items 1 to 5 of CHANGES.md change the system (prompts, stored records, reversible updates, the hash). This entry writes the same 800 fresh facts through Ledger.write and reads them with the readings of E137 and E139. It replaces the readings of E137 and E139 for the default store; it does not confirm them.
+
+Runner: confirm/notless_eval.py --dataset {counterfact,zsre} --facts fresh --system current --kappa <kappa of entry 160> --prereg SS161, then --report --variant _fresh_current.
+
+Facts. The draw of E137: draw_facts(400, seed 136) per dataset, the subjects of E126's draw excluded, as fresh_ladder.py draws them.
+
+Readings. Edit prompts and paraphrases answered (word boundary), under one threshold and under RELATION_TAU. E3 leak (the other-relation prompts of E137), E2 leak (new here), natural near and uniform leak on the questions of E137 (fresh_ladder_questions.json). zsRE loc questions routed. Pronouns. Removal of the first 100 facts, each by its own id: an active entry is revoked (bringing back what it superseded), a superseded one erased, a repeated write removed with its entry; gone, return, retention, and how many of the 100 had superseded or been superseded. Wrong route: the 1000 questions of E100, each forced through the fresh facts in turn, with the number skipped for want of an adapter. MMLU and ARC: routed share and forced cost. Write path: counts of insert, duplicate, update and reject; rung shares; median and interquartile range of seconds per write from the ledger log; seconds per removal from the log, router rebuild included.
+
+Decision rule (draft), the rule of entry 145 on this store. (i) retention at least .98 on both datasets; (ii) return to base at least .98 on both, counting the removals that restored a superseded entry separately; (iii) no MMLU or ARC question routed beyond 1 in 1000; (iv) E3 leak at most TODO(author) under RELATION_TAU. A part that fails is reported and the claim it supports is withdrawn for the current system.
+
+Predictions. P1 to P5: TODO(author), for edit and paraphrase accuracy per dataset, the leak rates, the reject share and the median seconds per write.
+
+Limits. One model, rank 2, one seed per rung. The paired comparison with the store with note of E94 exists for the main stores only and is not read here. The saved wrong-route questions name main-store adapters; here each takes a fresh fact in turn, so the pairing differs from E146.
+
+## 162. The main stores rebuilt under the current system, both datasets (DRAFT, 2026-11-14; not pinned, not run)
+
+Status. As entry 160: a draft, not pinned, not run.
+
+Why. E146 read the CounterFact half of entry 145 under the old prompts and with updates that drop the replaced entry; its zsRE half stopped at 550 of 1000 writes. Items 1 to 5 of CHANGES.md change the system. This entry rebuilds both main stores with the current system and reads both halves, so it completes the zsRE half of E146 and replaces the readings of E146; it does not confirm them. The old parts of E146 are not resumed: they were trained under the old prompts.
+
+Runner: confirm/notless_eval.py --dataset {counterfact,zsre} --facts main --system current --kappa <kappa of entry 160> --prereg SS162, then --report --variant _current. The CounterFact ledger is saved as notless_ledger_cf_current.ledger for entry 163.
+
+Readings. Those of entry 145, with removal by own id as in entry 161, the counts and timings of entry 161, the skipped wrong-route questions, and the paired comparisons with the saved rank-2 store with note at 24 tokens.
+
+Decision rule (draft). The rule of entry 145, (i) to (v), on both datasets, with the E3 margin of (iv) TODO(author).
+
+Predictions. TODO(author), for the readings of entry 145 on each dataset.
+
+Limits. One model; these facts have been read before, so the readings compare with the main tables and do not confirm a prediction, as in entry 145.
+
+## 163. Time to first token through the ledger (DRAFT, 2026-11-14; not pinned, not run)
+
+Status. As entry 160: a draft, not pinned, not run.
+
+Why. Entry 157 lists time to first token among the cost metrics and left its implementation to an entry of its own.
+
+Runner: confirm/ttft_eval.py --ledger results/live_learning/confirm/notless_ledger_cf_current.ledger --prereg SS163. The ledger loads only if its state hash matches its contents.
+
+Queries. K = 100 edit prompts of stored entries, drawn with seed 163, which the router sends to their entry, and K = 100 MMLU and ARC prompts of entry 101, which it sends nowhere; the runner reports how many of each did as expected.
+
+Conditions. Base: the base model alone, prefill and first generated token. Store: routing, the adapter swap of Serve, prefill and first generated token; no swap when the router returns none. The first token is the greedy argmax of the prefill's last logits. Every timer is bracketed by torch.cuda.synchronize; 10 warmup queries are discarded; each query runs 5 times, the condition order alternating.
+
+Readings. Median and interquartile range per condition and query kind, separately for routing time, swap time, first-token latency and their total. The GPU model and whether it was shared during the run are recorded.
+
+Rule. A cost reading with no decision rule. Predictions: TODO(author).
+
+Limits. One GPU, shared at times; a single query at a time, no batching; capacity 1, so a swap writes one adapter into the slot.

@@ -36,7 +36,7 @@ from hyper_spike import (  # noqa: E402
 )
 
 from relic.adapters import fact_pairs, train_adapter  # noqa: E402
-from relic.ledger import KAPPA, DeltaStore  # noqa: E402
+from relic.ledger import KAPPA, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 
 POOL = 1000
 INPUTS = {"Ea": 0, "Eb": 14}  # hidden_states index read at the answer's tokens
@@ -94,6 +94,7 @@ def main() -> None:
     args = ap.parse_args()
 
     store = DeltaStore(MODEL, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_lambda = 1.0
     hooks = Hooks(store)
     selfcheck(store, hooks)

@@ -9,7 +9,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from relic.ledger import DeltaStore, Ledger
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, Ledger, use_prompts
 from relic.metrics import hit
 from relic.router import RELATION_TAU, make_scorer
 
@@ -37,8 +37,14 @@ UPDATE = {**NEW, "id": "f3", "answer": "Swedish", "teach": f"{NEW['probe']} Swed
 
 def main() -> None:
     store = DeltaStore(MODEL, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     ledger = Ledger(
-        store, make_scorer("relenc"), 0.7501, 0.8985, relation_tau=RELATION_TAU
+        store,
+        make_scorer("relenc"),
+        0.7501,
+        0.8985,
+        relation_tau=RELATION_TAU,
+        keep_history=False,  # the smoke of entries 121 and 144: removal empties the store
     )
     empty = ledger.state_hash()
     off_topic = "What is the capital of France?"
@@ -65,7 +71,12 @@ def main() -> None:
         path = Path(d) / "store.ledger"
         ledger.save(path)
         reloaded = Ledger(
-            store, ledger.scorer, 0.7501, 0.8985, relation_tau=RELATION_TAU
+            store,
+            ledger.scorer,
+            0.7501,
+            0.8985,
+            relation_tau=RELATION_TAU,
+            keep_history=False,
         )
         reloaded.load(path)
         assert reloaded.state_hash() == ledger.state_hash()

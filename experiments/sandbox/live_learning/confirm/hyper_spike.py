@@ -29,7 +29,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from adapter_only import CONFIRM, MODEL, draw_facts  # noqa: E402
 
 from relic.adapters import fact_pairs, int8_delta, pad, train_adapter  # noqa: E402
-from relic.ledger import CANARIES, HELDOUT_CANARIES, KAPPA, DeltaStore  # noqa: E402
+from relic.ledger import (  # noqa: E402
+    CANARIES,
+    HELDOUT_CANARIES,
+    KAPPA,
+    LEGACY_PROMPTS,
+    DeltaStore,
+    chat_messages,
+    use_prompts,
+)
 from relic.metrics import ci, word_hit  # noqa: E402
 from relic.serving import base_answer, serve_expert  # noqa: E402
 
@@ -39,7 +47,6 @@ MODULES = ("q_proj", "v_proj")
 POOLS = (300, 1000)
 N_UNSEEN, N_TRAIN_READ = 100, 100
 STEPS, BATCH, LR = 3000, 8, 1e-4
-KL_SYSTEM = "Kısa ve net cevap ver."  # the system prompt of DeltaStore._logits
 
 
 def param_name(layer: int, module: str) -> str:
@@ -152,7 +159,8 @@ class Trainer:
         self.canary = [
             chat_ids(
                 self.tok,
-                [{"role": "system", "content": KL_SYSTEM}, {"role": "user", "content": q}],
+                # the anchor prompt of DeltaStore._logits, read from the store
+                chat_messages(store.anchor_system, {"role": "user", "content": q}),
                 True,
             )
             for q in CANARIES
@@ -177,12 +185,13 @@ class Trainer:
         seqs, starts, owner = [], [], []
         for k, f in enumerate(facts):
             for user, assistant in fact_pairs(f):
-                pair = [
+                turns = (
                     {"role": "user", "content": user},
                     {"role": "assistant", "content": assistant},
-                ]
+                )
+                pair = chat_messages(self.store.train_system, *turns)
                 seqs.append(chat_ids(self.tok, pair, False))
-                starts.append(len(chat_ids(self.tok, pair[:1], True)))
+                starts.append(len(chat_ids(self.tok, pair[:-1], True)))
                 owner.append(k)
         ids, mask = pad_batch(seqs, self.pad)
         self.hooks.index = torch.tensor(owner).cuda()
@@ -304,6 +313,7 @@ def main() -> None:
     args = ap.parse_args()
 
     store = DeltaStore(MODEL, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_lambda = 1.0
     hooks = Hooks(store)
     selfcheck(store, hooks)

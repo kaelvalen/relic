@@ -22,7 +22,7 @@ import torch  # noqa: E402
 from facts import generate  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.serving import SYSTEM  # noqa: E402
 
@@ -42,6 +42,7 @@ def main() -> None:
     else:
         facts = generate(args.n, args.n)
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = ["What is the capital of France?", "What is 7 times 8?"]
 
     report = {}

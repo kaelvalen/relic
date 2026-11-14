@@ -23,6 +23,12 @@ from relic.metrics import sym_kl  # noqa: E402, F401
 
 
 class DeltaStore(_DeltaStore):
+    # the slice-1 records: no system message in training, the Turkish instruction for the
+    # anchor and for answer(); relic's defaults changed after them (CHANGES.md, item 1)
+    train_system = None
+    anchor_system = "Kısa ve net cevap ver."
+    system = "Kısa ve net cevap ver."
+
     def __init__(self, model_name: str, **kwargs):
         kwargs.setdefault("kl_prompts", [q for _, q, _ in CAPABILITY[:2]])
         super().__init__(model_name, **kwargs)

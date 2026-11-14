@@ -21,7 +21,7 @@ import torch  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 from lora_ablation import eval_variant, train_variant  # noqa: E402
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 
 
 def main() -> None:
@@ -40,6 +40,7 @@ def main() -> None:
     facts = data["facts"] if isinstance(data, dict) else data
     outside = facts[900:910]
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = ["What is the capital of France?", "What is 7 times 8?"]
     store.model.to("cpu")
     torch.cuda.empty_cache()

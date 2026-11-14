@@ -21,7 +21,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.serving import base_answer, serve_expert  # noqa: E402
 
@@ -43,6 +43,7 @@ def main() -> None:
     data = json.loads(Path(args.facts).read_text())
     facts = data["facts"] if isinstance(data, dict) else data
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     st = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     store.deltas = st["deltas"]
     store.keys = st["keys"]

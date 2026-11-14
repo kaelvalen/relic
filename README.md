@@ -195,7 +195,7 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
 - Multi-fact questions are not tested. Qwen sizes up to 7B and one other family were tested on
   answer rates only; leakage, removal and the wrong-route cost were measured on 1.5B.
 - The divergence limit is calibrated on 1.5B. On another base model, measure it first and pass it as
-  `Ledger.write(fact, kappa=...)`.
+  `Ledger(..., kappa=...)`; the state hash covers it.
 - "Transactional" covers one process: commits from threads are serial and saving is atomic. Two
   processes writing one store are not coordinated.
 - Pronoun handling was tested by substitution on constructed conversations. The rewrite reads the

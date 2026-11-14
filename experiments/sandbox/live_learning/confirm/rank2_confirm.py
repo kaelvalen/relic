@@ -36,7 +36,7 @@ from routed_eval import (  # noqa: E402
 )
 
 from relic.adapters import make_variant, round_to, set_delta, train_one  # noqa: E402
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.model import chat, load_model  # noqa: E402
 from relic.serving import SYSTEM, rag_system, trim  # noqa: E402
@@ -205,6 +205,7 @@ def main(argv=None):
     draw = [rng.choice(keys) for _ in damage]
 
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

@@ -1,0 +1,9 @@
+item,why_it_matters,where,status
+zsRE half of the main evaluation on the default store,the rule of entry 145 needs both halves; removal and retention on zsRE unread for the default,entry 146,paused at 550 of 1000 writes by the author
+time to first token,part of the headline cost set,entry 157,to be implemented and pinned
+kappa beyond 1.5B,default kappa rejects most adapters on 3B and 7B; the default is untested there,entry 120 / 143,open
+natural near-relation leak,largest remaining defect of the served path (0.146 with RELATION_TAU on seen CF; 0.128 corrected),entries 137 / 140 / 146,no text signal passed (entry 148)
+question-form recall,English rephrasings as questions route right only 0.552 at the operating point,entry 156,open
+non-English queries,relenc routes 0.005 of Turkish questions; relenc-m gives TR AUROC 0.939; a language-split router is proposed,entries 156 / 159,next free entry 160
+CounterFact paraphrase cost of dropping the note,-0.020 on fresh facts (lower -0.045); -0.041 on seen facts,entries 137 / 146,accepted by the author (entry 143)
+single base model,every default reading is on Qwen2.5-1.5B,entry 120,open

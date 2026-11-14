@@ -24,7 +24,9 @@ ENCODERS = {
     "mpnet": "sentence-transformers/all-mpnet-base-v2",
     "mmpnet": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
     "relenc-m": str(CONFIRM / "relation_encoder_mmpnet"),
+    "relenc-b": str(CONFIRM / "relation_encoder_bil"),  # SS158
 }
+PAIRS = (("relenc-m", "relenc"), ("relenc-b", "relenc"), ("relenc-b", "relenc-m"))
 THETA = 0.7501
 SEED, BOOT = 154, 10000
 
@@ -154,21 +156,25 @@ def boot(rows_by_enc, facts, keep):
             }
             for e in rows_by_enc
         }
-        if "relenc-m" in dist and "relenc" in dist:
-            d = dist["relenc-m"] - dist["relenc"]
-            out[lang]["relenc-m_minus_relenc"] = {
-                "diff": round(point["relenc-m"] - point["relenc"], 4),
-                "ci95": [round(float(np.percentile(d, q)), 4) for q in (2.5, 97.5)],
-            }
+        for x, y in PAIRS:
+            if x in dist and y in dist:
+                d = dist[x] - dist[y]
+                out[lang][f"{x}_minus_{y}"] = {
+                    "diff": round(point[x] - point[y], 4),
+                    "ci95": [round(float(np.percentile(d, q)), 4) for q in (2.5, 97.5)],
+                }
     return out
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--encoders", default="relenc,mpnet,mmpnet,relenc-m")
+    ap.add_argument("--prereg", default="SS154")
+    ap.add_argument("--out", default=str(CONFIRM / "xling_route.json"))
     args = ap.parse_args()
     facts = load()
-    encoders = dict(ENCODERS)
+    encoders = {k: ENCODERS[k] for k in args.encoders.split(",")}
     if args.smoke:
         facts = facts[:40]
         encoders = {k: encoders[k] for k in ("relenc", "mmpnet")}
@@ -200,7 +206,7 @@ def main() -> None:
         return round(float(np.mean([x[key][field] for x in r])), 4)
 
     report = {
-        "prereg": "SS154",
+        "prereg": args.prereg,
         "n_facts": len(facts),
         "n_heldout_facts": len(held),
         "found": {
@@ -218,13 +224,19 @@ def main() -> None:
         },
         "rows": {"e3_queries": negs, **rows_by_enc},
     }
-    if "relenc-m" in rows_by_enc:
-        a = report["auroc"]
-        report["rule"] = {
-            "i_tr": a["tr"]["relenc-m_minus_relenc"]["ci95"][0] > 0,
-            "ii_en": a["en"]["relenc-m_minus_relenc"]["ci95"][0] >= -0.02,
+    a = report["auroc"]
+    report["rule"] = {
+        x: {
+            "i_tr": a["tr"][f"{x}_minus_relenc"]["ci95"][0] > 0,
+            "ii_en": a["en"][f"{x}_minus_relenc"]["ci95"][0] >= -0.02,
         }
-    out = CONFIRM / ("xling_route_smoke.json" if args.smoke else "xling_route.json")
+        for x in ("relenc-m", "relenc-b")
+        if x in rows_by_enc
+    }
+    out = Path(args.out)
+    if args.smoke:
+        out = out.with_name(out.stem + "_smoke.json")
+    assert args.smoke or not out.exists(), f"refusing to overwrite {out}"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1))
     print(
         json.dumps({k: v for k, v in report.items() if k != "rows"}, indent=1),

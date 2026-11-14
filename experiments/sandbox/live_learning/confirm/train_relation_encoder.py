@@ -176,7 +176,7 @@ def main(argv=None):
     model.eval()
     model.save(args.out)
     meta = {
-        "prereg": "SS110" if args.hard else "SS76",
+        "prereg": "SS110" if args.hard else ("SS154" if args.base != BASE else "SS76"),
         "hard": args.hard,
         "base": args.base,
         "seed": SEED,

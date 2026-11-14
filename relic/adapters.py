@@ -18,11 +18,28 @@ R2 = dict(r=2, targets=["q_proj", "v_proj"], layers=None, fa=False)
 STORE_RANK = 16  # the store model's slot width; narrower adapters are padded into it
 
 
+B_MULT = 8  # LoRA+: B learns at 8 times the learning rate of A
+
+
+def quantize_rows(t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Symmetric int8 with one fp16 absmax scale per row: (int8 values, fp16 scales).
+
+    A row whose scale is 0 in fp16 (all zeros, or an absmax that underflows) gets the
+    scale 1, so its values quantize to 0.
+    """
+    scale = (t.float().abs().amax(dim=1, keepdim=True) / 127.0).half().float()
+    scale = torch.where(scale > 0, scale, torch.ones_like(scale))
+    q = (t.float() / scale).round().clamp(-127, 127).to(torch.int8)
+    return q, scale.half()
+
+
+def dequantize(q: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+    return q.float() * s.float()
+
+
 def _int8_rows(t: torch.Tensor) -> torch.Tensor:
     """Symmetric int8 with one fp16 absmax scale per row, dequantized to fp32."""
-    scale = (t.abs().amax(dim=1, keepdim=True) / 127.0).half().float()
-    scale = torch.where(scale > 0, scale, torch.ones_like(scale))
-    return (t / scale).round().clamp(-127, 127) * scale
+    return dequantize(*quantize_rows(t))
 
 
 def round_to(t: torch.Tensor, fmt: str) -> torch.Tensor:
@@ -133,6 +150,146 @@ def train_one(store, spec, pairs, b_mult=8, seed=SEED, init=None, proj=None):
     return delta
 
 
+def narrow(delta: dict, r: int = 2) -> dict:
+    """The first r rank components of a padded adapter (moved from notless_eval, SS145)."""
+    return {
+        n: {"A": ab["A"][:r].clone(), "B": ab["B"][:, :r].clone()}
+        for n, ab in delta.items()
+    }
+
+
+def trim_rank(delta: dict) -> dict:
+    """Drop trailing rank components that are zero in every module: lossless `narrow`."""
+    r = 1
+    for ab in delta.values():
+        used = (ab["A"] != 0).any(dim=1) | (ab["B"] != 0).any(dim=0)
+        idx = used.nonzero()
+        if len(idx):
+            r = max(r, int(idx[-1]) + 1)
+    return narrow(delta, r)
+
+
+def exact_rows(t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor] | None:
+    """(int8 values, fp16 scales) that dequantize to exactly `t`, or None if none exist.
+
+    Requantizing a dequantized row does not always give back its own values: when the
+    fp16 scale is subnormal its rounding can leave the largest value below 127. If a row
+    was q * s with |q| <= 127 and s in fp16, its absmax is |q_max| * s, so s is found as
+    absmax / k for k = |q_max|; the search tries k = 127 first, the scale of quantize_rows.
+    Signed zeros compare equal: -0.0 and 0.0 store as the same int8 0.
+    """
+    t = t.float()
+    absmax = t.abs().amax(dim=1, keepdim=True)
+    done = absmax == 0
+    q_out = torch.zeros(t.shape, dtype=torch.int8)
+    s_out = torch.ones(absmax.shape, dtype=torch.float16)
+    for k in range(127, 0, -1):
+        if bool(done.all()):
+            break
+        s = (absmax / k).half()
+        sf = s.float()
+        ok = sf > 0
+        q = (t / torch.where(ok, sf, torch.ones_like(sf))).round()
+        exact = ok & (q.abs() <= 127).all(1, keepdim=True)
+        exact &= (q * sf == t).all(1, keepdim=True)
+        new = exact & ~done
+        q_out = torch.where(new, q.to(torch.int8), q_out)
+        s_out = torch.where(new, s, s_out)
+        done |= exact
+    return (q_out, s_out) if bool(done.all()) else None
+
+
+def pack_int8(delta: dict) -> dict:
+    """The int8 record of a trained adapter: quantize_rows applied to each tensor."""
+    tensors = {}
+    for n, ab in delta.items():
+        qa, sa = quantize_rows(ab["A"])
+        qb, sb = quantize_rows(ab["B"])
+        tensors[n] = {"qA": qa, "sA": sa, "qB": qb, "sB": sb}
+    return {"format": "int8-rows", "tensors": tensors}
+
+
+def pack_delta(delta: dict) -> dict:
+    """The stored record of an adapter: int8 rows where that is exact, else fp32.
+
+    Never lossy: a delta is packed in int8 only if every tensor dequantizes to itself.
+    """
+    rows = {n: (exact_rows(ab["A"]), exact_rows(ab["B"])) for n, ab in delta.items()}
+    if all(a is not None and b is not None for a, b in rows.values()):
+        return {
+            "format": "int8-rows",
+            "tensors": {
+                n: {"qA": a[0], "sA": a[1], "qB": b[0], "sB": b[1]}
+                for n, (a, b) in rows.items()
+            },
+        }
+    return {
+        "format": "fp32",
+        "tensors": {
+            n: {"A": ab["A"].float().clone(), "B": ab["B"].float().clone()}
+            for n, ab in delta.items()
+        },
+    }
+
+
+def unpack_delta(packed: dict) -> dict:
+    """The narrow fp32 adapter of a stored record."""
+    if packed["format"] == "int8-rows":
+        return {
+            n: {"A": dequantize(t["qA"], t["sA"]), "B": dequantize(t["qB"], t["sB"])}
+            for n, t in packed["tensors"].items()
+        }
+    if packed["format"] == "fp32":
+        return {
+            n: {"A": t["A"].clone(), "B": t["B"].clone()}
+            for n, t in packed["tensors"].items()
+        }
+    raise ValueError(f"unknown adapter format {packed['format']!r}")
+
+
+_DTYPES = {str(t): t for t in (torch.int8, torch.float16, torch.float32)}
+
+
+def record_to_blob(packed: dict) -> dict:
+    """A stored record as one byte buffer and an index, for writing to a file.
+
+    torch.save frames every tensor on its own; a record has 224 of them, so one buffer
+    keeps the file within a few hundred bytes of the record's size.
+    """
+    index, parts, offset = [], [], 0
+    for n in sorted(packed["tensors"]):
+        for k in sorted(packed["tensors"][n]):
+            t = packed["tensors"][n][k].contiguous()
+            raw = t.view(torch.uint8).reshape(-1)
+            index.append((n, k, str(t.dtype), tuple(t.shape), offset))
+            parts.append(raw)
+            offset += raw.numel()
+    blob = torch.cat(parts) if parts else torch.zeros(0, dtype=torch.uint8)
+    return {"format": packed["format"], "index": index, "blob": blob}
+
+
+def blob_to_record(stored: dict) -> dict:
+    tensors: dict = {}
+    blob = stored["blob"]
+    for n, k, dtype, shape, offset in stored["index"]:
+        dtype = _DTYPES[dtype]
+        size = dtype.itemsize
+        for dim in shape:
+            size *= dim
+        t = blob[offset : offset + size].clone().view(dtype).reshape(shape)
+        tensors.setdefault(n, {})[k] = t
+    return {"format": stored["format"], "tensors": tensors}
+
+
+def packed_nbytes(packed: dict) -> int:
+    """Bytes of the tensor data of a stored record, without the file's framing."""
+    return sum(
+        t.numel() * t.element_size()
+        for ts in packed["tensors"].values()
+        for t in ts.values()
+    )
+
+
 def int8_delta(delta: dict) -> dict:
     return {
         n: {"A": round_to(ab["A"], "int8"), "B": round_to(ab["B"], "int8")}
@@ -153,18 +310,24 @@ def pad(delta: dict, r: int = STORE_RANK) -> dict:
     return out
 
 
-def train_adapter(store, pairs: list, seed: int = SEED, init=None, proj=None) -> dict:
-    """The adopted adapter for one fact, ready for the store."""
+def train_adapter_packed(
+    store, pairs: list, seed: int = SEED, init=None, proj=None
+) -> dict:
+    """The adopted adapter for one fact, as it is stored: rank 2, int8 rows."""
     store.model.to("cpu")
     torch.cuda.empty_cache()
     try:
-        return pad(
-            int8_delta(
-                train_one(store, R2, pairs, b_mult=8, seed=seed, init=init, proj=proj)
-            )
+        delta = train_one(
+            store, R2, pairs, b_mult=B_MULT, seed=seed, init=init, proj=proj
         )
+        return pack_int8(delta)
     finally:
         store.model.to("cuda:0")
+
+
+def train_adapter(store, pairs: list, seed: int = SEED, init=None, proj=None) -> dict:
+    """The adopted adapter for one fact, ready for the store."""
+    return pad(unpack_delta(train_adapter_packed(store, pairs, seed, init, proj)))
 
 
 # SS126: phrasings the base model writes from the subject and the edit prompt alone

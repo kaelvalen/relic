@@ -1,13 +1,18 @@
 # live-learning sandbox: state checkpoint
 
-## Current state (2026-11-04)
+## Current state (2026-11-14)
 
-The record runs to entry 146 of `docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`; the next free entry is 147. The main
+The record runs to entry 159 of `docs/LIVING_MODEL_CONFIRMATORY_PREREG.md`; the next free entry is 160. The `prereg-*`
+tags are pushed. The current findings are tabulated in `paper/findings/`. The main
 evaluation of the default store (entry 145, `confirm/notless_eval.py`) has its CounterFact half; the zsRE half stopped
-at 550 of 1000 writes and resumes from `results/live_learning/confirm/notless_parts_zsre/` when its queue line runs. Most `prereg-*` tags are local. The store with no note is the default by the author's
+at 550 of 1000 writes and resumes from `results/live_learning/confirm/notless_parts_zsre/` when its queue line runs. The store with no note is the default by the author's
 decision (entry 143), after failing its rule on CounterFact paraphrases (entry 137), and `Ledger` reproduces it (entry
-144). Per-relation thresholds are `relation_tau` on `Ledger`. Open: the zsRE half of that evaluation, near-relation
-leakage, this store beyond 1.5B, and the model revision in the state hash. Long jobs go through `results/live_learning/confirm/queue_runner.sh`. The GPU is shared, so check
+144). Per-relation thresholds are `relation_tau` on `Ledger`. Entry 157 fixes the metric names (edit accuracy, not
+efficacy). Closed since: an NLI signal for near-relation leaks (148), the hypernetwork (152), a null-space projection
+(155), and two multilingual relation encoders (156, 159). On 2026-11-14 the weights of closed lines were deleted from
+`results/`; their JSON results stay, so rerunning those runners retrains from scratch. Open: the zsRE half of that
+evaluation, near-relation leakage, this store beyond 1.5B, routing outside English (a language-split router is the
+proposed next entry), time to first token, and the model revision in the state hash. Long jobs go through `results/live_learning/confirm/queue_runner.sh`. The GPU is shared, so check
 `nvidia-smi` first and never stop another project's process.
 
 Everything below is the earlier log, kept as written.

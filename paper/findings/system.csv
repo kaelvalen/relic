@@ -1,0 +1,15 @@
+component,setting,adopted_in,note
+base_model,Qwen2.5-1.5B-Instruct (bf16; revision 989aa79),entry 98,every default reading is on this model only
+adapter,per-fact LoRA+ rank 2 on q_proj and v_proj in all 28 layers; B learning-rate factor 8; 16 passes,entry 89,replaced rank 16 for new adapters; the N=1000 stores of entries 31-95 keep rank 16
+adapter_storage,int8 with one fp16 scale per row of B; padded to the serving slot; 373 KB per fact,entry 89,23x smaller than the 8.7 MB fp32 rank-16 adapter (entry 83)
+anchor,KL to the base model on 2 training canaries; weight 1 at the first attempt,entry 69,
+write_gate,divergence on 40 held-out canaries at most KAPPA=0.968; a write above it commits nothing,entry 121,kappa calibrated on Qwen2.5-1.5B only
+training_pairs,teach sentence; edit prompt; up to 3 rewrites of the edit prompt written by the base model (A1),entry 143,
+retry_ladder,"A1, then R1 (seed 127), L2, L4, L8, L16 (KL weight 2..16), then A0; the first rung under kappa is stored",entry 136 / 143,ladder T3 selected in entry 135
+note,none: no stored text enters the prompt,entry 143,author's decision; the store did not pass the rule of entry 136
+router,relenc: all-mpnet-base-v2 trained on 7500 relation triplets (SS76); global tau 0.7501,entry 76,
+relation_thresholds,RELATION_TAU (R107): per-relation tau for 9 relations with an identifier,entry 139,
+slots,a same-answer write joins an existing entry at the routing threshold (asymmetric slots),entry 122,
+aliases_pronouns,aliases match in route(); pronouns resolved from history when a subject is spelled out,entry 119,
+serving,"routed adapter alone; system prompt ""Answer briefly.""; greedy; up to 64 new tokens",entry 143,earlier saved evaluations used 24 tokens
+scoring,word_hit: target at a word boundary in free generation,entry 157,not teacher-forced; hence 'accuracy' and not 'efficacy'

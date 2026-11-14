@@ -109,6 +109,7 @@ def main(argv=None):
     ap.add_argument("--lr", type=float, default=2e-5)
     ap.add_argument("--hard", help="SS110: relation_confusions.json")
     ap.add_argument("--no-holdout", action="store_true", help="SS110 arm B")
+    ap.add_argument("--base", default=BASE, help="SS154: another base encoder")
     args = ap.parse_args(argv)
     if Path(args.out).exists():
         ap.error(f"refusing to overwrite {args.out}")
@@ -138,7 +139,7 @@ def main(argv=None):
     )
 
     torch.manual_seed(SEED)
-    model = SentenceTransformer(BASE, device="cuda")
+    model = SentenceTransformer(args.base, device="cuda")
     model.train()
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
     steps = (len(triplets) + args.batch - 1) // args.batch
@@ -175,9 +176,9 @@ def main(argv=None):
     model.eval()
     model.save(args.out)
     meta = {
-        "prereg": "SS110" if args.hard else "SS76",
+        "prereg": "SS110" if args.hard else ("SS154" if args.base != BASE else "SS76"),
         "hard": args.hard,
-        "base": BASE,
+        "base": args.base,
         "seed": SEED,
         "heldout_relations": heldout,
         "train_relations": train_rel,

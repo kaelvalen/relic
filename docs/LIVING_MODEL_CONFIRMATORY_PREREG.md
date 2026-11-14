@@ -3538,3 +3538,245 @@ Rule, CounterFact parts. (i) retention .998 and (ii) return 1.00 hold on Counter
 Predictions. P1 failed: 18.1 percent failed the first attempt, against 4 to 7; the second part held, 0.3 percent have no entry. P2 held on CounterFact. P3 failed on CounterFact: .844 is under the .885 of adapter and note, not level with it. P4 held on CounterFact. P5 held on CounterFact, with wrong route .558. P6 failed: forced MMLU and ARC cost 1.7 points, interval -3.3 to -0.1, against at most 1.5; adapter and note cost 2.2.
 
 Reading. On the facts of the main store the note is worth 4.1 points of CounterFact paraphrase, twice the gap on fresh facts (entry 137), and more facts need a retry (18 against 5 percent). The store with no note keeps a wrong route far less harmful than adapter and note, though more harmful than the earlier adapter alone, which trained on no rewrites. Removal and retention hold.
+
+## 147. Does an entailment score tell correct near answers from leaks? (pinned 2026-11-12, before the run; no language model)
+
+Question. Entry 142 found that the router's score, and every threshold on it, removes correct answers and leaks on near-relation questions at similar rates. The score compares the relation text of the question with that of the stored prompt and never sees the stored answer, while whether the answer is right depends on it, for instance a continent stored against a question about a country. This entry asks whether a frozen entailment model that reads the whole stored fact, answer included, separates the two. If it does not, the near-relation leak is not a router problem that text signals can fix at this scale.
+
+Items. The 96 items of entry 142: the author's legit and leak labels whose question the default router routes, at tau .7501, to the fact the label is about, built by the same code (confirm/label_sheet.py, now shared by the `thresholds` and `nli` commands). The test half is the subject split of entry 107.
+
+Signal. cross-encoder/nli-deberta-v3-large, revision bab4bc7178836f731dcfd18c06ca9def0a137712, frozen, on CPU. Premise: the stored fact as the sheet gives it (for example "Panzarini Hills is located in the continent Europe"). Hypothesis: `The answer to the question "<question>" is <stored target>.` The primary score is the softmax probability of entailment. The secondary score is entailment minus contradiction. Nothing is tuned on these items before the reading.
+
+Readings. (a) AUROC of the primary score for legit against leak on all 96 items, with a 95 percent bootstrap interval (10000 resamples over items, seed 147); the same for the router's score and for the secondary score. (b) Operating point: on the half of entry 107 that is not the test half, the threshold that keeps 90 percent of legit items; on the test half, the share of legit and of leak items below it.
+
+Rule. The signal goes to a pinned router entry on fresh facts, served, if (i) its AUROC is at least .70 with the lower end of the interval above .50, and (ii) on the test half it removes at least .20 more of the leak items than of the legit items. If (i) fails, no further text-only signal is tried on the near-relation question at this scale, and the paper reports the corrected leak as the reading of that defect.
+
+Predictions. P1: primary AUROC between .70 and .85. P2: router score AUROC under .65 on the same items. P3: (ii) holds. P4: the secondary score is within .03 of the primary. P5: the rule holds.
+
+Limits. 96 items, 58 legit and 38 leak, from one store and one question generator; the author's labels were read in entries 140 to 142, though not with this signal. One entailment model and one hypothesis template, pinned here; a failure does not rule out a better model. The reading leaves out unsure items, where the relations can differ by case.
+
+## 148. SS147 results: the entailment score ranks better than the router's but does not pass (2026-11-12)
+
+Source: results/live_learning/confirm/label_nli.json, the 96 items of entry 142, 58 legit and 38 leak. The `thresholds` command, after the change of entry 147, reproduces label_thresholds.json byte for byte.
+
+| Score | AUROC, legit against leak | 95 percent interval |
+|---|---|---|
+| Entailment (primary) | .756 | .655 to .850 |
+| Entailment minus contradiction | .764 | .664 to .855 |
+| Router score | .685 | .572 to .787 |
+
+Operating point. The threshold that keeps 90 percent of legit items on the calibration half is an entailment probability of .0003. On the test half, 22 legit and 23 leak, it removes .045 of legit and .174 of leak items, a difference of .128.
+
+Rule. (i) holds: .756, lower end .655. (ii) fails: .128 against at least .20. The signal does not go to a router entry. As (i) holds, the clause that closes text-only signals does not apply.
+
+Predictions. P1 held: .756. P2 failed: the router score reaches .685, above the predicted .65, with the lower end above .50. P3 failed. P4 held: .008 apart. P5 failed.
+
+Reading. The two labels sit apart in the entailment score (median .944 for legit, .003 for leak; 36 of 58 legit and 4 of 38 leak above .5), but 17 legit items score under .01, and the threshold that keeps 90 percent of legit items must therefore sit almost at zero, where it removes few leaks. Of these 17, 10 are every item whose question asks what languages a subject speaks, writes or signs, all labelled legit; the hypothesis `The answer to the question ... is <target>` reads a single language as the whole answer to a plural question, which the premise does not entail. The leaks the model accepts are mostly a continent stored against a question about the administrative territorial entity, a type the model does not check. This diagnosis was made after the reading and is not a result. A second template, or a second model, would be a change chosen on these items, and the author's labelled items are now all read; it needs fresh labels.
+
+Correction to entry 142. Its reading holds at the thresholds it read, but the router's score is not blind to the label: over all routed items it ranks legit above leak with AUROC .685. The thresholds of SS138 sit where this ranking buys little.
+
+Limits. As entry 147. One template and one model; 45 items on the test half.
+
+## 149. Phase 0 of the hypernetwork: can a generated adapter work at all? (pinned 2026-11-12, before the run)
+
+Design: docs/LIVING_MODEL_HYPERNETWORK_DESIGN.md, phase 0. The author asked that this phase be pinned and reported like any run.
+
+Question. Can a network that reads a fact write a rank-2 adapter that makes the model give the stored answer, first on facts it was trained on and then on facts it has not seen? This decides whether phase 1 is worth its GPU time, not whether the hypernetwork replaces trained adapters.
+
+Facts. CounterFact only, `draw_facts(1100, seed=149)` with the subjects of the draws of entries 126 and 136 excluded, on top of everything `draw_facts` already excludes. The first 1000 are the training pool, whose first 300 are the small pool; the last 100 are the unseen facts, of relations the pools also hold. Held-out relations are phase 1.
+
+Hypernetwork. Input: the mean of the frozen base model's last hidden states over the fact's teach sentence. A trunk maps it to 512 dimensions; for each of the 28 layers and each of `q_proj` and `v_proj`, a shared head per module reads the trunk output and a learned layer embedding and writes A and B of a rank-2 adapter, the shape the store serves, scale 2. The head starts where a fresh LoRA starts: B zero, A the same random matrix for every fact. About 6 million parameters, trained with AdamW at 1e-4 for 3000 steps of 8 facts, seed 149, at both pool sizes.
+
+Loss. The objective of a write today on the short pairs (teach sentence to "Noted: ...", edit prompt to answer), amortised over facts: the answer's loss plus the KL to the base model on the two training canaries, weight 1, the base model frozen. Rewrites are left out in this phase, so the reference is the A0 recipe, not the ladder.
+
+Arms. H300 and H1000: the generated adapter, no further training. T0: today's trained adapter on the same short pairs (`train_adapter`, seed 126, KL weight 1), on the 100 unseen facts only. Every adapter is served as the store serves one: int8, padded, through `serve_expert`, forced to its fact without the router.
+
+Readings. Edit prompt answered (word boundary) on the first 100 training facts, which both pools hold, and on the 100 unseen facts; paraphrase answered on the unseen facts; the base model's rate on the same prompts; the share of adapters under the divergence limit on the held-out canaries (`KAPPA` .968); seconds to make an adapter. A self-check before the run requires that the hook that applies a generated adapter during training gives the same logits as the store's own serving of that adapter.
+
+Rule. Phase 1 is proposed to the author if (i) H1000 answers at least .80 of the edit prompts of its training facts, and (ii) H1000 answers at least .10 of the unseen edit prompts, with the lower end of the paired interval against the base model above zero. If (i) fails, the next entry is a change of recipe, not phase 1. If (i) holds and (ii) fails, the hypernetwork stores and does not generalise at this size; phase 1's larger pools are the test, and the author decides.
+
+Predictions. P1: training facts, H300 at least .90 and H1000 at least .80. P2: unseen edit prompts, H300 between .02 and .20, H1000 between .10 and .40, H1000 above H300. P3: unseen paraphrases below unseen edit prompts for both. P4: at least .90 of generated adapters under the divergence limit. P5: T0 at least .95 on unseen edit prompts. P6: the rule holds.
+
+Limits. One model, one dataset, short pairs, no router, 100 unseen facts. A failure here speaks to this recipe and these sizes.
+
+## 150. SS149 results: the generated adapter works on its training facts and barely beyond them (2026-11-12)
+
+Source: results/live_learning/confirm/hyper_spike.json and hyper_spike.log; weights hyper_spike_300.pt and hyper_spike_1000.pt.
+
+Implementation, as run. The self-check failed at first: the hook added the adapter's term in bf16 after rounding it, while peft adds in fp32 and rounds once, and over 56 modules the logits differed by 2.2 against a movement of 5.0. With the hook adding as peft does, the difference is 0.0000. The vocabulary projection runs only at the positions a loss reads, and each batch of 8 runs as two halves of 4 with each half's loss halved; both leave loss and gradient unchanged and bring peak memory from 7.5 to 5.5 GB. 0.5 s per step, 25 to 27 minutes per pool.
+
+| Arm | Training facts, edit | Unseen, edit | Unseen, paraphrase | Under the divergence limit | Seconds per adapter |
+|---|---|---|---|---|---|
+| Base model | | .00 | .01 | | |
+| H300 | .92 (.87 to .97) | .08 (.03 to .14) | .06 (.02 to .11) | 1.00 | .008 |
+| H1000 | .95 (.90 to .99) | .10 (.05 to .16) | .11 (.05 to .17) | .84 | .008 |
+| T0, trained | | 1.00 | .78 (.70 to .86) | 1.00 | 8.7 |
+
+Training loss at the last step: .0001 for H300 and .0035 for H1000, from about 4.6 at the first. Unseen edit minus base, paired: H300 +.08 (.03 to .14), H1000 +.10 (.05 to .16).
+
+Rule. (i) holds: .95 on training facts. (ii) holds at its edge: .10 on unseen edit prompts against at least .10, lower end of the paired interval .05 above zero. As pinned, phase 1 is proposed to the author.
+
+Predictions. P1 held: .92 and .95. P2 held: .08 and .10, H1000 above H300, though the intervals overlap and the rise of .02 cannot be told from none. P3 failed for H1000: .11 on paraphrases against .10 on edit prompts; held for H300. P4 failed for H1000: .84 under the limit; held for H300. P5 held: 1.00. P6 held.
+
+Reading. The hypernetwork can write adapters that work through the frozen model: it fits its training facts, and a generated adapter costs 8 ms against 8.7 s. It does not yet carry that to facts it has not seen: one unseen fact in ten, against all of them for a trained adapter, and 3.3 times more training facts moved this by two points, within noise. The rule's letter is met, but the scaling question of phase 1 starts from a slope this run cannot distinguish from flat. More training facts also made the adapters less local: .84 of H1000's adapters pass the divergence limit against all of H300's.
+
+Diagnosis, not a result. The input is the mean of the hidden states over the teach sentence, where the answer is one or two tokens of about fifteen; an adapter that must make the model say a given word may need that word's identity more directly than a mean keeps it. This is a change of recipe and needs its own entry.
+
+Limits. As entry 149. 100 unseen facts, so .10 has an interval of .05 to .16.
+
+## 151. Does the generated adapter carry to unseen facts when the hypernetwork sees the answer? (pinned 2026-11-12, before the run)
+
+Question. Entry 150 found generated adapters that fit their training facts but answer .10 of unseen edit prompts. Its diagnosis: the input was the mean of the last layer's hidden states over the teach sentence, where the answer is one or two tokens of about fifteen, and the last layer's state at a token is shaped to predict the next token, not to keep the token itself. This entry gives the hypernetwork the answer's identity directly.
+
+Author's decision, 2026-11-12. The hypernetwork line continues only if a generated adapter, with no further training, answers the unseen edit prompts at 1.00, the rate of today's trained adapter T0 in entry 150. The author set this threshold after being told it closes the line unless the gap closes completely.
+
+Facts, pool and recipe. As entry 149, at the pool of 1000 only, with the same 100 unseen facts, seed 149, 3000 steps of 8 facts, the same loss, heads and serving path. Only the input changes.
+
+Inputs. Ea: the last layer's mean over the teach sentence, joined with the mean of the input embeddings of the answer's tokens. Eb: the same mean, joined with the mean over the answer's tokens of layer 14's hidden states. The answer's tokens are those whose character span starts at or after the end of the edit prompt in the teach sentence.
+
+Arms. H0-Ea and H0-Eb: the generated adapter. On the one of the two with the higher unseen edit rate (Ea if tied): H2 and H4, the generated adapter, unpadded and in float, as the starting point of 2 and 4 passes of today's training over the short pairs (`train_one` with R2, LoRA+ factor 8, KL weight 1, seed 126); and R2 and R4, the same passes from a fresh start, the control. Every adapter is stored as the store stores one (int8, padded) and served through `serve_expert`, forced.
+
+Readings. As entry 149 for every arm: training-fact edit (H0 arms), unseen edit and paraphrase, the share under the divergence limit, seconds per adapter. For H2, H4, R2 and R4 the seconds include loading the base model, as a write does today.
+
+Rule. (i) The line continues if H0-Ea or H0-Eb answers 100 of the 100 unseen edit prompts. Otherwise the hypernetwork line that replaces trained adapters closes, and storage goes back to the other routes of the design document. (ii) Reported, no rule: whether Hk reaches T0's 1.00 with fewer passes than T0's 16, and whether it beats Rk at the same k; a fast write path is a separate question for the author.
+
+Predictions. P1: both inputs beat entry 150's .10 on unseen edit prompts, the better between .20 and .50. P2: neither reaches 1.00, so (i) fails. P3: training facts at least .90 for both. P4: H4 at least .95 on unseen edit prompts and above R4. P5: H2 above R2 by at least .20.
+
+Limits. One pool, one model, one dataset, short pairs, 100 unseen facts, no router. About two hours of GPU.
+
+Correction to entry 151, before the run (2026-11-12). A check of the inputs on 5 facts of the draw found the answer half of Ea about 130 times smaller than the sentence half (norm .97 against 128.8); the hypernetwork's first layer normalises the joined vector as one, so Ea would carry almost none of the answer's identity and could not test the question. Eb's halves are 61 against 129. Each half is now scaled to a root mean square of 1 before the two are joined, for Ea and Eb alike. The smoke run had read 4 unseen facts at 20 steps; no reading of the pinned run had been made. Nothing else changes.
+
+## 152. SS151 results: seeing the answer lifts unseen facts to .77, not to 1.00, and no generated adapter passes the divergence limit (2026-11-12)
+
+Source: results/live_learning/confirm/hyper_enc.json and hyper_enc.log; weights hyper_enc_Ea.pt and hyper_enc_Eb.pt.
+
+| Arm | Training facts, edit | Unseen, edit | Unseen, paraphrase | Under the divergence limit | Median divergence | Seconds per adapter |
+|---|---|---|---|---|---|---|
+| H0-Ea | .00 | .00 | .00 | .00 | 43.7 | .008 |
+| H0-Eb | .99 | .77 | .73 | .00 | 2.18 | .009 |
+| H2-Eb | | .99 | .99 | .00 | 2.46 | 4.3 |
+| R2 | | .00 | .01 | 1.00 | .04 | 4.4 |
+| H4-Eb | | 1.00 | .99 | .00 | 2.59 | 5.0 |
+| R4 | | .16 | .07 | 1.00 | .10 | 5.2 |
+| T0, entry 150 | | 1.00 | .78 | 1.00 | | 8.7 |
+
+Eb was the better input and carried H2 and H4. Ea's training diverged: the loss rose from 4.0 at the first step to 15.9 by step 300 and ended at 18.2, so H0-Ea reads an optimisation failure, not the input. Eb's loss fell to .0024, with a canary KL of .0016 on the training canaries against a median of 2.18 on the held-out ones.
+
+Rule. (i) fails: the better H0 answers 77 of 100 unseen edit prompts, not 100. As pinned, the hypernetwork line that replaces trained adapters closes. (ii) Hk reaches T0's 1.00 at 4 passes against T0's 16 and beats Rk at both k, but every Hk adapter is over the divergence limit, so under the design's ladder none of the 100 facts would be stored.
+
+Predictions. P1 failed: Ea .00, and Eb's .77 is above the predicted band of .20 to .50. P2 held. P3 failed for Ea (.00); held for Eb (.99). P4 held: 1.00 against .16. P5 held: .99 against .00.
+
+Reading. The answer's identity was the missing piece for carrying to unseen facts: .10 in entry 150, .77 here, from the input alone. It came with a loss of locality: no generated adapter, and none fine-tuned from one, stays under the limit that every T0 and Rk adapter meets, and the gap between training and held-out canaries says the hypernetwork kept the canaries it was trained on and not the model's behaviour in general. Paraphrase rates near edit rates (.73 against .77, .99 against .99, where T0 has .78 against 1.00) fit adapters that push the answer broadly; this was not measured.
+
+Limits. As entry 151. One seed; Ea's divergence was not rerun.
+
+## 153. Does a null-space projection make a wrong route cheaper without losing the fact? (pinned 2026-11-12, before the run)
+
+Question. A wrong route keeps the base model's correct answer on about .55 of questions (entry 145, P5), and 18 percent of facts need a second rung under the divergence limit. Both come from what an adapter does to inputs other than its fact's. AlphaEdit (Fang et al., ICLR 2025) projects an edit onto the null space of the inputs whose behaviour must be preserved, so that the edit cannot move them. This entry applies the idea to the per-fact rank-2 adapter: in each layer, the adapter's A acts on the input only after the input is projected away from the main directions of ordinary inputs to that layer.
+
+Projection. For each of the 28 layers, the second moment C of the input to `q_proj` (the same input as `v_proj`) is summed over every token of the 1000 pool facts of entry 149 (seed 149, disjoint by subject from the facts read here), each edit prompt as a user turn after the serving system prompt "Answer briefly.", with the generation prompt. The eigenvectors of C are taken from the largest eigenvalue down until they hold a share p of its trace; P = I - U Uᵀ removes them. During training a hook feeds P x to `lora_A`, so the adapter is B A P; the stored A is A P, so serving, storage and removal are unchanged. P is computed once per base model from text, and nothing in it depends on a stored fact.
+
+Arms, all with today's short-pair recipe of entry 150's T0 (`train_adapter`: rank 2, LoRA+ factor 8, 16 passes, KL weight 1 on the training canaries, seed 126), int8 and padded, served forced: T, no projection; N90, p = .90; N99, p = .99.
+
+Facts. The 100 unseen CounterFact facts of entries 149 and 151.
+
+Readings, per arm. Edit prompt and paraphrase answered (word boundary). Divergence on the held-out canaries, and the share under the limit (`KAPPA`). Forced wrong route: the rows of entry 100's `wrong_route.json` whose base answer has the answer at a word boundary, in file order; fact k's adapter is forced on rows 3k, 3k+1 and 3k+2, and the answer is kept or not (word boundary), 300 pairs, the same pairs in every arm. For each p, the number of directions removed per layer. Seconds per adapter.
+
+Rule, for an arm N against T, paired over facts and over wrong-route pairs. N is a candidate for the default, to be read on the full evaluation of entry 145 in a new entry, if (i) edit prompts at least .98; (ii) paraphrase minus T, lower end of the 95 percent interval at least -.05; (iii) wrong route kept minus T, lower end above 0; (iv) under the limit at least T's share. If both pass, N90, the milder projection, goes on. Otherwise the default stays and the result is reported.
+
+Predictions. P1: T answers .98 or more edit prompts and .70 to .85 paraphrases, as entry 150's T0. P2: N90 keeps edit prompts at .98 or more. P3: N99 answers fewer edit prompts than N90. P4: N90 keeps more wrong-route answers than T, by .05 or more. P5: N90's median divergence is below T's. P6: N90 passes the rule.
+
+Limits. One model, CounterFact only, 100 facts, short pairs without the ladder and its rewrites, no router: the wrong route is forced. The projection's corpus is CounterFact edit prompts, close to the facts' own domain; the wrong-route questions are zsRE.
+
+## 154. Does the router keep its decision in Turkish, and does a multilingual relation encoder? (pinned 2026-11-12, before the run; no language model)
+
+Question. In the demo of 2026-11-12, a Turkish question about the population of a stored subject was routed to that subject's stored wine fact: a cross-lingual E3 leak. The relation encoder is all-mpnet-base-v2 trained on English triplets (SS76). This entry measures the router's decision in Turkish against English on the same facts, and asks whether a multilingual encoder trained on the same triplets keeps the English decision and repairs the Turkish one.
+
+Data. BMIKE-53 (ACL 2025, MIT licence), CounterFact, Turkish test file, `raw/bmike_counterfact_tr.json`, sha256 6e024ff5…0eb9: 1031 facts, each with English and Turkish edit questions (`src`) and rephrasings (`rephrase`), every case id in our CounterFact. The store holds one English entry per fact (subject, the CounterFact edit prompt, relation id), 1031 entries, no adapters.
+
+Queries. Positive, should route to the fact's own entry: English rephrase; Turkish `src`; Turkish rephrase. Negative, E3, should route to nothing: for fact i, the `src` of fact j, the next fact in file order whose relation differs and whose `src` contains its subject verbatim, with j's subject replaced by i's; built the same way in English and in Turkish from the same j. Queries whose subject the router does not find are counted as not routed and kept.
+
+Encoders. relenc, today's (SS76). mpnet, all-mpnet-base-v2 untrained. mmpnet, paraphrase-multilingual-mpnet-base-v2 untrained. relenc-m: paraphrase-multilingual-mpnet-base-v2 trained by `train_relation_encoder.py` with the SS76 triplets, seed, batch, learning rate and schedule unchanged; only the base model changes.
+
+Readings, per encoder and language. AUROC of the router's score, positives (score of the fact's own entry) against E3 (the highest score among the found candidates; E3 queries with no candidate are left out of the AUROC and counted), with a bootstrap interval over facts (10000, seed 154). For relenc only, at today's operating point (tau .7501 with `RELATION_TAU`): routed share of each positive set to the right entry, and routed share of E3. AUROC also on the 11 relations SS76 held out.
+
+Rule. relenc-m goes on to calibration and the routed evaluation in a new entry if (i) its Turkish AUROC minus relenc's Turkish AUROC, paired over facts, has a lower end above 0, and (ii) its English AUROC minus relenc's English AUROC has a lower end of at least -.02. Otherwise the router stays and the result is reported.
+
+Predictions. P1: relenc's Turkish AUROC is at least .05 below its English AUROC. P2: at today's operating point, relenc routes fewer Turkish than English positives to the right entry. P3: relenc routes a larger share of Turkish E3 queries than of English E3. P4: mmpnet untrained has a smaller Turkish-English gap than relenc. P5: relenc-m passes (i). P6: relenc-m passes (ii).
+
+Limits. CounterFact only, one translated benchmark whose translations are machine-made; subject substitution in Turkish may break suffix harmony, which the router masks with the subject. The BMIKE facts are not disjoint by subject from SS76's training facts; the held-out relations are the clean reading. No answers are generated.
+
+## 155. SS153 results: the null-space projection keeps wrong routes and loses the fact's paraphrases (2026-11-12)
+
+Source: results/live_learning/confirm/ns_route.json and ns_route.log.
+
+Directions removed per layer, of 1536: N90 12 to 104 (median 33), N99 397 to 956.
+
+| Arm | Edit | Paraphrase | Under the limit | Median divergence | Wrong route kept (300) | Seconds per adapter |
+|---|---|---|---|---|---|---|
+| T | 1.00 | .78 (.70 to .86) | 1.00 | .33 | .68 | 8.5 |
+| N90 | .91 | .32 (.23 to .41) | 1.00 | .030 | .91 | 8.8 |
+| N99 | .42 | .13 (.07 to .20) | 1.00 | .017 | .94 | 8.7 |
+
+Minus T, paired: N90 edit -.09 (-.15 to -.04), paraphrase -.46 (-.56 to -.36), wrong route kept +.23 (+.18 to +.29); N99 edit -.58, paraphrase -.65, wrong route kept +.26 (+.21 to +.32).
+
+Rule. Neither arm passes: (iii) and (iv) hold for both, (i) and (ii) fail for both. The default stays.
+
+Predictions. P1 held. P2 failed: .91. P3 held. P4 held: +.23. P5 held: .030 against .33. P6 failed.
+
+Reading. The projection does what it is built for: a forced wrong route keeps .91 of the base model's answers against .68, and the divergence falls elevenfold. It costs the fact, and the paraphrases most: the directions that carry most of an ordinary prompt's energy are also those through which a rephrased question reaches the adapter, so an adapter confined to the rest answers the edit prompt it was trained on and little else. At this granularity, locality and generalisation draw on the same directions; a projection learned from CounterFact edit prompts cannot tell the fact's own subject from another's.
+
+Limits. As entry 153. A projection keyed to the subject's tokens rather than to every token, or shares below .90, were not tried; either is a new entry.
+
+## 156. SS154 results: the router is blind in Turkish; a multilingual encoder repairs it and misses the English margin by .0001 (2026-11-12)
+
+Source: results/live_learning/confirm/xling_route.json and xling_route.log; encoder results/live_learning/confirm/relation_encoder_mmpnet (52.7 s, last loss 1.17, the 11 held-out relations of SS76).
+
+Implementation, as run. Queries with no candidate entry were left out of the AUROC and are counted: the subject was found in 1026 of 1031 English rephrasings, 729 Turkish edit questions and 726 Turkish rephrasings (the translation changed or inflected the name in the others), 1031 English and 1026 Turkish E3 queries.
+
+AUROC, positives against E3, 1031 facts (356 on held-out relations):
+
+| Encoder | English | Turkish | English, held out | Turkish, held out |
+|---|---|---|---|---|
+| relenc | .975 (.969 to .981) | .532 (.518 to .546) | .957 | .496 |
+| mpnet | .891 | .505 | .913 | .485 |
+| mmpnet | .877 | .887 | .891 | .900 |
+| relenc-m | .960 (.951 to .967) | .939 (.928 to .949) | .934 | .919 |
+
+relenc-m minus relenc, paired: Turkish +.407 (+.390 to +.425); English -.0155 (-.0201 to -.0110); on held-out relations, Turkish +.423, English -.022 (-.033 to -.013).
+
+relenc at today's operating point: right entry for English rephrasings .552, Turkish edit questions .005, Turkish rephrasings .002; E3 routed, English .015, Turkish .002.
+
+Rule. (i) holds. (ii) fails: the lower end is -.0201 against a margin of -.02. As pinned, relenc-m does not go on and the router stays.
+
+Predictions. P1 held: .532 against .975. P2 held: .005 and .002 against .552. P3 failed: Turkish E3 is routed less, .002 against .015. P4 held: mmpnet's Turkish AUROC is above its English. P5 held. P6 failed, by .0001.
+
+Reading. Today's router cannot read Turkish: its score separates a Turkish question about the stored fact from one about another relation of the same subject no better than chance, and at the operating point it routes almost no Turkish question, right or wrong. The demo's cross-lingual leak was the rare exception; the common failure in Turkish is the lost fact, not the leak. The multilingual base already carries the relation across languages (.887 Turkish untrained); the same triplets bring it to .939 in Turkish and .960 in English, .016 below today's encoder in English. A second finding, in English: BMIKE's rephrasings are questions, and today's operating point routes only .552 of them to the right entry, against the paraphrase rates of the CounterFact readings; the stored keys are cloze prompts.
+
+Limits. As entry 154. The English margin was missed by a hair; a recipe that keeps the English score, for example triplets in both languages, is a new entry.
+
+## 157. The metric contract: names, definitions and the headline set (decided 2026-11-14; no run)
+
+Purpose. From this entry on, every result is reported under the names and definitions below, so that numbers from different entries, and from this work and the literature, are not read as the same thing when they are not. Earlier entries keep their words; the mapping is given at the end.
+
+Author's decision, 2026-11-14. The headline set and the renaming below, proposed after a review of the metrics in common use for language models (perplexity, BLEU, ROUGE, BERTScore, MMLU, GSM8K, HumanEval, HellaSwag, TruthfulQA, RAG metrics, hallucination rate, toxicity, LLM-as-judge, arena ratings, TTFT, TPOT, throughput) and in knowledge editing (efficacy, generalization, locality, portability).
+
+Why "accuracy" and not "efficacy". In CounterFact (ROME, MEMIT) the efficacy score is the share of edit prompts on which the new object is more probable than the true one under teacher forcing; EasyEdit's reliability is token accuracy under teacher forcing. Ours is free generation scored by a match, the setting in which Mirage (Yang et al., ACL 2025) found single-edit results fall from 96.8 to 38.5 percent. Calling ours "efficacy" invites a comparison with teacher-forced numbers that it is not.
+
+Common definitions. A response is the greedy output of the served system to the query as a user turn after the system prompt "Answer briefly.", at most 64 new tokens. A response is correct if it contains the target at a word boundary (`word_hit`). "Routed" means through the default router with `RELATION_TAU`; "forced" means one named entry applied without the router. Every rate has a bootstrap 95 percent interval over facts; every comparison between arms is a paired difference over the same facts or pairs, with its interval; each entry pins its seed.
+
+Headline set, reported for every store or arm that claims to be a default:
+
+1. Edit accuracy: correct responses to the edit prompts, routed. The edit prompts are in the adapter's training data and are the routing keys, so this measures that a fact is stored and found.
+2. Paraphrase accuracy: correct responses to held-out paraphrases of the edit prompt, routed. The test of generalisation.
+3. Leak rate: on queries that should not use a stored fact, the share whose response contains a stored target that the base model's response to the same query does not. Reported separately for E3 (same subject, another relation), E2 (another subject, same relation) and the natural questions, near and uniform.
+4. Wrong-route retention: on the questions of entry 100 whose base response is correct at a word boundary, the share still correct with an entry forced. The cost of a routing error.
+5. Removal: for removed facts, return (correct exactly when the base model is correct) and the store's state hash equal to the state before the fact was added; for the other facts, retention of edit accuracy.
+6. Capability cost: MMLU and ARC accuracy on the 1000 questions of entry 101 with a random entry forced, minus the base model's, and the share of these questions routed at all.
+7. Cost: bytes stored per fact; seconds per write including the ladder, median; the share of facts with no entry; and time to first token per query, routed against the base model, median over a pinned query set (to be implemented and pinned in its own entry).
+
+Secondary, reported when an entry asks for them: portability (reverse questions, BAKE; multi-hop questions, MQuAKE; another language, BMIKE-53), each as accuracy under the common definitions; router AUROC (positives against E3, as entry 154); the CounterFact efficacy score of ROME (new object more probable than the true one under teacher forcing, one entry forced), only for comparison with the literature and never as a headline; the share of entries under the divergence limit and their median divergence on the held-out canaries.
+
+Not used, with the reason. BLEU, ROUGE and BERTScore: answers are single entities, with no reference text to overlap. GSM8K, MATH, HumanEval, MBPP, HellaSwag, TruthfulQA: not what a stored fact can harm or help beyond what MMLU and ARC already read, and noisy at 1.5B parameters. Toxicity and bias, arena ratings: outside the claims. Perplexity: the canary divergence measures the same side effect more directly. LLM-as-judge: only to validate the matcher on a sample, beside the author's labels, never as a headline.
+
+Mapping from earlier entries. "Efficacy" and "probe hit" in entries before 157 are edit accuracy, scored by substring (`hit`) where the entry says so and by word boundary (`word_hit`) from the entries that adopted it. "Generalisation" and "paraphrase" are paraphrase accuracy. "No-leak" is one minus the leak rate. "Wrong route kept" is wrong-route retention. The paper uses these names when it is written.

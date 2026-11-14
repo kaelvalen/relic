@@ -3,6 +3,7 @@
     python label_sheet.py make    # writes the sheet; fill in its `label` column
     python label_sheet.py score   # agreement with the model labels
     python label_sheet.py thresholds   # SS141: what the per-relation arms stop routing
+    python label_sheet.py nli   # SS147: an entailment score on the same items
 
 Labels: legit (under the stored fact, the target answers the question), leak (it does
 not, including a target of the wrong type), unsure (the two relations can differ here).
@@ -157,13 +158,16 @@ def score() -> None:
     print(json.dumps(report, indent=1))
 
 
-def thresholds() -> None:
-    """SS141: which of the author's labels each per-relation arm stops routing."""
+THETA = 0.7501
+
+
+def routed_items() -> list[dict]:
+    """SS141: the author's legit and leak items the default router routes to their fact."""
     from locality_eval import match_raw
 
     from relic.router import RouterV7, make_scorer
 
-    theta = 0.7501
+    theta = THETA
     with SHEET.open(encoding="utf-8") as f:
         sheet = [
             r for r in csv.DictReader(f) if r["label"].strip() in ("legit", "leak")
@@ -181,12 +185,6 @@ def thresholds() -> None:
     subjects = sorted({r["fact_id"] for r in rows})
     random.Random(107).shuffle(subjects)
     test_half = set(subjects[len(subjects) // 2 :])
-    arms = {
-        "R107": json.loads((CONFIRM / "tau_calib.json").read_text())["per_relation"],
-        "Rall": json.loads((CONFIRM / "near_threshold.json").read_text())["thresholds"][
-            "Rall"
-        ],
-    }
     router = RouterV7(facts, make_scorer("relenc", device="cpu"), theta)
     items = []
     for r in sheet:
@@ -210,8 +208,24 @@ def thresholds() -> None:
                 "test_half": fid in test_half,
                 "score": float(sims[k]),
                 "relation": relation[fid],
+                "question": r["question"],
+                "stored_fact": r["stored_fact"],
+                "stored_target": r["stored_target"],
             }
         )
+    return items
+
+
+def thresholds() -> None:
+    """SS141: which of the author's labels each per-relation arm stops routing."""
+    theta = THETA
+    items = routed_items()
+    arms = {
+        "R107": json.loads((CONFIRM / "tau_calib.json").read_text())["per_relation"],
+        "Rall": json.loads((CONFIRM / "near_threshold.json").read_text())["thresholds"][
+            "Rall"
+        ],
+    }
 
     def read(rows_, tau) -> dict:
         out = {}
@@ -237,7 +251,69 @@ def thresholds() -> None:
     print(json.dumps(report, indent=1))
 
 
+NLI_MODEL = "cross-encoder/nli-deberta-v3-large"
+NLI_REVISION = "bab4bc7178836f731dcfd18c06ca9def0a137712"
+HYPOTHESIS = 'The answer to the question "{question}" is {target}.'
+
+
+def nli() -> None:
+    """SS147: does an entailment score over the stored fact tell legit from leak?"""
+    from near_threshold import auroc
+    from sentence_transformers import CrossEncoder
+
+    items = routed_items()
+    model = CrossEncoder(NLI_MODEL, revision=NLI_REVISION, device="cpu")
+    label = {v: int(k) for k, v in model.config.id2label.items()}
+    pairs = [
+        (x["stored_fact"], HYPOTHESIS.format(question=x["question"], target=x["stored_target"]))
+        for x in items
+    ]
+    probs = model.predict(pairs, apply_softmax=True, batch_size=16)
+    for x, p in zip(items, probs):
+        x["entail"] = float(p[label["entailment"]])
+        x["entail_minus_contra"] = float(p[label["entailment"]] - p[label["contradiction"]])
+
+    def auc(xs, key) -> dict:
+        legit = np.array([x[key] for x in xs if x["label"] == "legit"])
+        leak = np.array([x[key] for x in xs if x["label"] == "leak"])
+        rng = np.random.default_rng(147)
+        boots = [
+            auroc(rng.choice(legit, legit.size), rng.choice(leak, leak.size))
+            for _ in range(BOOT)
+        ]
+        return {
+            "auroc": round(auroc(legit, leak), 4),
+            "ci95": [round(float(np.percentile(boots, q)), 4) for q in (2.5, 97.5)],
+        }
+
+    # operating point: calibrated on the half that is not the test half of SS107
+    calib = [x["entail"] for x in items if not x["test_half"] and x["label"] == "legit"]
+    tau = float(np.percentile(calib, 10))
+    test = [x for x in items if x["test_half"]]
+    removed = {
+        lab: round(float(np.mean([x["entail"] < tau for x in test if x["label"] == lab])), 4)
+        for lab in ("legit", "leak")
+    }
+    report = {
+        "prereg": "SS147",
+        "model": NLI_MODEL,
+        "revision": NLI_REVISION,
+        "n": {lab: sum(x["label"] == lab for x in items) for lab in ("legit", "leak")},
+        "auroc": {k: auc(items, k) for k in ("entail", "entail_minus_contra", "score")},
+        "operating_point": {
+            "tau": round(tau, 4),
+            "test_n": {lab: sum(x["label"] == lab for x in test) for lab in ("legit", "leak")},
+            "removed": removed,
+            "leak_minus_legit": round(removed["leak"] - removed["legit"], 4),
+        },
+        "items": items,
+    }
+    (CONFIRM / "label_nli.json").write_text(json.dumps(report, indent=1))
+    print(json.dumps({k: v for k, v in report.items() if k != "items"}, indent=1))
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("command", choices=["make", "score", "thresholds"])
-    {"make": make, "score": score, "thresholds": thresholds}[ap.parse_args().command]()
+    ap.add_argument("command", choices=["make", "score", "thresholds", "nli"])
+    commands = {"make": make, "score": score, "thresholds": thresholds, "nli": nli}
+    commands[ap.parse_args().command]()

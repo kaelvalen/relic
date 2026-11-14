@@ -27,7 +27,13 @@ from facts import NUMBERS, generate  # noqa: E402
 from facts import pairs as fact_pairs  # noqa: E402
 from transformers import LogitsProcessor, LogitsProcessorList  # noqa: E402
 
-from relic.ledger import CANARIES, DeltaStore, R  # noqa: E402
+from relic.ledger import (  # noqa: E402
+    CANARIES,
+    LEGACY_PROMPTS,
+    DeltaStore,
+    R,
+    use_prompts,
+)
 from relic.metrics import ci, hit  # noqa: E402
 from relic.model import load_model, make_lora  # noqa: E402
 from relic.router import _osa  # noqa: E402
@@ -510,6 +516,7 @@ def main() -> None:
     )
     router = Router(enc, facts)
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
 
     arms = args.arms.split(",")

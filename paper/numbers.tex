@@ -1,1494 +1,336 @@
-% Generated from results/live_learning/confirm/*_n1000_routed_eval.json (prereg SS64).
-\newcommand{\cfEff}{0.997}
-\newcommand{\cfEffPct}{99.7}
-\newcommand{\cfEffCI}{.993,1}
-\newcommand{\cfPara}{0.323}
-\newcommand{\cfParaPct}{32.3}
-\newcommand{\cfParaCI}{.295,.352}
-\newcommand{\cfNoLeak}{0.992}
-\newcommand{\cfNoLeakPct}{99.2}
-\newcommand{\cfNoLeakCI}{.986,.997}
-\newcommand{\cfGone}{0.96}
-\newcommand{\cfGonePct}{96}
-\newcommand{\cfGoneCI}{.92,.99}
-\newcommand{\cfReturn}{0.96}
-\newcommand{\cfReturnPct}{96}
-\newcommand{\cfReturnCI}{.92,.99}
-\newcommand{\cfRetain}{0.997}
-\newcommand{\cfRetainPct}{99.7}
-\newcommand{\cfRetainCI}{.992,1}
-\newcommand{\cfRoute}{0.997}
-\newcommand{\cfParaRoute}{0.362}
-\newcommand{\cfAbst}{0.992}
-\newcommand{\cfAbstPct}{99.2}
-\newcommand{\cfRoutePct}{99.7}
-\newcommand{\cfRevMs}{2.6}
-\newcommand{\cfEffErr}{0.004}
-\newcommand{\zsEff}{0.994}
-\newcommand{\zsEffPct}{99.4}
-\newcommand{\zsEffCI}{.989,.998}
-\newcommand{\zsPara}{0.973}
-\newcommand{\zsParaPct}{97.3}
-\newcommand{\zsParaCI}{.962,.982}
-\newcommand{\zsNoLeak}{0.975}
-\newcommand{\zsNoLeakPct}{97.5}
-\newcommand{\zsNoLeakCI}{.965,.984}
-\newcommand{\zsGone}{0.36}
-\newcommand{\zsGonePct}{36}
-\newcommand{\zsGoneCI}{.26,.45}
-\newcommand{\zsReturn}{0.80}
-\newcommand{\zsReturnPct}{80}
-\newcommand{\zsReturnCI}{.72,.88}
-\newcommand{\zsRetain}{0.992}
-\newcommand{\zsRetainPct}{99.2}
-\newcommand{\zsRetainCI}{.986,.998}
-\newcommand{\zsRoute}{0.784}
-\newcommand{\zsParaRoute}{0.776}
-\newcommand{\zsAbst}{0.967}
-\newcommand{\zsAbstPct}{96.7}
-\newcommand{\zsRoutePct}{78.4}
-\newcommand{\zsRevMs}{2.4}
-\newcommand{\zsEffErr}{0.005}
-\newcommand{\vCfEff}{0.997}
-\newcommand{\vCfEffPct}{99.7}
-\newcommand{\vCfEffCI}{.993,1}
-\newcommand{\vCfEffRet}{0.838}
-\newcommand{\vCfEffRetPct}{83.8}
-\newcommand{\vCfEffRetCI}{.816,.86}
-\newcommand{\vCfEffBoth}{0.996}
-\newcommand{\vCfEffBothPct}{99.6}
-\newcommand{\vCfEffBothCI}{.992,.999}
-\newcommand{\vCfRoute}{0.998}
-\newcommand{\vCfRoutePct}{99.8}
-\newcommand{\vCfRouteCI}{.995,1}
-\newcommand{\vCfPara}{0.669}
-\newcommand{\vCfParaPct}{66.9}
-\newcommand{\vCfParaCI}{.641,.699}
-\newcommand{\vCfParaRet}{0.629}
-\newcommand{\vCfParaRetPct}{62.9}
-\newcommand{\vCfParaRetCI}{.601,.659}
-\newcommand{\vCfParaBoth}{0.803}
-\newcommand{\vCfParaBothPct}{80.3}
-\newcommand{\vCfParaBothCI}{.778,.827}
-\newcommand{\vCfParaRouted}{0.818}
-\newcommand{\vCfParaRoutedPct}{81.8}
-\newcommand{\vCfParaRoutedCI}{.794,.841}
-\newcommand{\vCfParaRoute}{0.814}
-\newcommand{\vCfParaRoutePct}{81.4}
-\newcommand{\vCfParaRouteCI}{.789,.838}
-\newcommand{\vCfParaDiff}{4.0}
-\newcommand{\vCfParaDiffCI}{1.1 to 6.8}
-\newcommand{\vCfEffDiff}{15.9}
-\newcommand{\vCfEffDiffCI}{13.7 to 18.1}
-\newcommand{\vCfNoLeak}{1.00}
-\newcommand{\vCfNoLeakPct}{100}
-\newcommand{\vCfNoLeakCI}{1,1}
-\newcommand{\vCfTierFrac}{0.162}
-\newcommand{\vCfTierFracPct}{16.2}
-\newcommand{\vCfTierEff}{0.998}
-\newcommand{\vCfTierEffPct}{99.8}
-\newcommand{\vCfTierEffCI}{.995,1}
-\newcommand{\vCfTierPara}{0.664}
-\newcommand{\vCfTierParaPct}{66.4}
-\newcommand{\vCfTierParaCI}{.635,.694}
-\newcommand{\vCfGone}{1.00}
-\newcommand{\vCfGonePct}{100}
-\newcommand{\vCfGoneCI}{1,1}
-\newcommand{\vCfReturn}{1.00}
-\newcommand{\vCfReturnPct}{100}
-\newcommand{\vCfReturnCI}{1,1}
-\newcommand{\vCfRetain}{0.997}
-\newcommand{\vCfRetainPct}{99.7}
-\newcommand{\vCfRetainCI}{.992,1}
-\newcommand{\vCfEtwoRouted}{0.018}
-\newcommand{\vCfEtwoRoutedPct}{1.8}
-\newcommand{\vCfEtwoRoutedCI}{.01,.027}
-\newcommand{\vCfEtwoSame}{0.982}
-\newcommand{\vCfEtwoSamePct}{98.2}
-\newcommand{\vCfEtwoSameCI}{.973,.99}
-\newcommand{\vCfEtwoLeak}{0.014}
-\newcommand{\vCfEtwoLeakPct}{1.4}
-\newcommand{\vCfEtwoLeakCI}{.007,.022}
-\newcommand{\vCfEthreeRouted}{0.29}
-\newcommand{\vCfEthreeRoutedPct}{29}
-\newcommand{\vCfEthreeRoutedCI}{.263,.317}
-\newcommand{\vCfEthreeSame}{0.711}
-\newcommand{\vCfEthreeSamePct}{71.1}
-\newcommand{\vCfEthreeSameCI}{.684,.738}
-\newcommand{\vCfEthreeLeak}{0.186}
-\newcommand{\vCfEthreeLeakPct}{18.6}
-\newcommand{\vCfEthreeLeakCI}{.162,.209}
-\newcommand{\vZsEff}{0.999}
-\newcommand{\vZsEffPct}{99.9}
-\newcommand{\vZsEffCI}{.997,1}
-\newcommand{\vZsEffRet}{0.794}
-\newcommand{\vZsEffRetPct}{79.4}
-\newcommand{\vZsEffRetCI}{.768,.82}
-\newcommand{\vZsEffBoth}{0.989}
-\newcommand{\vZsEffBothPct}{98.9}
-\newcommand{\vZsEffBothCI}{.982,.995}
-\newcommand{\vZsRoute}{1.00}
-\newcommand{\vZsRoutePct}{100}
-\newcommand{\vZsRouteCI}{1,1}
-\newcommand{\vZsPara}{0.959}
-\newcommand{\vZsParaPct}{95.9}
-\newcommand{\vZsParaCI}{.946,.971}
-\newcommand{\vZsParaRet}{0.817}
-\newcommand{\vZsParaRetPct}{81.7}
-\newcommand{\vZsParaRetCI}{.792,.84}
-\newcommand{\vZsParaBoth}{0.979}
-\newcommand{\vZsParaBothPct}{97.9}
-\newcommand{\vZsParaBothCI}{.969,.988}
-\newcommand{\vZsParaRouted}{0.964}
-\newcommand{\vZsParaRoutedPct}{96.4}
-\newcommand{\vZsParaRoutedCI}{.952,.975}
-\newcommand{\vZsParaRoute}{0.74}
-\newcommand{\vZsParaRoutePct}{74}
-\newcommand{\vZsParaRouteCI}{.711,.765}
-\newcommand{\vZsParaDiff}{14.2}
-\newcommand{\vZsParaDiffCI}{11.7 to 16.7}
-\newcommand{\vZsEffDiff}{20.5}
-\newcommand{\vZsEffDiffCI}{18.0 to 23.0}
-\newcommand{\vZsNoLeak}{1.00}
-\newcommand{\vZsNoLeakPct}{100}
-\newcommand{\vZsNoLeakCI}{1,1}
-\newcommand{\vZsTierFrac}{0.206}
-\newcommand{\vZsTierFracPct}{20.6}
-\newcommand{\vZsTierEff}{1.00}
-\newcommand{\vZsTierEffPct}{100}
-\newcommand{\vZsTierEffCI}{1,1}
-\newcommand{\vZsTierPara}{0.931}
-\newcommand{\vZsTierParaPct}{93.1}
-\newcommand{\vZsTierParaCI}{.915,.946}
-\newcommand{\vZsGone}{0.42}
-\newcommand{\vZsGonePct}{42}
-\newcommand{\vZsGoneCI}{.32,.52}
-\newcommand{\vZsReturn}{0.86}
-\newcommand{\vZsReturnPct}{86}
-\newcommand{\vZsReturnCI}{.79,.92}
-\newcommand{\vZsRetain}{0.999}
-\newcommand{\vZsRetainPct}{99.9}
-\newcommand{\vZsRetainCI}{.997,1}
-\newcommand{\vZsReturnContent}{1.00}
-\newcommand{\vZsReturnContentPct}{100}
-\newcommand{\vZsReturnContentCI}{1,1}
-\newcommand{\vZsContentExtra}{38}
-\newcommand{\vZsLocRouted}{0.00}
-\newcommand{\vZsLocRoutedPct}{0}
-\newcommand{\vZsLocRoutedCI}{0,0}
-\newcommand{\vZsLocSame}{1.00}
-\newcommand{\vZsLocSamePct}{100}
-\newcommand{\vZsLocSameCI}{1,1}
-\newcommand{\vZsLocLeak}{0.00}
-\newcommand{\vZsLocLeakPct}{0}
-\newcommand{\vZsLocLeakCI}{0,0}
-\newcommand{\chkInMean}{0.022}
-\newcommand{\chkInMeanPct}{2.2}
-\newcommand{\chkInMax}{0.078}
-\newcommand{\chkInMaxPct}{7.8}
-\newcommand{\chkHeldMean}{0.364}
-\newcommand{\chkHeldMeanPct}{36.4}
-\newcommand{\chkHeldMax}{1.072}
-\newcommand{\chkHeldMaxPct}{107.2}
-\newcommand{\chkKappa}{0.968}
-\newcommand{\chkKappaPct}{96.8}
-\newcommand{\chkWrongRoute}{0.72}
-\newcommand{\chkWrongRoutePct}{72}
-\newcommand{\vCfEthreeLeakAdapter}{0.186}
-\newcommand{\vCfEthreeLeakAdapterPct}{18.6}
-\newcommand{\vCfEthreeLeakAdapterCI}{.162,.209}
-\newcommand{\vCfEthreeLeakNote}{0.14}
-\newcommand{\vCfEthreeLeakNotePct}{14}
-\newcommand{\vCfEthreeLeakNoteCI}{.118,.161}
-\newcommand{\vCfEthreeLeakBoth}{0.237}
-\newcommand{\vCfEthreeLeakBothPct}{23.7}
-\newcommand{\vCfEthreeLeakBothCI}{.21,.262}
-\newcommand{\vCfEthreeLeakTiered}{0.155}
-\newcommand{\vCfEthreeLeakTieredPct}{15.5}
-\newcommand{\vCfEthreeLeakTieredCI}{.133,.176}
-\newcommand{\yTheta}{0.660}
-\newcommand{\yCfEff}{0.997}
-\newcommand{\yCfEffPct}{99.7}
-\newcommand{\yCfEffRet}{0.838}
-\newcommand{\yCfEffRetPct}{83.8}
-\newcommand{\yCfEffBoth}{0.996}
-\newcommand{\yCfEffBothPct}{99.6}
-\newcommand{\yCfEffBothCI}{.992,.999}
-\newcommand{\yCfEffTier}{0.998}
-\newcommand{\yCfEffTierPct}{99.8}
-\newcommand{\yCfEffRoute}{0.998}
-\newcommand{\yCfEffRoutePct}{99.8}
-\newcommand{\yCfPara}{0.643}
-\newcommand{\yCfParaPct}{64.3}
-\newcommand{\yCfParaRet}{0.607}
-\newcommand{\yCfParaRetPct}{60.7}
-\newcommand{\yCfParaBoth}{0.768}
-\newcommand{\yCfParaBothPct}{76.8}
-\newcommand{\yCfParaBothCI}{.742,.794}
-\newcommand{\yCfParaTier}{0.642}
-\newcommand{\yCfParaTierPct}{64.2}
-\newcommand{\yCfParaRoute}{0.776}
-\newcommand{\yCfParaRoutePct}{77.6}
-\newcommand{\yZsEff}{0.999}
-\newcommand{\yZsEffPct}{99.9}
-\newcommand{\yZsEffRet}{0.794}
-\newcommand{\yZsEffRetPct}{79.4}
-\newcommand{\yZsEffBoth}{0.989}
-\newcommand{\yZsEffBothPct}{98.9}
-\newcommand{\yZsEffBothCI}{.982,.995}
-\newcommand{\yZsEffTier}{1.00}
-\newcommand{\yZsEffTierPct}{100}
-\newcommand{\yZsEffRoute}{1.00}
-\newcommand{\yZsEffRoutePct}{100}
-\newcommand{\yZsPara}{0.955}
-\newcommand{\yZsParaPct}{95.5}
-\newcommand{\yZsParaRet}{0.816}
-\newcommand{\yZsParaRetPct}{81.6}
-\newcommand{\yZsParaBoth}{0.975}
-\newcommand{\yZsParaBothPct}{97.5}
-\newcommand{\yZsParaBothCI}{.965,.984}
-\newcommand{\yZsParaTier}{0.929}
-\newcommand{\yZsParaTierPct}{92.9}
-\newcommand{\yZsParaRoute}{0.729}
-\newcommand{\yZsParaRoutePct}{72.9}
-\newcommand{\yCfEthreeRouted}{0.207}
-\newcommand{\yCfEthreeRoutedPct}{20.7}
-\newcommand{\yCfEthreeLeakAdapter}{0.14}
-\newcommand{\yCfEthreeLeakAdapterPct}{14}
-\newcommand{\yCfEthreeLeakAdapterCI}{.119,.16}
-\newcommand{\yCfEthreeLeakNote}{0.109}
-\newcommand{\yCfEthreeLeakNotePct}{10.9}
-\newcommand{\yCfEthreeLeakNoteCI}{.089,.128}
-\newcommand{\yCfEthreeLeakBoth}{0.171}
-\newcommand{\yCfEthreeLeakBothPct}{17.1}
-\newcommand{\yCfEthreeLeakBothCI}{.147,.194}
-\newcommand{\yCfEthreeLeakTiered}{0.121}
-\newcommand{\yCfEthreeLeakTieredPct}{12.1}
-\newcommand{\yCfEthreeLeakTieredCI}{.101,.14}
-\newcommand{\yCfEtwoRouted}{0.017}
-\newcommand{\yCfEtwoRoutedPct}{1.7}
-\newcommand{\yCfEtwoLeakAdapter}{0.014}
-\newcommand{\yCfEtwoLeakAdapterPct}{1.4}
-\newcommand{\yCfEtwoLeakAdapterCI}{.007,.022}
-\newcommand{\yCfEtwoLeakNote}{0.013}
-\newcommand{\yCfEtwoLeakNotePct}{1.3}
-\newcommand{\yCfEtwoLeakNoteCI}{.007,.02}
-\newcommand{\yCfEtwoLeakBoth}{0.015}
-\newcommand{\yCfEtwoLeakBothPct}{1.5}
-\newcommand{\yCfEtwoLeakBothCI}{.008,.023}
-\newcommand{\yCfEtwoLeakTiered}{0.014}
-\newcommand{\yCfEtwoLeakTieredPct}{1.4}
-\newcommand{\yCfEtwoLeakTieredCI}{.007,.022}
-\newcommand{\sTheta}{0.757}
-\newcommand{\sCfEff}{0.997}
-\newcommand{\sCfEffPct}{99.7}
-\newcommand{\sCfEffRet}{0.838}
-\newcommand{\sCfEffRetPct}{83.8}
-\newcommand{\sCfEffBoth}{0.996}
-\newcommand{\sCfEffBothPct}{99.6}
-\newcommand{\sCfEffBothCI}{.992,.999}
-\newcommand{\sCfEffTier}{0.998}
-\newcommand{\sCfEffTierPct}{99.8}
-\newcommand{\sCfEffRoute}{0.998}
-\newcommand{\sCfEffRoutePct}{99.8}
-\newcommand{\sCfPara}{0.513}
-\newcommand{\sCfParaPct}{51.3}
-\newcommand{\sCfParaRet}{0.488}
-\newcommand{\sCfParaRetPct}{48.8}
-\newcommand{\sCfParaBoth}{0.589}
-\newcommand{\sCfParaBothPct}{58.9}
-\newcommand{\sCfParaBothCI}{.559,.618}
-\newcommand{\sCfParaTier}{0.512}
-\newcommand{\sCfParaTierPct}{51.2}
-\newcommand{\sCfParaRoute}{0.595}
-\newcommand{\sCfParaRoutePct}{59.5}
-\newcommand{\sZsEff}{0.999}
-\newcommand{\sZsEffPct}{99.9}
-\newcommand{\sZsEffRet}{0.794}
-\newcommand{\sZsEffRetPct}{79.4}
-\newcommand{\sZsEffBoth}{0.989}
-\newcommand{\sZsEffBothPct}{98.9}
-\newcommand{\sZsEffBothCI}{.982,.995}
-\newcommand{\sZsEffTier}{1.00}
-\newcommand{\sZsEffTierPct}{100}
-\newcommand{\sZsEffRoute}{1.00}
-\newcommand{\sZsEffRoutePct}{100}
-\newcommand{\sZsPara}{0.938}
-\newcommand{\sZsParaPct}{93.8}
-\newcommand{\sZsParaRet}{0.807}
-\newcommand{\sZsParaRetPct}{80.7}
-\newcommand{\sZsParaBoth}{0.956}
-\newcommand{\sZsParaBothPct}{95.6}
-\newcommand{\sZsParaBothCI}{.943,.968}
-\newcommand{\sZsParaTier}{0.914}
-\newcommand{\sZsParaTierPct}{91.4}
-\newcommand{\sZsParaRoute}{0.694}
-\newcommand{\sZsParaRoutePct}{69.4}
-\newcommand{\sCfEthreeRouted}{0.064}
-\newcommand{\sCfEthreeRoutedPct}{6.4}
-\newcommand{\sCfEthreeLeakAdapter}{0.058}
-\newcommand{\sCfEthreeLeakAdapterPct}{5.8}
-\newcommand{\sCfEthreeLeakAdapterCI}{.044,.072}
-\newcommand{\sCfEthreeLeakNote}{0.045}
-\newcommand{\sCfEthreeLeakNotePct}{4.5}
-\newcommand{\sCfEthreeLeakNoteCI}{.033,.058}
-\newcommand{\sCfEthreeLeakBoth}{0.063}
-\newcommand{\sCfEthreeLeakBothPct}{6.3}
-\newcommand{\sCfEthreeLeakBothCI}{.048,.078}
-\newcommand{\sCfEthreeLeakTiered}{0.053}
-\newcommand{\sCfEthreeLeakTieredPct}{5.3}
-\newcommand{\sCfEthreeLeakTieredCI}{.039,.067}
-\newcommand{\sCfEtwoRouted}{0.012}
-\newcommand{\sCfEtwoRoutedPct}{1.2}
-\newcommand{\sCfEtwoLeakAdapter}{0.011}
-\newcommand{\sCfEtwoLeakAdapterPct}{1.1}
-\newcommand{\sCfEtwoLeakAdapterCI}{.005,.018}
-\newcommand{\sCfEtwoLeakNote}{0.009}
-\newcommand{\sCfEtwoLeakNotePct}{0.9}
-\newcommand{\sCfEtwoLeakNoteCI}{.004,.016}
-\newcommand{\sCfEtwoLeakBoth}{0.011}
-\newcommand{\sCfEtwoLeakBothPct}{1.1}
-\newcommand{\sCfEtwoLeakBothCI}{.005,.018}
-\newcommand{\sCfEtwoLeakTiered}{0.01}
-\newcommand{\sCfEtwoLeakTieredPct}{1}
-\newcommand{\sCfEtwoLeakTieredCI}{.004,.017}
-\newcommand{\aucRelCf}{0.790}
-\newcommand{\aucRelPool}{0.848}
-\newcommand{\aucJudgeCf}{0.775}
-\newcommand{\aucJudgePool}{0.827}
-\newcommand{\aucTypeCf}{0.649}
-\newcommand{\aucTypePool}{0.646}
-\newcommand{\wCfEff}{0.997}
-\newcommand{\wCfEffPct}{99.7}
-\newcommand{\wCfEffCI}{.993,1}
-\newcommand{\wCfEffCIPct}{99.3 to 100.0}
-\newcommand{\wCfEffRet}{0.838}
-\newcommand{\wCfEffRetPct}{83.8}
-\newcommand{\wCfEffRetCI}{.816,.86}
-\newcommand{\wCfEffRetCIPct}{81.6 to 86.0}
-\newcommand{\wCfEffBoth}{0.996}
-\newcommand{\wCfEffBothPct}{99.6}
-\newcommand{\wCfEffBothCI}{.992,.999}
-\newcommand{\wCfEffBothCIPct}{99.2 to 99.9}
-\newcommand{\wCfEffRoute}{0.998}
-\newcommand{\wCfEffRoutePct}{99.8}
-\newcommand{\wCfEffRouteCI}{.995,1}
-\newcommand{\wCfEffRouteCIPct}{99.5 to 100.0}
-\newcommand{\wCfPara}{0.530}
-\newcommand{\wCfParaPct}{53.0}
-\newcommand{\wCfParaCI}{.5,.561}
-\newcommand{\wCfParaCIPct}{50.0 to 56.1}
-\newcommand{\wCfParaRet}{0.507}
-\newcommand{\wCfParaRetPct}{50.7}
-\newcommand{\wCfParaRetCI}{.477,.538}
-\newcommand{\wCfParaRetCIPct}{47.7 to 53.8}
-\newcommand{\wCfParaBoth}{0.620}
-\newcommand{\wCfParaBothPct}{62.0}
-\newcommand{\wCfParaBothCI}{.591,.649}
-\newcommand{\wCfParaBothCIPct}{59.1 to 64.9}
-\newcommand{\wCfParaRoute}{0.623}
-\newcommand{\wCfParaRoutePct}{62.3}
-\newcommand{\wCfParaRouteCI}{.593,.652}
-\newcommand{\wCfParaRouteCIPct}{59.3 to 65.2}
-\newcommand{\wCfParaTier}{0.525}
-\newcommand{\wCfParaTierPct}{52.5}
-\newcommand{\wCfParaTierCI}{.494,.555}
-\newcommand{\wCfParaTierCIPct}{49.4 to 55.5}
-\newcommand{\wCfTierFrac}{0.162}
-\newcommand{\wCfTierFracPct}{16.2}
-\newcommand{\wCfReturn}{1.000}
-\newcommand{\wCfReturnPct}{100.0}
-\newcommand{\wCfReturnCI}{1,1}
-\newcommand{\wCfReturnCIPct}{100.0 to 100.0}
-\newcommand{\wCfRetain}{0.997}
-\newcommand{\wCfRetainPct}{99.7}
-\newcommand{\wCfRetainCI}{.992,1}
-\newcommand{\wCfRetainCIPct}{99.2 to 100.0}
-\newcommand{\wCfNoLeak}{1.000}
-\newcommand{\wCfNoLeakPct}{100.0}
-\newcommand{\wCfNoLeakCI}{1,1}
-\newcommand{\wCfNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\wCfEthreeRouted}{0.057}
-\newcommand{\wCfEthreeRoutedPct}{5.7}
-\newcommand{\wCfEthreeRoutedCI}{.043,.07}
-\newcommand{\wCfEthreeRoutedCIPct}{4.3 to 7.0}
-\newcommand{\wCfEthreeLeakAdapter}{0.050}
-\newcommand{\wCfEthreeLeakAdapterPct}{5.0}
-\newcommand{\wCfEthreeLeakAdapterCI}{.037,.063}
-\newcommand{\wCfEthreeLeakAdapterCIPct}{3.7 to 6.3}
-\newcommand{\wCfEthreeLeakNote}{0.038}
-\newcommand{\wCfEthreeLeakNotePct}{3.8}
-\newcommand{\wCfEthreeLeakNoteCI}{.026,.05}
-\newcommand{\wCfEthreeLeakNoteCIPct}{2.6 to 5.0}
-\newcommand{\wCfEthreeLeakBoth}{0.050}
-\newcommand{\wCfEthreeLeakBothPct}{5.0}
-\newcommand{\wCfEthreeLeakBothCI}{.037,.063}
-\newcommand{\wCfEthreeLeakBothCIPct}{3.7 to 6.3}
-\newcommand{\wCfEthreeLeakTiered}{0.043}
-\newcommand{\wCfEthreeLeakTieredPct}{4.3}
-\newcommand{\wCfEthreeLeakTieredCI}{.031,.055}
-\newcommand{\wCfEthreeLeakTieredCIPct}{3.1 to 5.5}
-\newcommand{\wCfEtwoRouted}{0.010}
-\newcommand{\wCfEtwoRoutedPct}{1.0}
-\newcommand{\wCfEtwoRoutedCI}{.004,.016}
-\newcommand{\wCfEtwoRoutedCIPct}{0.4 to 1.6}
-\newcommand{\wCfEtwoLeakAdapter}{0.009}
-\newcommand{\wCfEtwoLeakAdapterPct}{0.9}
-\newcommand{\wCfEtwoLeakAdapterCI}{.004,.015}
-\newcommand{\wCfEtwoLeakAdapterCIPct}{0.4 to 1.5}
-\newcommand{\wCfEtwoLeakNote}{0.008}
-\newcommand{\wCfEtwoLeakNotePct}{0.8}
-\newcommand{\wCfEtwoLeakNoteCI}{.003,.014}
-\newcommand{\wCfEtwoLeakNoteCIPct}{0.3 to 1.4}
-\newcommand{\wCfEtwoLeakBoth}{0.009}
-\newcommand{\wCfEtwoLeakBothPct}{0.9}
-\newcommand{\wCfEtwoLeakBothCI}{.004,.015}
-\newcommand{\wCfEtwoLeakBothCIPct}{0.4 to 1.5}
-\newcommand{\wCfEtwoLeakTiered}{0.009}
-\newcommand{\wCfEtwoLeakTieredPct}{0.9}
-\newcommand{\wCfEtwoLeakTieredCI}{.004,.015}
-\newcommand{\wCfEtwoLeakTieredCIPct}{0.4 to 1.5}
-\newcommand{\wZsEff}{0.999}
-\newcommand{\wZsEffPct}{99.9}
-\newcommand{\wZsEffCI}{.997,1}
-\newcommand{\wZsEffCIPct}{99.7 to 100.0}
-\newcommand{\wZsEffRet}{0.794}
-\newcommand{\wZsEffRetPct}{79.4}
-\newcommand{\wZsEffRetCI}{.768,.82}
-\newcommand{\wZsEffRetCIPct}{76.8 to 82.0}
-\newcommand{\wZsEffBoth}{0.989}
-\newcommand{\wZsEffBothPct}{98.9}
-\newcommand{\wZsEffBothCI}{.982,.995}
-\newcommand{\wZsEffBothCIPct}{98.2 to 99.5}
-\newcommand{\wZsEffRoute}{0.997}
-\newcommand{\wZsEffRoutePct}{99.7}
-\newcommand{\wZsEffRouteCI}{.993,1}
-\newcommand{\wZsEffRouteCIPct}{99.3 to 100.0}
-\newcommand{\wZsPara}{0.947}
-\newcommand{\wZsParaPct}{94.7}
-\newcommand{\wZsParaCI}{.932,.96}
-\newcommand{\wZsParaCIPct}{93.2 to 96.0}
-\newcommand{\wZsParaRet}{0.804}
-\newcommand{\wZsParaRetPct}{80.4}
-\newcommand{\wZsParaRetCI}{.78,.828}
-\newcommand{\wZsParaRetCIPct}{78.0 to 82.8}
-\newcommand{\wZsParaBoth}{0.960}
-\newcommand{\wZsParaBothPct}{96.0}
-\newcommand{\wZsParaBothCI}{.948,.972}
-\newcommand{\wZsParaBothCIPct}{94.8 to 97.2}
-\newcommand{\wZsParaRoute}{0.721}
-\newcommand{\wZsParaRoutePct}{72.1}
-\newcommand{\wZsParaRouteCI}{.693,.748}
-\newcommand{\wZsParaRouteCIPct}{69.3 to 74.8}
-\newcommand{\wZsParaTier}{0.918}
-\newcommand{\wZsParaTierPct}{91.8}
-\newcommand{\wZsParaTierCI}{.901,.934}
-\newcommand{\wZsParaTierCIPct}{90.1 to 93.4}
-\newcommand{\wZsTierFrac}{0.206}
-\newcommand{\wZsTierFracPct}{20.6}
-\newcommand{\wZsReturn}{0.880}
-\newcommand{\wZsReturnPct}{88.0}
-\newcommand{\wZsReturnCI}{.81,.94}
-\newcommand{\wZsReturnCIPct}{81.0 to 94.0}
-\newcommand{\wZsRetain}{0.999}
-\newcommand{\wZsRetainPct}{99.9}
-\newcommand{\wZsRetainCI}{.997,1}
-\newcommand{\wZsRetainCIPct}{99.7 to 100.0}
-\newcommand{\wZsNoLeak}{1.000}
-\newcommand{\wZsNoLeakPct}{100.0}
-\newcommand{\wZsNoLeakCI}{1,1}
-\newcommand{\wZsNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\wZsLocRouted}{0.000}
-\newcommand{\wZsLocRoutedPct}{0.0}
-\newcommand{\wZsLocRoutedCI}{0,0}
-\newcommand{\wZsLocRoutedCIPct}{0.0 to 0.0}
-\newcommand{\wZsLocLeakAdapter}{0.000}
-\newcommand{\wZsLocLeakAdapterPct}{0.0}
-\newcommand{\wZsLocLeakAdapterCI}{0,0}
-\newcommand{\wZsLocLeakAdapterCIPct}{0.0 to 0.0}
-\newcommand{\wZsLocLeakNote}{0.000}
-\newcommand{\wZsLocLeakNotePct}{0.0}
-\newcommand{\wZsLocLeakNoteCI}{0,0}
-\newcommand{\wZsLocLeakNoteCIPct}{0.0 to 0.0}
-\newcommand{\wZsLocLeakBoth}{0.000}
-\newcommand{\wZsLocLeakBothPct}{0.0}
-\newcommand{\wZsLocLeakBothCI}{0,0}
-\newcommand{\wZsLocLeakBothCIPct}{0.0 to 0.0}
-\newcommand{\wZsLocLeakTiered}{0.000}
-\newcommand{\wZsLocLeakTieredPct}{0.0}
-\newcommand{\wZsLocLeakTieredCI}{0,0}
-\newcommand{\wZsLocLeakTieredCIPct}{0.0 to 0.0}
-\newcommand{\xCfEff}{0.997}
-\newcommand{\xCfEffPct}{99.7}
-\newcommand{\xCfEffCI}{.993,1}
-\newcommand{\xCfEffCIPct}{99.3 to 100.0}
-\newcommand{\xCfEffRet}{0.838}
-\newcommand{\xCfEffRetPct}{83.8}
-\newcommand{\xCfEffRetCI}{.816,.86}
-\newcommand{\xCfEffRetCIPct}{81.6 to 86.0}
-\newcommand{\xCfEffBoth}{0.996}
-\newcommand{\xCfEffBothPct}{99.6}
-\newcommand{\xCfEffBothCI}{.992,.999}
-\newcommand{\xCfEffBothCIPct}{99.2 to 99.9}
-\newcommand{\xCfEffRoute}{0.998}
-\newcommand{\xCfEffRoutePct}{99.8}
-\newcommand{\xCfEffRouteCI}{.995,1}
-\newcommand{\xCfEffRouteCIPct}{99.5 to 100.0}
-\newcommand{\xCfPara}{0.730}
-\newcommand{\xCfParaPct}{73.0}
-\newcommand{\xCfParaCI}{.704,.757}
-\newcommand{\xCfParaCIPct}{70.4 to 75.7}
-\newcommand{\xCfParaRet}{0.684}
-\newcommand{\xCfParaRetPct}{68.4}
-\newcommand{\xCfParaRetCI}{.656,.713}
-\newcommand{\xCfParaRetCIPct}{65.6 to 71.3}
-\newcommand{\xCfParaBoth}{0.891}
-\newcommand{\xCfParaBothPct}{89.1}
-\newcommand{\xCfParaBothCI}{.872,.91}
-\newcommand{\xCfParaBothCIPct}{87.2 to 91.0}
-\newcommand{\xCfParaRoute}{0.908}
-\newcommand{\xCfParaRoutePct}{90.8}
-\newcommand{\xCfParaRouteCI}{.89,.925}
-\newcommand{\xCfParaRouteCIPct}{89.0 to 92.5}
-\newcommand{\xCfParaTier}{0.723}
-\newcommand{\xCfParaTierPct}{72.3}
-\newcommand{\xCfParaTierCI}{.697,.751}
-\newcommand{\xCfParaTierCIPct}{69.7 to 75.1}
-\newcommand{\xCfTierFrac}{0.162}
-\newcommand{\xCfTierFracPct}{16.2}
-\newcommand{\xCfReturn}{1.000}
-\newcommand{\xCfReturnPct}{100.0}
-\newcommand{\xCfReturnCI}{1,1}
-\newcommand{\xCfReturnCIPct}{100.0 to 100.0}
-\newcommand{\xCfRetain}{0.997}
-\newcommand{\xCfRetainPct}{99.7}
-\newcommand{\xCfRetainCI}{.992,1}
-\newcommand{\xCfRetainCIPct}{99.2 to 100.0}
-\newcommand{\xCfNoLeak}{1.000}
-\newcommand{\xCfNoLeakPct}{100.0}
-\newcommand{\xCfNoLeakCI}{1,1}
-\newcommand{\xCfNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\xCfEthreeRouted}{0.044}
-\newcommand{\xCfEthreeRoutedPct}{4.4}
-\newcommand{\xCfEthreeRoutedCI}{.032,.057}
-\newcommand{\xCfEthreeRoutedCIPct}{3.2 to 5.7}
-\newcommand{\xCfEthreeLeakAdapter}{0.042}
-\newcommand{\xCfEthreeLeakAdapterPct}{4.2}
-\newcommand{\xCfEthreeLeakAdapterCI}{.03,.055}
-\newcommand{\xCfEthreeLeakAdapterCIPct}{3.0 to 5.5}
-\newcommand{\xCfEthreeLeakNote}{0.031}
-\newcommand{\xCfEthreeLeakNotePct}{3.1}
-\newcommand{\xCfEthreeLeakNoteCI}{.021,.042}
-\newcommand{\xCfEthreeLeakNoteCIPct}{2.1 to 4.2}
-\newcommand{\xCfEthreeLeakBoth}{0.043}
-\newcommand{\xCfEthreeLeakBothPct}{4.3}
-\newcommand{\xCfEthreeLeakBothCI}{.031,.056}
-\newcommand{\xCfEthreeLeakBothCIPct}{3.1 to 5.6}
-\newcommand{\xCfEthreeLeakTiered}{0.036}
-\newcommand{\xCfEthreeLeakTieredPct}{3.6}
-\newcommand{\xCfEthreeLeakTieredCI}{.025,.047}
-\newcommand{\xCfEthreeLeakTieredCIPct}{2.5 to 4.7}
-\newcommand{\xCfEtwoRouted}{0.018}
-\newcommand{\xCfEtwoRoutedPct}{1.8}
-\newcommand{\xCfEtwoRoutedCI}{.01,.027}
-\newcommand{\xCfEtwoRoutedCIPct}{1.0 to 2.7}
-\newcommand{\xCfEtwoLeakAdapter}{0.015}
-\newcommand{\xCfEtwoLeakAdapterPct}{1.5}
-\newcommand{\xCfEtwoLeakAdapterCI}{.008,.023}
-\newcommand{\xCfEtwoLeakAdapterCIPct}{0.8 to 2.3}
-\newcommand{\xCfEtwoLeakNote}{0.012}
-\newcommand{\xCfEtwoLeakNotePct}{1.2}
-\newcommand{\xCfEtwoLeakNoteCI}{.006,.02}
-\newcommand{\xCfEtwoLeakNoteCIPct}{0.6 to 2.0}
-\newcommand{\xCfEtwoLeakBoth}{0.017}
-\newcommand{\xCfEtwoLeakBothPct}{1.7}
-\newcommand{\xCfEtwoLeakBothCI}{.01,.026}
-\newcommand{\xCfEtwoLeakBothCIPct}{1.0 to 2.6}
-\newcommand{\xCfEtwoLeakTiered}{0.014}
-\newcommand{\xCfEtwoLeakTieredPct}{1.4}
-\newcommand{\xCfEtwoLeakTieredCI}{.007,.022}
-\newcommand{\xCfEtwoLeakTieredCIPct}{0.7 to 2.2}
-\newcommand{\xZsEff}{0.999}
-\newcommand{\xZsEffPct}{99.9}
-\newcommand{\xZsEffCI}{.997,1}
-\newcommand{\xZsEffCIPct}{99.7 to 100.0}
-\newcommand{\xZsEffRet}{0.794}
-\newcommand{\xZsEffRetPct}{79.4}
-\newcommand{\xZsEffRetCI}{.768,.82}
-\newcommand{\xZsEffRetCIPct}{76.8 to 82.0}
-\newcommand{\xZsEffBoth}{0.989}
-\newcommand{\xZsEffBothPct}{98.9}
-\newcommand{\xZsEffBothCI}{.982,.995}
-\newcommand{\xZsEffBothCIPct}{98.2 to 99.5}
-\newcommand{\xZsEffRoute}{1.000}
-\newcommand{\xZsEffRoutePct}{100.0}
-\newcommand{\xZsEffRouteCI}{1,1}
-\newcommand{\xZsEffRouteCIPct}{100.0 to 100.0}
-\newcommand{\xZsPara}{0.967}
-\newcommand{\xZsParaPct}{96.7}
-\newcommand{\xZsParaCI}{.955,.978}
-\newcommand{\xZsParaCIPct}{95.5 to 97.8}
-\newcommand{\xZsParaRet}{0.815}
-\newcommand{\xZsParaRetPct}{81.5}
-\newcommand{\xZsParaRetCI}{.791,.839}
-\newcommand{\xZsParaRetCIPct}{79.1 to 83.9}
-\newcommand{\xZsParaBoth}{0.982}
-\newcommand{\xZsParaBothPct}{98.2}
-\newcommand{\xZsParaBothCI}{.973,.99}
-\newcommand{\xZsParaBothCIPct}{97.3 to 99.0}
-\newcommand{\xZsParaRoute}{0.745}
-\newcommand{\xZsParaRoutePct}{74.5}
-\newcommand{\xZsParaRouteCI}{.717,.772}
-\newcommand{\xZsParaRouteCIPct}{71.7 to 77.2}
-\newcommand{\xZsParaTier}{0.932}
-\newcommand{\xZsParaTierPct}{93.2}
-\newcommand{\xZsParaTierCI}{.916,.947}
-\newcommand{\xZsParaTierCIPct}{91.6 to 94.7}
-\newcommand{\xZsTierFrac}{0.206}
-\newcommand{\xZsTierFracPct}{20.6}
-\newcommand{\xZsReturn}{0.840}
-\newcommand{\xZsReturnPct}{84.0}
-\newcommand{\xZsReturnCI}{.77,.91}
-\newcommand{\xZsReturnCIPct}{77.0 to 91.0}
-\newcommand{\xZsRetain}{0.999}
-\newcommand{\xZsRetainPct}{99.9}
-\newcommand{\xZsRetainCI}{.997,1}
-\newcommand{\xZsRetainCIPct}{99.7 to 100.0}
-\newcommand{\xZsNoLeak}{1.000}
-\newcommand{\xZsNoLeakPct}{100.0}
-\newcommand{\xZsNoLeakCI}{1,1}
-\newcommand{\xZsNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\xZsLocRouted}{0.000}
-\newcommand{\xZsLocRoutedPct}{0.0}
-\newcommand{\xZsLocRoutedCI}{0,0}
-\newcommand{\xZsLocRoutedCIPct}{0.0 to 0.0}
-\newcommand{\xZsLocLeakAdapter}{0.000}
-\newcommand{\xZsLocLeakAdapterPct}{0.0}
-\newcommand{\xZsLocLeakAdapterCI}{0,0}
-\newcommand{\xZsLocLeakAdapterCIPct}{0.0 to 0.0}
-\newcommand{\xZsLocLeakNote}{0.000}
-\newcommand{\xZsLocLeakNotePct}{0.0}
-\newcommand{\xZsLocLeakNoteCI}{0,0}
-\newcommand{\xZsLocLeakNoteCIPct}{0.0 to 0.0}
-\newcommand{\xZsLocLeakBoth}{0.000}
-\newcommand{\xZsLocLeakBothPct}{0.0}
-\newcommand{\xZsLocLeakBothCI}{0,0}
-\newcommand{\xZsLocLeakBothCIPct}{0.0 to 0.0}
-\newcommand{\xZsLocLeakTiered}{0.000}
-\newcommand{\xZsLocLeakTieredPct}{0.0}
-\newcommand{\xZsLocLeakTieredCI}{0,0}
-\newcommand{\xZsLocLeakTieredCIPct}{0.0 to 0.0}
-\newcommand{\uCfEff}{0.997}
-\newcommand{\uCfEffPct}{99.7}
-\newcommand{\uCfEffCI}{.993,1}
-\newcommand{\uCfEffCIPct}{99.3 to 100.0}
-\newcommand{\uCfEffRet}{0.838}
-\newcommand{\uCfEffRetPct}{83.8}
-\newcommand{\uCfEffRetCI}{.816,.86}
-\newcommand{\uCfEffRetCIPct}{81.6 to 86.0}
-\newcommand{\uCfEffBoth}{0.996}
-\newcommand{\uCfEffBothPct}{99.6}
-\newcommand{\uCfEffBothCI}{.992,.999}
-\newcommand{\uCfEffBothCIPct}{99.2 to 99.9}
-\newcommand{\uCfEffRoute}{0.998}
-\newcommand{\uCfEffRoutePct}{99.8}
-\newcommand{\uCfEffRouteCI}{.995,1}
-\newcommand{\uCfEffRouteCIPct}{99.5 to 100.0}
-\newcommand{\uCfPara}{0.731}
-\newcommand{\uCfParaPct}{73.1}
-\newcommand{\uCfParaCI}{.705,.758}
-\newcommand{\uCfParaCIPct}{70.5 to 75.8}
-\newcommand{\uCfParaRet}{0.686}
-\newcommand{\uCfParaRetPct}{68.6}
-\newcommand{\uCfParaRetCI}{.659,.715}
-\newcommand{\uCfParaRetCIPct}{65.9 to 71.5}
-\newcommand{\uCfParaBoth}{0.890}
-\newcommand{\uCfParaBothPct}{89.0}
-\newcommand{\uCfParaBothCI}{.87,.909}
-\newcommand{\uCfParaBothCIPct}{87.0 to 90.9}
-\newcommand{\uCfParaRoute}{0.909}
-\newcommand{\uCfParaRoutePct}{90.9}
-\newcommand{\uCfParaRouteCI}{.891,.926}
-\newcommand{\uCfParaRouteCIPct}{89.1 to 92.6}
-\newcommand{\uCfParaTier}{0.725}
-\newcommand{\uCfParaTierPct}{72.5}
-\newcommand{\uCfParaTierCI}{.698,.752}
-\newcommand{\uCfParaTierCIPct}{69.8 to 75.2}
-\newcommand{\uCfTierFrac}{0.162}
-\newcommand{\uCfTierFracPct}{16.2}
-\newcommand{\uCfReturn}{1.000}
-\newcommand{\uCfReturnPct}{100.0}
-\newcommand{\uCfReturnCI}{1,1}
-\newcommand{\uCfReturnCIPct}{100.0 to 100.0}
-\newcommand{\uCfRetain}{0.997}
-\newcommand{\uCfRetainPct}{99.7}
-\newcommand{\uCfRetainCI}{.992,1}
-\newcommand{\uCfRetainCIPct}{99.2 to 100.0}
-\newcommand{\uCfNoLeak}{1.000}
-\newcommand{\uCfNoLeakPct}{100.0}
-\newcommand{\uCfNoLeakCI}{1,1}
-\newcommand{\uCfNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\uCfEthreeRouted}{0.048}
-\newcommand{\uCfEthreeRoutedPct}{4.8}
-\newcommand{\uCfEthreeRoutedCI}{.035,.061}
-\newcommand{\uCfEthreeRoutedCIPct}{3.5 to 6.1}
-\newcommand{\uCfEthreeLeakAdapter}{0.042}
-\newcommand{\uCfEthreeLeakAdapterPct}{4.2}
-\newcommand{\uCfEthreeLeakAdapterCI}{.03,.054}
-\newcommand{\uCfEthreeLeakAdapterCIPct}{3.0 to 5.4}
-\newcommand{\uCfEthreeLeakNote}{0.033}
-\newcommand{\uCfEthreeLeakNotePct}{3.3}
-\newcommand{\uCfEthreeLeakNoteCI}{.022,.044}
-\newcommand{\uCfEthreeLeakNoteCIPct}{2.2 to 4.4}
-\newcommand{\uCfEthreeLeakBoth}{0.047}
-\newcommand{\uCfEthreeLeakBothPct}{4.7}
-\newcommand{\uCfEthreeLeakBothCI}{.034,.06}
-\newcommand{\uCfEthreeLeakBothCIPct}{3.4 to 6.0}
-\newcommand{\uCfEthreeLeakTiered}{0.037}
-\newcommand{\uCfEthreeLeakTieredPct}{3.7}
-\newcommand{\uCfEthreeLeakTieredCI}{.026,.048}
-\newcommand{\uCfEthreeLeakTieredCIPct}{2.6 to 4.8}
-\newcommand{\uCfEtwoRouted}{0.017}
-\newcommand{\uCfEtwoRoutedPct}{1.7}
-\newcommand{\uCfEtwoRoutedCI}{.01,.026}
-\newcommand{\uCfEtwoRoutedCIPct}{1.0 to 2.6}
-\newcommand{\uCfEtwoLeakAdapter}{0.015}
-\newcommand{\uCfEtwoLeakAdapterPct}{1.5}
-\newcommand{\uCfEtwoLeakAdapterCI}{.008,.023}
-\newcommand{\uCfEtwoLeakAdapterCIPct}{0.8 to 2.3}
-\newcommand{\uCfEtwoLeakNote}{0.011}
-\newcommand{\uCfEtwoLeakNotePct}{1.1}
-\newcommand{\uCfEtwoLeakNoteCI}{.005,.018}
-\newcommand{\uCfEtwoLeakNoteCIPct}{0.5 to 1.8}
-\newcommand{\uCfEtwoLeakBoth}{0.016}
-\newcommand{\uCfEtwoLeakBothPct}{1.6}
-\newcommand{\uCfEtwoLeakBothCI}{.009,.024}
-\newcommand{\uCfEtwoLeakBothCIPct}{0.9 to 2.4}
-\newcommand{\uCfEtwoLeakTiered}{0.013}
-\newcommand{\uCfEtwoLeakTieredPct}{1.3}
-\newcommand{\uCfEtwoLeakTieredCI}{.007,.021}
-\newcommand{\uCfEtwoLeakTieredCIPct}{0.7 to 2.1}
-\newcommand{\uZsEff}{0.999}
-\newcommand{\uZsEffPct}{99.9}
-\newcommand{\uZsEffCI}{.997,1}
-\newcommand{\uZsEffCIPct}{99.7 to 100.0}
-\newcommand{\uZsEffRet}{0.794}
-\newcommand{\uZsEffRetPct}{79.4}
-\newcommand{\uZsEffRetCI}{.768,.82}
-\newcommand{\uZsEffRetCIPct}{76.8 to 82.0}
-\newcommand{\uZsEffBoth}{0.989}
-\newcommand{\uZsEffBothPct}{98.9}
-\newcommand{\uZsEffBothCI}{.982,.995}
-\newcommand{\uZsEffBothCIPct}{98.2 to 99.5}
-\newcommand{\uZsEffRoute}{1.000}
-\newcommand{\uZsEffRoutePct}{100.0}
-\newcommand{\uZsEffRouteCI}{1,1}
-\newcommand{\uZsEffRouteCIPct}{100.0 to 100.0}
-\newcommand{\uZsPara}{0.946}
-\newcommand{\uZsParaPct}{94.6}
-\newcommand{\uZsParaCI}{.932,.96}
-\newcommand{\uZsParaCIPct}{93.2 to 96.0}
-\newcommand{\uZsParaRet}{0.801}
-\newcommand{\uZsParaRetPct}{80.1}
-\newcommand{\uZsParaRetCI}{.776,.825}
-\newcommand{\uZsParaRetCIPct}{77.6 to 82.5}
-\newcommand{\uZsParaBoth}{0.957}
-\newcommand{\uZsParaBothPct}{95.7}
-\newcommand{\uZsParaBothCI}{.944,.969}
-\newcommand{\uZsParaBothCIPct}{94.4 to 96.9}
-\newcommand{\uZsParaRoute}{0.722}
-\newcommand{\uZsParaRoutePct}{72.2}
-\newcommand{\uZsParaRouteCI}{.694,.749}
-\newcommand{\uZsParaRouteCIPct}{69.4 to 74.9}
-\newcommand{\uZsParaTier}{0.915}
-\newcommand{\uZsParaTierPct}{91.5}
-\newcommand{\uZsParaTierCI}{.897,.931}
-\newcommand{\uZsParaTierCIPct}{89.7 to 93.1}
-\newcommand{\uZsTierFrac}{0.206}
-\newcommand{\uZsTierFracPct}{20.6}
-\newcommand{\uZsReturn}{0.860}
-\newcommand{\uZsReturnPct}{86.0}
-\newcommand{\uZsReturnCI}{.79,.92}
-\newcommand{\uZsReturnCIPct}{79.0 to 92.0}
-\newcommand{\uZsRetain}{0.999}
-\newcommand{\uZsRetainPct}{99.9}
-\newcommand{\uZsRetainCI}{.997,1}
-\newcommand{\uZsRetainCIPct}{99.7 to 100.0}
-\newcommand{\uZsNoLeak}{1.000}
-\newcommand{\uZsNoLeakPct}{100.0}
-\newcommand{\uZsNoLeakCI}{1,1}
-\newcommand{\uZsNoLeakCIPct}{100.0 to 100.0}
-\newcommand{\uZsLocRouted}{0.000}
-\newcommand{\uZsLocRoutedPct}{0.0}
-\newcommand{\uZsLocRoutedCI}{0,0}
-\newcommand{\uZsLocRoutedCIPct}{0.0 to 0.0}
-\newcommand{\uZsLocLeakAdapter}{0.000}
-\newcommand{\uZsLocLeakAdapterPct}{0.0}
-\newcommand{\uZsLocLeakAdapterCI}{0,0}
-\newcommand{\uZsLocLeakAdapterCIPct}{0.0 to 0.0}
-\newcommand{\uZsLocLeakNote}{0.000}
-\newcommand{\uZsLocLeakNotePct}{0.0}
-\newcommand{\uZsLocLeakNoteCI}{0,0}
-\newcommand{\uZsLocLeakNoteCIPct}{0.0 to 0.0}
-\newcommand{\uZsLocLeakBoth}{0.000}
-\newcommand{\uZsLocLeakBothPct}{0.0}
-\newcommand{\uZsLocLeakBothCI}{0,0}
-\newcommand{\uZsLocLeakBothCIPct}{0.0 to 0.0}
-\newcommand{\uZsLocLeakTiered}{0.000}
-\newcommand{\uZsLocLeakTieredPct}{0.0}
-\newcommand{\uZsLocLeakTieredCI}{0,0}
-\newcommand{\uZsLocLeakTieredCIPct}{0.0 to 0.0}
-\newcommand{\wTheta}{0.693}
-\newcommand{\xTheta}{0.750}
-\newcommand{\xDevTpr}{0.936}
-\newcommand{\xDevTprPct}{93.6}
-\newcommand{\xParaSeenDefRoute}{0.575}
-\newcommand{\xParaSeenDefRoutePct}{57.5}
-\newcommand{\xParaSeenRoute}{0.994}
-\newcommand{\xParaSeenRoutePct}{99.4}
-\newcommand{\xParaSeenBoth}{0.972}
-\newcommand{\xParaSeenBothPct}{97.2}
-\newcommand{\xParaSeenN}{652}
-\newcommand{\xParaHeldDefRoute}{0.632}
-\newcommand{\xParaHeldDefRoutePct}{63.2}
-\newcommand{\xParaHeldRoute}{0.747}
-\newcommand{\xParaHeldRoutePct}{74.7}
-\newcommand{\xParaHeldBoth}{0.739}
-\newcommand{\xParaHeldBothPct}{73.9}
-\newcommand{\xParaHeldN}{348}
-\newcommand{\xEthreeSeenDef}{0.059}
-\newcommand{\xEthreeSeenDefPct}{5.9}
-\newcommand{\xEthreeSeenLeak}{0.023}
-\newcommand{\xEthreeSeenLeakPct}{2.3}
-\newcommand{\xEthreeSeenN}{441}
-\newcommand{\xEthreeStoredHeldDef}{0.057}
-\newcommand{\xEthreeStoredHeldDefPct}{5.7}
-\newcommand{\xEthreeStoredHeldLeak}{0.057}
-\newcommand{\xEthreeStoredHeldLeakPct}{5.7}
-\newcommand{\xEthreeStoredHeldN}{248}
-\newcommand{\xEthreeQueryHeldDef}{0.095}
-\newcommand{\xEthreeQueryHeldDefPct}{9.5}
-\newcommand{\xEthreeQueryHeldLeak}{0.081}
-\newcommand{\xEthreeQueryHeldLeakPct}{8.1}
-\newcommand{\xEthreeQueryHeldN}{211}
-\newcommand{\xEthreeBothHeldDef}{0.030}
-\newcommand{\xEthreeBothHeldDefPct}{3.0}
-\newcommand{\xEthreeBothHeldLeak}{0.020}
-\newcommand{\xEthreeBothHeldLeakPct}{2.0}
-\newcommand{\xEthreeBothHeldN}{100}
-\newcommand{\uTheta}{0.741}
-\newcommand{\uDevTpr}{0.917}
-\newcommand{\uDevTprPct}{91.7}
-\newcommand{\aDevTpr}{0.744}
-\newcommand{\aDevTprPct}{74.4}
-\newcommand{\aCfParaRoute}{0.648}
-\newcommand{\aCfParaRoutePct}{64.8}
-\newcommand{\aCfEthreeRouted}{0.045}
-\newcommand{\aCfEthreeRoutedPct}{4.5}
-\newcommand{\mpCfParaRoute}{0.607}
-\newcommand{\mpCfParaRoutePct}{60.7}
-\newcommand{\mpCfEthreeRouted}{0.052}
-\newcommand{\mpCfEthreeRoutedPct}{5.2}
-\newcommand{\uParaHeldRoute}{0.750}
-\newcommand{\uParaHeldRoutePct}{75.0}
-\newcommand{\uParaSeenRoute}{0.994}
-\newcommand{\uParaSeenRoutePct}{99.4}
-\newcommand{\uHeldLeak}{0.059}
-\newcommand{\uHeldLeakPct}{5.9}
-\newcommand{\xHeldLeak}{0.059}
-\newcommand{\xHeldLeakPct}{5.9}
-\newcommand{\aParaHeldRoute}{0.635}
-\newcommand{\aParaHeldRoutePct}{63.5}
-\newcommand{\aParaSeenRoute}{0.655}
-\newcommand{\aParaSeenRoutePct}{65.5}
-\newcommand{\mpParaHeldRoute}{0.644}
-\newcommand{\mpParaHeldRoutePct}{64.4}
-\newcommand{\mpParaSeenRoute}{0.587}
-\newcommand{\mpParaSeenRoutePct}{58.7}
-\newcommand{\tsParaATrained}{0.987}
-\newcommand{\tsParaATrainedPct}{98.8}
-\newcommand{\tsEthreeATrained}{0.041}
-\newcommand{\tsEthreeATrainedPct}{4.1}
-\newcommand{\tsParaAFrozen}{0.648}
-\newcommand{\tsParaAFrozenPct}{64.8}
-\newcommand{\tsEthreeAFrozen}{0.037}
-\newcommand{\tsEthreeAFrozenPct}{3.8}
-\newcommand{\tsParaBTrained}{0.960}
-\newcommand{\tsParaBTrainedPct}{96.0}
-\newcommand{\tsEthreeBTrained}{0.077}
-\newcommand{\tsEthreeBTrainedPct}{7.8}
-\newcommand{\tsParaBFrozen}{0.634}
-\newcommand{\tsParaBFrozenPct}{63.4}
-\newcommand{\tsEthreeBFrozen}{0.030}
-\newcommand{\tsEthreeBFrozenPct}{3.0}
-\newcommand{\tsParaCTrained}{0.838}
-\newcommand{\tsParaCTrainedPct}{83.8}
-\newcommand{\tsEthreeCTrained}{0.093}
-\newcommand{\tsEthreeCTrainedPct}{9.3}
-\newcommand{\tsParaCFrozen}{0.543}
-\newcommand{\tsParaCFrozenPct}{54.3}
-\newcommand{\tsEthreeCFrozen}{0.034}
-\newcommand{\tsEthreeCFrozenPct}{3.4}
-\newcommand{\tsRatio}{0.961}
-\newcommand{\tsRatioPct}{96.1}
-\newcommand{\tsInflDiff}{4.8}
-\newcommand{\tsInflDiffCI}{3.2 to 6.3}
-\newcommand{\asLpAbove}{0.70}
-\newcommand{\asLpAbovePct}{70}
-\newcommand{\asLpHeldMean}{1.248}
-\newcommand{\asLpHeldMeanPct}{124.8}
-\newcommand{\nqN}{993}
-\newcommand{\nqNearRouted}{0.310}
-\newcommand{\nqNearRoutedPct}{31.0}
-\newcommand{\nqUniformRouted}{0.002}
-\newcommand{\nqUniformRoutedPct}{0.2}
-\newcommand{\nqLeak}{0.146}
-\newcommand{\nqLeakPct}{14.6}
-\newcommand{\nqNearLeak}{0.288}
-\newcommand{\nqNearLeakPct}{28.8}
-\newcommand{\nqFrozenNearRouted}{0.244}
-\newcommand{\nqFrozenNearRoutedPct}{24.4}
-\newcommand{\nqLabelled}{35}
-\newcommand{\nqLegitShare}{0.594}
-\newcommand{\nqLegitSharePct}{59.4}
-\newcommand{\nqLeakCorr}{0.059}
-\newcommand{\nqLeakCorrPct}{5.9}
-\newcommand{\nqNearLeakCorr}{0.117}
-\newcommand{\nqNearLeakCorrPct}{11.7}
-\newcommand{\frN}{279}
-\newcommand{\frRefEffNote}{0.946}
-\newcommand{\frRefEffNotePct}{94.6}
-\newcommand{\frRefParaNote}{0.918}
-\newcommand{\frRefParaNotePct}{91.8}
-\newcommand{\frRefD}{0.401}
-\newcommand{\frRefDPct}{40.1}
-\newcommand{\frRefWrong}{0.695}
-\newcommand{\frRefWrongPct}{69.5}
-\newcommand{\frRtEffNote}{0.932}
-\newcommand{\frRtEffNotePct}{93.2}
-\newcommand{\frRtParaNote}{0.928}
-\newcommand{\frRtParaNotePct}{92.8}
-\newcommand{\frRtD}{0.390}
-\newcommand{\frRtDPct}{39.0}
-\newcommand{\frRtWrong}{0.705}
-\newcommand{\frRtWrongPct}{70.5}
-\newcommand{\rfTwoPara}{0.86}
-\newcommand{\rfTwoParaPct}{86}
-\newcommand{\rfTwoD}{3.14}
-\newcommand{\rfTwoDPct}{314}
-\newcommand{\rfAboveMin}{0.82}
-\newcommand{\rfAboveMinPct}{82}
-\newcommand{\rfAboveMax}{1.00}
-\newcommand{\rfAboveMaxPct}{100}
-\newcommand{\rfInMax}{0.266}
-\newcommand{\rfInMaxPct}{26.6}
-\newcommand{\asRtwoPara}{0.88}
-\newcommand{\asRtwoParaPct}{88}
-\newcommand{\asRtwoD}{0.447}
-\newcommand{\asRtwoDPct}{44.7}
-\newcommand{\wrAdapter}{0.705}
-\newcommand{\wrAdapterPct}{70.5}
-\newcommand{\wrAdapterTwo}{0.668}
-\newcommand{\wrAdapterTwoPct}{66.8}
-\newcommand{\wrNote}{0.511}
-\newcommand{\wrNotePct}{51.1}
-\newcommand{\wrBoth}{0.396}
-\newcommand{\wrBothPct}{39.6}
-\newcommand{\wrBothTwo}{0.370}
-\newcommand{\wrBothTwoPct}{37.0}
-\newcommand{\wrRankDiff}{-3.7}
-\newcommand{\wrRankDiffCI}{-6.1 to -1.3}
-\newcommand{\wrRankLow}{-5.8}
-\newcommand{\genBase}{0.665}
-\newcommand{\genBasePct}{66.5}
-\newcommand{\genMmlu}{0.564}
-\newcommand{\genMmluPct}{56.4}
-\newcommand{\genArc}{0.766}
-\newcommand{\genArcPct}{76.6}
-\newcommand{\genUpper}{0.004}
-\newcommand{\genUpperPct}{0.4}
-\newcommand{\genForcedAdapter}{0.657}
-\newcommand{\genForcedAdapterPct}{65.7}
-\newcommand{\genForcedBoth}{0.643}
-\newcommand{\genForcedBothPct}{64.3}
-\newcommand{\genForcedAdapterDiff}{-0.8}
-\newcommand{\genForcedAdapterDiffCI}{-2.0 to 0.4}
-\newcommand{\genForcedBothDiff}{-2.2}
-\newcommand{\genForcedBothDiffCI}{-3.8 to -0.6}
-\newcommand{\scHalfNeed}{0.034}
-\newcommand{\scHalfNeedPct}{3.4}
-\newcommand{\scHalfNeedCI}{.026,.042}
-\newcommand{\scHalfNeedCIPct}{2.6 to 4.2}
-\newcommand{\scHalfMem}{1.2}
-\newcommand{\scHalfNeedCf}{0.032}
-\newcommand{\scHalfNeedCfPct}{3.2}
-\newcommand{\scHalfNeedCfCI}{.021,.043}
-\newcommand{\scHalfNeedCfCIPct}{2.1 to 4.3}
-\newcommand{\scHalfProbeCf}{0.998}
-\newcommand{\scHalfProbeCfPct}{99.8}
-\newcommand{\scHalfProbeCfCI}{.995,1}
-\newcommand{\scHalfProbeCfCIPct}{99.5 to 100.0}
-\newcommand{\scHalfParaCf}{0.834}
-\newcommand{\scHalfParaCfPct}{83.4}
-\newcommand{\scHalfParaCfCI}{.81,.856}
-\newcommand{\scHalfParaCfCIPct}{81.0 to 85.6}
-\newcommand{\scHalfNoteCf}{0.825}
-\newcommand{\scHalfNoteCfPct}{82.5}
-\newcommand{\scHalfNoteCfCI}{.801,.848}
-\newcommand{\scHalfNoteCfCIPct}{80.1 to 84.8}
-\newcommand{\scHalfAboveCf}{0.062}
-\newcommand{\scHalfAboveCfPct}{6.2}
-\newcommand{\scHalfSecCf}{4.6}
-\newcommand{\scHalfNeedZs}{0.035}
-\newcommand{\scHalfNeedZsPct}{3.5}
-\newcommand{\scHalfNeedZsCI}{.024,.047}
-\newcommand{\scHalfNeedZsCIPct}{2.4 to 4.7}
-\newcommand{\scHalfProbeZs}{0.999}
-\newcommand{\scHalfProbeZsPct}{99.9}
-\newcommand{\scHalfProbeZsCI}{.997,1}
-\newcommand{\scHalfProbeZsCIPct}{99.7 to 100.0}
-\newcommand{\scHalfParaZs}{0.934}
-\newcommand{\scHalfParaZsPct}{93.4}
-\newcommand{\scHalfParaZsCI}{.918,.948}
-\newcommand{\scHalfParaZsCIPct}{91.8 to 94.8}
-\newcommand{\scHalfNoteZs}{0.911}
-\newcommand{\scHalfNoteZsPct}{91.1}
-\newcommand{\scHalfNoteZsCI}{.893,.929}
-\newcommand{\scHalfNoteZsCIPct}{89.3 to 92.9}
-\newcommand{\scHalfAboveZs}{0.371}
-\newcommand{\scHalfAboveZsPct}{37.1}
-\newcommand{\scHalfSecZs}{4.6}
-\newcommand{\scHalfKB}{185}
-\newcommand{\scOneFiveNeed}{0.211}
-\newcommand{\scOneFiveNeedPct}{21.1}
-\newcommand{\scOneFiveNeedCI}{.194,.229}
-\newcommand{\scOneFiveNeedCIPct}{19.4 to 22.9}
-\newcommand{\scOneFiveMem}{3.0}
-\newcommand{\scOneFiveNeedCf}{0.164}
-\newcommand{\scOneFiveNeedCfPct}{16.4}
-\newcommand{\scOneFiveNeedCfCI}{.142,.186}
-\newcommand{\scOneFiveNeedCfCIPct}{14.2 to 18.6}
-\newcommand{\scOneFiveProbeCf}{0.997}
-\newcommand{\scOneFiveProbeCfPct}{99.7}
-\newcommand{\scOneFiveProbeCfCI}{.993,1}
-\newcommand{\scOneFiveProbeCfCIPct}{99.3 to 100.0}
-\newcommand{\scOneFiveParaCf}{0.739}
-\newcommand{\scOneFiveParaCfPct}{73.9}
-\newcommand{\scOneFiveParaCfCI}{.712,.767}
-\newcommand{\scOneFiveParaCfCIPct}{71.2 to 76.7}
-\newcommand{\scOneFiveNoteCf}{0.681}
-\newcommand{\scOneFiveNoteCfPct}{68.1}
-\newcommand{\scOneFiveNoteCfCI}{.653,.711}
-\newcommand{\scOneFiveNoteCfCIPct}{65.3 to 71.1}
-\newcommand{\scOneFiveAboveCf}{0.030}
-\newcommand{\scOneFiveAboveCfPct}{3.0}
-\newcommand{\scOneFiveSecCf}{0.8}
-\newcommand{\scOneFiveNeedZs}{0.259}
-\newcommand{\scOneFiveNeedZsPct}{25.9}
-\newcommand{\scOneFiveNeedZsCI}{.231,.288}
-\newcommand{\scOneFiveNeedZsCIPct}{23.1 to 28.8}
-\newcommand{\scOneFiveProbeZs}{0.996}
-\newcommand{\scOneFiveProbeZsPct}{99.6}
-\newcommand{\scOneFiveProbeZsCI}{.992,.999}
-\newcommand{\scOneFiveProbeZsCIPct}{99.2 to 99.9}
-\newcommand{\scOneFiveParaZs}{0.936}
-\newcommand{\scOneFiveParaZsPct}{93.6}
-\newcommand{\scOneFiveParaZsCI}{.92,.95}
-\newcommand{\scOneFiveParaZsCIPct}{92.0 to 95.0}
-\newcommand{\scOneFiveNoteZs}{0.770}
-\newcommand{\scOneFiveNoteZsPct}{77.0}
-\newcommand{\scOneFiveNoteZsCI}{.745,.796}
-\newcommand{\scOneFiveNoteZsCIPct}{74.5 to 79.6}
-\newcommand{\scOneFiveAboveZs}{0.174}
-\newcommand{\scOneFiveAboveZsPct}{17.4}
-\newcommand{\scOneFiveSecZs}{0.8}
-\newcommand{\scOneFiveKB}{373}
-\newcommand{\scOneFiveQNeed}{0.217}
-\newcommand{\scOneFiveQNeedPct}{21.8}
-\newcommand{\scOneFiveQNeedCI}{.2,.235}
-\newcommand{\scOneFiveQNeedCIPct}{20.0 to 23.5}
-\newcommand{\scOneFiveQMem}{1.5}
-\newcommand{\scOneFiveQNeedCf}{0.138}
-\newcommand{\scOneFiveQNeedCfPct}{13.8}
-\newcommand{\scOneFiveQNeedCfCI}{.118,.159}
-\newcommand{\scOneFiveQNeedCfCIPct}{11.8 to 15.9}
-\newcommand{\scOneFiveQProbeCf}{0.996}
-\newcommand{\scOneFiveQProbeCfPct}{99.6}
-\newcommand{\scOneFiveQProbeCfCI}{.992,.999}
-\newcommand{\scOneFiveQProbeCfCIPct}{99.2 to 99.9}
-\newcommand{\scOneFiveQParaCf}{0.736}
-\newcommand{\scOneFiveQParaCfPct}{73.6}
-\newcommand{\scOneFiveQParaCfCI}{.709,.763}
-\newcommand{\scOneFiveQParaCfCIPct}{70.9 to 76.3}
-\newcommand{\scOneFiveQNoteCf}{0.689}
-\newcommand{\scOneFiveQNoteCfPct}{68.9}
-\newcommand{\scOneFiveQNoteCfCI}{.661,.719}
-\newcommand{\scOneFiveQNoteCfCIPct}{66.1 to 71.9}
-\newcommand{\scOneFiveQAboveCf}{0.015}
-\newcommand{\scOneFiveQAboveCfPct}{1.5}
-\newcommand{\scOneFiveQSecCf}{8.7}
-\newcommand{\scOneFiveQNeedZs}{0.297}
-\newcommand{\scOneFiveQNeedZsPct}{29.7}
-\newcommand{\scOneFiveQNeedZsCI}{.267,.326}
-\newcommand{\scOneFiveQNeedZsCIPct}{26.7 to 32.6}
-\newcommand{\scOneFiveQProbeZs}{0.992}
-\newcommand{\scOneFiveQProbeZsPct}{99.2}
-\newcommand{\scOneFiveQProbeZsCI}{.986,.997}
-\newcommand{\scOneFiveQProbeZsCIPct}{98.6 to 99.7}
-\newcommand{\scOneFiveQParaZs}{0.939}
-\newcommand{\scOneFiveQParaZsPct}{93.9}
-\newcommand{\scOneFiveQParaZsCI}{.924,.953}
-\newcommand{\scOneFiveQParaZsCIPct}{92.4 to 95.3}
-\newcommand{\scOneFiveQNoteZs}{0.783}
-\newcommand{\scOneFiveQNoteZsPct}{78.3}
-\newcommand{\scOneFiveQNoteZsCI}{.758,.808}
-\newcommand{\scOneFiveQNoteZsCIPct}{75.8 to 80.8}
-\newcommand{\scOneFiveQAboveZs}{0.195}
-\newcommand{\scOneFiveQAboveZsPct}{19.5}
-\newcommand{\scOneFiveQSecZs}{8.8}
-\newcommand{\scOneFiveQKB}{373}
-\newcommand{\scThreeNeed}{0.110}
-\newcommand{\scThreeNeedPct}{10.9}
-\newcommand{\scThreeNeedCI}{.096,.123}
-\newcommand{\scThreeNeedCIPct}{9.6 to 12.3}
-\newcommand{\scThreeMem}{2.6}
-\newcommand{\scThreeNeedCf}{0.058}
-\newcommand{\scThreeNeedCfPct}{5.8}
-\newcommand{\scThreeNeedCfCI}{.044,.074}
-\newcommand{\scThreeNeedCfCIPct}{4.4 to 7.4}
-\newcommand{\scThreeProbeCf}{0.998}
-\newcommand{\scThreeProbeCfPct}{99.8}
-\newcommand{\scThreeProbeCfCI}{.995,1}
-\newcommand{\scThreeProbeCfCIPct}{99.5 to 100.0}
-\newcommand{\scThreeParaCf}{0.668}
-\newcommand{\scThreeParaCfPct}{66.8}
-\newcommand{\scThreeParaCfCI}{.639,.697}
-\newcommand{\scThreeParaCfCIPct}{63.9 to 69.7}
-\newcommand{\scThreeNoteCf}{0.655}
-\newcommand{\scThreeNoteCfPct}{65.5}
-\newcommand{\scThreeNoteCfCI}{.626,.685}
-\newcommand{\scThreeNoteCfCIPct}{62.6 to 68.5}
-\newcommand{\scThreeAboveCf}{0.931}
-\newcommand{\scThreeAboveCfPct}{93.1}
-\newcommand{\scThreeSecCf}{11.9}
-\newcommand{\scThreeNeedZs}{0.161}
-\newcommand{\scThreeNeedZsPct}{16.1}
-\newcommand{\scThreeNeedZsCI}{.139,.184}
-\newcommand{\scThreeNeedZsCIPct}{13.9 to 18.4}
-\newcommand{\scThreeProbeZs}{0.987}
-\newcommand{\scThreeProbeZsPct}{98.7}
-\newcommand{\scThreeProbeZsCI}{.98,.994}
-\newcommand{\scThreeProbeZsCIPct}{98.0 to 99.4}
-\newcommand{\scThreeParaZs}{0.921}
-\newcommand{\scThreeParaZsPct}{92.1}
-\newcommand{\scThreeParaZsCI}{.904,.938}
-\newcommand{\scThreeParaZsCIPct}{90.4 to 93.8}
-\newcommand{\scThreeNoteZs}{0.842}
-\newcommand{\scThreeNoteZsPct}{84.2}
-\newcommand{\scThreeNoteZsCI}{.82,.865}
-\newcommand{\scThreeNoteZsCIPct}{82.0 to 86.5}
-\newcommand{\scThreeAboveZs}{0.944}
-\newcommand{\scThreeAboveZsPct}{94.4}
-\newcommand{\scThreeSecZs}{12.0}
-\newcommand{\scThreeKB}{627}
-\newcommand{\scSevenNeed}{0.088}
-\newcommand{\scSevenNeedPct}{8.8}
-\newcommand{\scSevenNeedCI}{.076,.101}
-\newcommand{\scSevenNeedCIPct}{7.6 to 10.1}
-\newcommand{\scSevenMem}{6.1}
-\newcommand{\scSevenNeedCf}{0.090}
-\newcommand{\scSevenNeedCfPct}{9.0}
-\newcommand{\scSevenNeedCfCI}{.073,.108}
-\newcommand{\scSevenNeedCfCIPct}{7.3 to 10.8}
-\newcommand{\scSevenProbeCf}{0.993}
-\newcommand{\scSevenProbeCfPct}{99.3}
-\newcommand{\scSevenProbeCfCI}{.988,.998}
-\newcommand{\scSevenProbeCfCIPct}{98.8 to 99.8}
-\newcommand{\scSevenParaCf}{0.797}
-\newcommand{\scSevenParaCfPct}{79.7}
-\newcommand{\scSevenParaCfCI}{.77,.822}
-\newcommand{\scSevenParaCfCIPct}{77.0 to 82.2}
-\newcommand{\scSevenNoteCf}{0.786}
-\newcommand{\scSevenNoteCfPct}{78.6}
-\newcommand{\scSevenNoteCfCI}{.76,.812}
-\newcommand{\scSevenNoteCfCIPct}{76.0 to 81.2}
-\newcommand{\scSevenAboveCf}{0.678}
-\newcommand{\scSevenAboveCfPct}{67.8}
-\newcommand{\scSevenSecCf}{27.9}
-\newcommand{\scSevenNeedZs}{0.086}
-\newcommand{\scSevenNeedZsPct}{8.6}
-\newcommand{\scSevenNeedZsCI}{.069,.104}
-\newcommand{\scSevenNeedZsCIPct}{6.9 to 10.4}
-\newcommand{\scSevenProbeZs}{0.989}
-\newcommand{\scSevenProbeZsPct}{98.9}
-\newcommand{\scSevenProbeZsCI}{.982,.995}
-\newcommand{\scSevenProbeZsCIPct}{98.2 to 99.5}
-\newcommand{\scSevenParaZs}{0.957}
-\newcommand{\scSevenParaZsPct}{95.7}
-\newcommand{\scSevenParaZsCI}{.944,.969}
-\newcommand{\scSevenParaZsCIPct}{94.4 to 96.9}
-\newcommand{\scSevenNoteZs}{0.912}
-\newcommand{\scSevenNoteZsPct}{91.2}
-\newcommand{\scSevenNoteZsCI}{.892,.929}
-\newcommand{\scSevenNoteZsCIPct}{89.2 to 92.9}
-\newcommand{\scSevenAboveZs}{0.895}
-\newcommand{\scSevenAboveZsPct}{89.5}
-\newcommand{\scSevenSecZs}{23.0}
-\newcommand{\scSevenKB}{860}
-\newcommand{\scSmolNeed}{0.050}
-\newcommand{\scSmolNeedPct}{5.0}
-\newcommand{\scSmolNeedCI}{.04,.06}
-\newcommand{\scSmolNeedCIPct}{4.0 to 6.0}
-\newcommand{\scSmolMem}{3.7}
-\newcommand{\scSmolNeedCf}{0.037}
-\newcommand{\scSmolNeedCfPct}{3.7}
-\newcommand{\scSmolNeedCfCI}{.026,.049}
-\newcommand{\scSmolNeedCfCIPct}{2.6 to 4.9}
-\newcommand{\scSmolProbeCf}{0.986}
-\newcommand{\scSmolProbeCfPct}{98.6}
-\newcommand{\scSmolProbeCfCI}{.979,.993}
-\newcommand{\scSmolProbeCfCIPct}{97.9 to 99.3}
-\newcommand{\scSmolParaCf}{0.798}
-\newcommand{\scSmolParaCfPct}{79.8}
-\newcommand{\scSmolParaCfCI}{.772,.822}
-\newcommand{\scSmolParaCfCIPct}{77.2 to 82.2}
-\newcommand{\scSmolNoteCf}{0.794}
-\newcommand{\scSmolNoteCfPct}{79.4}
-\newcommand{\scSmolNoteCfCI}{.769,.82}
-\newcommand{\scSmolNoteCfCIPct}{76.9 to 82.0}
-\newcommand{\scSmolAboveCf}{0.054}
-\newcommand{\scSmolAboveCfPct}{5.4}
-\newcommand{\scSmolSecCf}{17.1}
-\newcommand{\scSmolNeedZs}{0.063}
-\newcommand{\scSmolNeedZsPct}{6.3}
-\newcommand{\scSmolNeedZsCI}{.048,.078}
-\newcommand{\scSmolNeedZsCIPct}{4.8 to 7.8}
-\newcommand{\scSmolProbeZs}{0.983}
-\newcommand{\scSmolProbeZsPct}{98.3}
-\newcommand{\scSmolProbeZsCI}{.975,.99}
-\newcommand{\scSmolProbeZsCIPct}{97.5 to 99.0}
-\newcommand{\scSmolParaZs}{0.948}
-\newcommand{\scSmolParaZsPct}{94.8}
-\newcommand{\scSmolParaZsCI}{.934,.961}
-\newcommand{\scSmolParaZsCIPct}{93.4 to 96.1}
-\newcommand{\scSmolNoteZs}{0.920}
-\newcommand{\scSmolNoteZsPct}{92.0}
-\newcommand{\scSmolNoteZsCI}{.903,.936}
-\newcommand{\scSmolNoteZsCIPct}{90.3 to 93.6}
-\newcommand{\scSmolAboveZs}{0.127}
-\newcommand{\scSmolAboveZsPct}{12.7}
-\newcommand{\scSmolSecZs}{17.4}
-\newcommand{\scSmolKB}{664}
-\newcommand{\scGap}{0.006}
-\newcommand{\alCfCover}{0.423}
-\newcommand{\alCfCoverPct}{42.3}
-\newcommand{\alCfParaPlain}{0.090}
-\newcommand{\alCfParaPlainPct}{9.0}
-\newcommand{\alCfParaNamed}{0.865}
-\newcommand{\alCfParaNamedPct}{86.5}
-\newcommand{\alCfPron}{0.998}
-\newcommand{\alCfPronPct}{99.8}
-\newcommand{\alCfPronPara}{0.735}
-\newcommand{\alCfPronParaPct}{73.5}
-\newcommand{\alCfLater}{0.003}
-\newcommand{\alCfLaterPct}{0.3}
-\newcommand{\alZsCover}{0.346}
-\newcommand{\alZsCoverPct}{34.6}
-\newcommand{\alZsParaPlain}{0.270}
-\newcommand{\alZsParaPlainPct}{27.0}
-\newcommand{\alZsParaNamed}{0.961}
-\newcommand{\alZsParaNamedPct}{96.1}
-\newcommand{\alZsPron}{1.000}
-\newcommand{\alZsPronPct}{100.0}
-\newcommand{\alZsPronPara}{0.978}
-\newcommand{\alZsPronParaPct}{97.8}
-\newcommand{\alZsLater}{0.003}
-\newcommand{\alZsLaterPct}{0.3}
-\newcommand{\alCfAnsAlias}{0.971}
-\newcommand{\alCfAnsAliasPct}{97.1}
-\newcommand{\alCfAnsPron}{0.996}
-\newcommand{\alCfAnsPronPct}{99.6}
-\newcommand{\alZsAnsAlias}{0.922}
-\newcommand{\alZsAnsAliasPct}{92.2}
-\newcommand{\alZsAnsPron}{0.989}
-\newcommand{\alZsAnsPronPct}{98.9}
-\newcommand{\alNatural}{0.156}
-\newcommand{\alNaturalPct}{15.6}
-\newcommand{\alOther}{0.044}
-\newcommand{\alOtherPct}{4.4}
-\newcommand{\slZsReturn}{1.00}
-\newcommand{\slZsReturnPct}{100}
-\newcommand{\slZsMerged}{206}
-\newcommand{\slZsOld}{0.84}
-\newcommand{\slZsPara}{0.985}
-\newcommand{\slZsParaPct}{98.5}
-\newcommand{\slCfPara}{0.893}
-\newcommand{\slCfParaPct}{89.3}
-\newcommand{\slFreshPer}{0.99}
-\newcommand{\slFreshPerPct}{99}
-\newcommand{\slFreshAsym}{0.01}
-\newcommand{\slFreshAsymPct}{1}
-\newcommand{\slFreshUpper}{0.03}
-\newcommand{\slFreshUpperPct}{3}
-\newcommand{\hnBaseNear}{0.302}
-\newcommand{\hnBaseNearPct}{30.2}
-\newcommand{\hnBaseOther}{0.044}
-\newcommand{\hnBaseOtherPct}{4.4}
-\newcommand{\hnBasePara}{0.910}
-\newcommand{\hnBaseParaPct}{91.0}
-\newcommand{\hnANear}{0.248}
-\newcommand{\hnANearPct}{24.8}
-\newcommand{\hnAOther}{0.051}
-\newcommand{\hnAOtherPct}{5.1}
-\newcommand{\hnAPara}{0.914}
-\newcommand{\hnAParaPct}{91.4}
-\newcommand{\hnBNear}{0.522}
-\newcommand{\hnBNearPct}{52.2}
-\newcommand{\hnBOther}{0.064}
-\newcommand{\hnBOtherPct}{6.4}
-\newcommand{\hnBPara}{0.994}
-\newcommand{\hnBParaPct}{99.4}
-\newcommand{\shRefPara}{0.948}
-\newcommand{\shRefParaPct}{94.8}
-\newcommand{\shRefLeak}{0.375}
-\newcommand{\shRefLeakPct}{37.5}
-\newcommand{\shEightTwoPara}{0.865}
-\newcommand{\shEightTwoParaPct}{86.5}
-\newcommand{\shEightTwoLeak}{0.198}
-\newcommand{\shEightTwoLeakPct}{19.8}
-\newcommand{\shEightTwoKB}{47}
-\newcommand{\shRandomSixteenPara}{0.896}
-\newcommand{\shRandomSixteenParaPct}{89.6}
-\newcommand{\shRandomSixteenLeak}{0.354}
-\newcommand{\shRandomSixteenLeakPct}{35.4}
-\newcommand{\shRandomSixteenKB}{143}
-\newcommand{\shEightTwoLeakDiff}{-17.7}
-\newcommand{\shEightTwoLeakDiffCI}{-29.2 to -6.2}
-\newcommand{\shRemoveEight}{31}
-\newcommand{\shRemoveThirtyTwo}{144}
-\newcommand{\spKB}{31}
-\newcommand{\spProbe}{0.574}
-\newcommand{\spProbePct}{57.4}
-\newcommand{\spPara}{0.333}
-\newcommand{\spParaPct}{33.3}
-\newcommand{\spRefPara}{0.821}
-\newcommand{\spRefParaPct}{82.1}
-\newcommand{\spParaNote}{0.771}
-\newcommand{\spParaNotePct}{77.1}
-\newcommand{\spRefParaNote}{0.928}
-\newcommand{\spRefParaNotePct}{92.8}
-\newcommand{\aoRefCfPara}{0.727}
-\newcommand{\aoRefCfParaPct}{72.7}
-\newcommand{\aoRefETh}{0.360}
-\newcommand{\aoRefEThPct}{36.0}
-\newcommand{\aoRefRoute}{0.660}
-\newcommand{\aoRefRoutePct}{66.0}
-\newcommand{\aoRewCfPara}{0.947}
-\newcommand{\aoRewCfParaPct}{94.7}
-\newcommand{\aoRewETh}{0.627}
-\newcommand{\aoRewEThPct}{62.7}
-\newcommand{\aoRewRoute}{0.550}
-\newcommand{\aoRewRoutePct}{55.0}
-\newcommand{\aoRefCfNote}{0.953}
-\newcommand{\aoRefCfNotePct}{95.3}
-\newcommand{\srvCurCfPara}{0.913}
-\newcommand{\srvCurCfParaPct}{91.3}
-\newcommand{\srvCurETh}{0.020}
-\newcommand{\srvCurEThPct}{2.0}
-\newcommand{\srvCurNat}{0.107}
-\newcommand{\srvCurNatPct}{10.7}
-\newcommand{\srvFallCfPara}{0.880}
-\newcommand{\srvFallCfParaPct}{88.0}
-\newcommand{\srvFallETh}{0.020}
-\newcommand{\srvFallEThPct}{2.0}
-\newcommand{\srvFallNat}{0.114}
-\newcommand{\srvFallNatPct}{11.4}
-\newcommand{\srvOffCfPara}{0.920}
-\newcommand{\srvOffCfParaPct}{92.0}
-\newcommand{\srvOffETh}{0.027}
-\newcommand{\srvOffEThPct}{2.7}
-\newcommand{\srvOffNat}{0.121}
-\newcommand{\srvOffNatPct}{12.1}
-\newcommand{\ladCurEdit}{0.965}
-\newcommand{\ladCurEditPct}{96.5}
-\newcommand{\ladCurPara}{0.931}
-\newcommand{\ladCurParaPct}{93.1}
-\newcommand{\ladCurCfPara}{0.915}
-\newcommand{\ladCurCfParaPct}{91.5}
-\newcommand{\ladCurNat}{0.154}
-\newcommand{\ladCurNatPct}{15.4}
-\newcommand{\ladLadEdit}{0.986}
-\newcommand{\ladLadEditPct}{98.6}
-\newcommand{\ladLadPara}{0.919}
-\newcommand{\ladLadParaPct}{91.9}
-\newcommand{\ladLadCfPara}{0.895}
-\newcommand{\ladLadCfParaPct}{89.5}
-\newcommand{\ladLadNat}{0.154}
-\newcommand{\ladLadNatPct}{15.4}
-\newcommand{\ladOffEdit}{0.988}
-\newcommand{\ladOffEditPct}{98.8}
-\newcommand{\ladOffPara}{0.919}
-\newcommand{\ladOffParaPct}{91.9}
-\newcommand{\ladOffCfPara}{0.895}
-\newcommand{\ladOffCfParaPct}{89.5}
-\newcommand{\ladOffNat}{0.156}
-\newcommand{\ladOffNatPct}{15.6}
-\newcommand{\ladNear}{0.296}
-\newcommand{\ladNearPct}{29.6}
-\newcommand{\ladCfGap}{-0.020}
-\newcommand{\ladCfLower}{-0.045}
-\newcommand{\ladRejected}{38}
-\newcommand{\nlEdit}{0.995}
-\newcommand{\nlEditPct}{99.5}
-\newcommand{\nlPara}{0.844}
-\newcommand{\nlParaPct}{84.4}
-\newcommand{\nlReturn}{1.000}
-\newcommand{\nlReturnPct}{100.0}
-\newcommand{\nlRetain}{0.998}
-\newcommand{\nlRetainPct}{99.8}
-\newcommand{\nlWrong}{0.558}
-\newcommand{\nlWrongPct}{55.8}
-\newcommand{\nlWrongBoth}{0.369}
-\newcommand{\nlWrongBothPct}{36.9}
-\newcommand{\nlRetry}{0.181}
-\newcommand{\nlRetryPct}{18.1}
-\newcommand{\nlParaBoth}{0.885}
-\newcommand{\nlParaBothPct}{88.5}
-\newcommand{\hlKappa}{0.967}
-\newcommand{\hlCorr}{0.128}
-\newcommand{\hlCorrPct}{12.8}
-\newcommand{\hlItems}{27}
-\newcommand{\hlLegitGone}{0.431}
-\newcommand{\hlLegitGonePct}{43.1}
-\newcommand{\hlLeakGone}{0.553}
-\newcommand{\hlLeakGonePct}{55.3}
-\newcommand{\ntGlobalNear}{0.296}
-\newcommand{\ntGlobalNearPct}{29.6}
-\newcommand{\ntGlobalPara}{0.915}
-\newcommand{\ntGlobalParaPct}{91.5}
-\newcommand{\ntRelNear}{0.171}
-\newcommand{\ntRelNearPct}{17.1}
-\newcommand{\ntRelPara}{0.912}
-\newcommand{\ntRelParaPct}{91.2}
-\newcommand{\ntAllNear}{0.075}
-\newcommand{\ntAllNearPct}{7.5}
-\newcommand{\ntAllPara}{0.897}
-\newcommand{\ntAllParaPct}{89.8}
-\newcommand{\ntAuroc}{0.968}
-\newcommand{\ntAurocPct}{96.8}
-\newcommand{\ntParaDiff}{-0.25}
-\newcommand{\tcNearGlobal}{0.304}
-\newcommand{\tcNearGlobalPct}{30.4}
-\newcommand{\tcNearRel}{0.169}
-\newcommand{\tcNearRelPct}{16.9}
-\newcommand{\tcNearDiff}{-13.6}
-\newcommand{\tcNearDiffCI}{-18.1 to -9.5}
-\newcommand{\tcParaCfDiff}{-0.7}
-\newcommand{\tcParaCfDiffCI}{-1.3 to -0.2}
-\newcommand{\tcParaZsDiff}{-0.3}
-\newcommand{\tcParaZsDiffCI}{-0.7 to 0.0}
-\newcommand{\saBothDropPct}{0.3}
-\newcommand{\saNoteZsSub}{0.794}
-\newcommand{\saNoteZsSubPct}{79.4}
-\newcommand{\saNoteZsWord}{0.741}
-\newcommand{\saNoteZsWordPct}{74.1}
+% Generated by make_numbers.py from findings/results.csv; do not edit.
+\newcommand{\N}[1]{\csname n@#1\endcsname}
+\newcommand{\Pct}[1]{\csname p@#1\endcsname}
+\newcommand{\CI}[1]{\csname c@#1\endcsname}
+\expandafter\def\csname n@114:zsre_dev:adapter_and_note_r2:wrong_route_retention_substring\endcsname{0.370}
+\expandafter\def\csname p@114:zsre_dev:adapter_and_note_r2:wrong_route_retention_substring\endcsname{37.0}
+\expandafter\def\csname n@114:zsre_dev:adapter_r16:wrong_route_retention_substring\endcsname{0.705}
+\expandafter\def\csname p@114:zsre_dev:adapter_r16:wrong_route_retention_substring\endcsname{70.5}
+\expandafter\def\csname n@114:zsre_dev:adapter_r2:wrong_route_retention_substring\endcsname{0.668}
+\expandafter\def\csname p@114:zsre_dev:adapter_r2:wrong_route_retention_substring\endcsname{66.8}
+\expandafter\def\csname n@114:zsre_dev:note:wrong_route_retention_substring\endcsname{0.511}
+\expandafter\def\csname p@114:zsre_dev:note:wrong_route_retention_substring\endcsname{51.1}
+\expandafter\def\csname n@115:zsre:asymmetric_slots:residual_route_share\endcsname{0.01}
+\expandafter\def\csname p@115:zsre:asymmetric_slots:residual_route_share\endcsname{1.0}
+\expandafter\def\csname n@115:zsre:per_entry:residual_route_share\endcsname{0.99}
+\expandafter\def\csname p@115:zsre:per_entry:residual_route_share\endcsname{99.0}
+\expandafter\def\csname n@116:mmlu_arc:adapter_r16:capability_cost\endcsname{$-$0.008}
+\expandafter\def\csname p@116:mmlu_arc:adapter_r16:capability_cost\endcsname{$-$0.8}
+\expandafter\def\csname c@116:mmlu_arc:adapter_r16:capability_cost\endcsname{[$-$0.020, 0.004]}
+\expandafter\def\csname n@116:mmlu_arc:adapter_r2:capability_cost\endcsname{$-$0.007}
+\expandafter\def\csname p@116:mmlu_arc:adapter_r2:capability_cost\endcsname{$-$0.7}
+\expandafter\def\csname c@116:mmlu_arc:adapter_r2:capability_cost\endcsname{[$-$0.021, 0.007]}
+\expandafter\def\csname n@116:mmlu_arc:base:accuracy\endcsname{0.665}
+\expandafter\def\csname p@116:mmlu_arc:base:accuracy\endcsname{66.5}
+\expandafter\def\csname n@116:mmlu_arc:note:capability_cost\endcsname{$-$0.011}
+\expandafter\def\csname p@116:mmlu_arc:note:capability_cost\endcsname{$-$1.1}
+\expandafter\def\csname c@116:mmlu_arc:note:capability_cost\endcsname{[$-$0.025, 0.003]}
+\expandafter\def\csname n@120:counterfact:qwen2.5-0.5b:above_kappa_share\endcsname{0.06}
+\expandafter\def\csname p@120:counterfact:qwen2.5-0.5b:above_kappa_share\endcsname{6.0}
+\expandafter\def\csname n@120:counterfact:qwen2.5-0.5b:tiered_paraphrase_accuracy\endcsname{0.834}
+\expandafter\def\csname p@120:counterfact:qwen2.5-0.5b:tiered_paraphrase_accuracy\endcsname{83.4}
+\expandafter\def\csname n@120:counterfact:qwen2.5-1.5b-4bit:above_kappa_share\endcsname{0.01}
+\expandafter\def\csname p@120:counterfact:qwen2.5-1.5b-4bit:above_kappa_share\endcsname{1.0}
+\expandafter\def\csname n@120:counterfact:qwen2.5-1.5b-4bit:tiered_paraphrase_accuracy\endcsname{0.736}
+\expandafter\def\csname p@120:counterfact:qwen2.5-1.5b-4bit:tiered_paraphrase_accuracy\endcsname{73.6}
+\expandafter\def\csname n@120:counterfact:qwen2.5-1.5b:above_kappa_share\endcsname{0.03}
+\expandafter\def\csname p@120:counterfact:qwen2.5-1.5b:above_kappa_share\endcsname{3.0}
+\expandafter\def\csname n@120:counterfact:qwen2.5-1.5b:tiered_paraphrase_accuracy\endcsname{0.739}
+\expandafter\def\csname p@120:counterfact:qwen2.5-1.5b:tiered_paraphrase_accuracy\endcsname{73.9}
+\expandafter\def\csname n@120:counterfact:qwen2.5-3b-4bit:above_kappa_share\endcsname{0.93}
+\expandafter\def\csname p@120:counterfact:qwen2.5-3b-4bit:above_kappa_share\endcsname{93.0}
+\expandafter\def\csname n@120:counterfact:qwen2.5-3b-4bit:tiered_paraphrase_accuracy\endcsname{0.668}
+\expandafter\def\csname p@120:counterfact:qwen2.5-3b-4bit:tiered_paraphrase_accuracy\endcsname{66.8}
+\expandafter\def\csname n@120:counterfact:qwen2.5-7b-4bit:above_kappa_share\endcsname{0.68}
+\expandafter\def\csname p@120:counterfact:qwen2.5-7b-4bit:above_kappa_share\endcsname{68.0}
+\expandafter\def\csname n@120:counterfact:qwen2.5-7b-4bit:tiered_paraphrase_accuracy\endcsname{0.797}
+\expandafter\def\csname p@120:counterfact:qwen2.5-7b-4bit:tiered_paraphrase_accuracy\endcsname{79.7}
+\expandafter\def\csname n@120:counterfact:smollm3-3b-4bit:above_kappa_share\endcsname{0.05}
+\expandafter\def\csname p@120:counterfact:smollm3-3b-4bit:above_kappa_share\endcsname{5.0}
+\expandafter\def\csname n@120:counterfact:smollm3-3b-4bit:tiered_paraphrase_accuracy\endcsname{0.798}
+\expandafter\def\csname p@120:counterfact:smollm3-3b-4bit:tiered_paraphrase_accuracy\endcsname{79.8}
+\expandafter\def\csname n@120:pooled:qwen2.5-0.5b:need_adapter_share\endcsname{0.0335}
+\expandafter\def\csname p@120:pooled:qwen2.5-0.5b:need_adapter_share\endcsname{3.4}
+\expandafter\def\csname c@120:pooled:qwen2.5-0.5b:need_adapter_share\endcsname{[0.026, 0.0415]}
+\expandafter\def\csname n@120:pooled:qwen2.5-1.5b-4bit:need_adapter_share\endcsname{0.2175}
+\expandafter\def\csname p@120:pooled:qwen2.5-1.5b-4bit:need_adapter_share\endcsname{21.8}
+\expandafter\def\csname c@120:pooled:qwen2.5-1.5b-4bit:need_adapter_share\endcsname{[0.1995, 0.235]}
+\expandafter\def\csname n@120:pooled:qwen2.5-1.5b:need_adapter_share\endcsname{0.2115}
+\expandafter\def\csname p@120:pooled:qwen2.5-1.5b:need_adapter_share\endcsname{21.2}
+\expandafter\def\csname c@120:pooled:qwen2.5-1.5b:need_adapter_share\endcsname{[0.1935, 0.229]}
+\expandafter\def\csname n@120:pooled:qwen2.5-3b-4bit:need_adapter_share\endcsname{0.1095}
+\expandafter\def\csname p@120:pooled:qwen2.5-3b-4bit:need_adapter_share\endcsname{11.0}
+\expandafter\def\csname c@120:pooled:qwen2.5-3b-4bit:need_adapter_share\endcsname{[0.096, 0.1235]}
+\expandafter\def\csname n@120:pooled:qwen2.5-7b-4bit:need_adapter_share\endcsname{0.088}
+\expandafter\def\csname p@120:pooled:qwen2.5-7b-4bit:need_adapter_share\endcsname{8.8}
+\expandafter\def\csname c@120:pooled:qwen2.5-7b-4bit:need_adapter_share\endcsname{[0.076, 0.1005]}
+\expandafter\def\csname n@120:pooled:smollm3-3b-4bit:need_adapter_share\endcsname{0.050}
+\expandafter\def\csname p@120:pooled:smollm3-3b-4bit:need_adapter_share\endcsname{5.0}
+\expandafter\def\csname c@120:pooled:smollm3-3b-4bit:need_adapter_share\endcsname{[0.040, 0.060]}
+\expandafter\def\csname n@120:zsre:qwen2.5-0.5b:tiered_paraphrase_accuracy\endcsname{0.934}
+\expandafter\def\csname p@120:zsre:qwen2.5-0.5b:tiered_paraphrase_accuracy\endcsname{93.4}
+\expandafter\def\csname n@120:zsre:qwen2.5-1.5b-4bit:tiered_paraphrase_accuracy\endcsname{0.939}
+\expandafter\def\csname p@120:zsre:qwen2.5-1.5b-4bit:tiered_paraphrase_accuracy\endcsname{93.9}
+\expandafter\def\csname n@120:zsre:qwen2.5-1.5b:tiered_paraphrase_accuracy\endcsname{0.936}
+\expandafter\def\csname p@120:zsre:qwen2.5-1.5b:tiered_paraphrase_accuracy\endcsname{93.6}
+\expandafter\def\csname n@120:zsre:qwen2.5-3b-4bit:tiered_paraphrase_accuracy\endcsname{0.921}
+\expandafter\def\csname p@120:zsre:qwen2.5-3b-4bit:tiered_paraphrase_accuracy\endcsname{92.1}
+\expandafter\def\csname n@120:zsre:qwen2.5-7b-4bit:tiered_paraphrase_accuracy\endcsname{0.957}
+\expandafter\def\csname p@120:zsre:qwen2.5-7b-4bit:tiered_paraphrase_accuracy\endcsname{95.7}
+\expandafter\def\csname n@120:zsre:smollm3-3b-4bit:tiered_paraphrase_accuracy\endcsname{0.948}
+\expandafter\def\csname p@120:zsre:smollm3-3b-4bit:tiered_paraphrase_accuracy\endcsname{94.8}
+\expandafter\def\csname n@122:zsre:asymmetric_slots:removal_return\endcsname{1.00}
+\expandafter\def\csname p@122:zsre:asymmetric_slots:removal_return\endcsname{100.0}
+\expandafter\def\csname c@122:zsre:asymmetric_slots:removal_return\endcsname{[1.00, 1.00]}
+\expandafter\def\csname n@122:zsre:per_entry:removal_return\endcsname{0.84}
+\expandafter\def\csname p@122:zsre:per_entry:removal_return\endcsname{84.0}
+\expandafter\def\csname n@123:counterfact:baseline:natural_near_routed\endcsname{0.302}
+\expandafter\def\csname p@123:counterfact:baseline:natural_near_routed\endcsname{30.2}
+\expandafter\def\csname n@123:counterfact:hardA:natural_near_routed\endcsname{0.248}
+\expandafter\def\csname p@123:counterfact:hardA:natural_near_routed\endcsname{24.8}
+\expandafter\def\csname n@123:counterfact:hardB:natural_near_routed\endcsname{0.522}
+\expandafter\def\csname p@123:counterfact:hardB:natural_near_routed\endcsname{52.2}
+\expandafter\def\csname n@124:counterfact:per_fact_r2:paraphrase_accuracy\endcsname{0.948}
+\expandafter\def\csname p@124:counterfact:per_fact_r2:paraphrase_accuracy\endcsname{94.8}
+\expandafter\def\csname n@124:counterfact:shard_8x2:bytes_per_fact_kb\endcsname{47}
+\expandafter\def\csname p@124:counterfact:shard_8x2:bytes_per_fact_kb\endcsname{4700.0}
+\expandafter\def\csname n@124:counterfact:shard_8x2:paraphrase_accuracy\endcsname{0.865}
+\expandafter\def\csname p@124:counterfact:shard_8x2:paraphrase_accuracy\endcsname{86.5}
+\expandafter\def\csname n@128:pooled:soft_prompt:edit_accuracy\endcsname{0.574}
+\expandafter\def\csname p@128:pooled:soft_prompt:edit_accuracy\endcsname{57.4}
+\expandafter\def\csname n@128:pooled:soft_prompt:paraphrase_accuracy\endcsname{0.333}
+\expandafter\def\csname p@128:pooled:soft_prompt:paraphrase_accuracy\endcsname{33.3}
+\expandafter\def\csname n@135:pooled:new_seed:rejected_under_kappa\endcsname{11}
+\expandafter\def\csname p@135:pooled:new_seed:rejected_under_kappa\endcsname{1100.0}
+\expandafter\def\csname n@137:counterfact:A0_alone:edit_accuracy\endcsname{0.988}
+\expandafter\def\csname p@137:counterfact:A0_alone:edit_accuracy\endcsname{98.8}
+\expandafter\def\csname n@137:counterfact:A0_alone:leak_rate_e3\endcsname{0.038}
+\expandafter\def\csname p@137:counterfact:A0_alone:leak_rate_e3\endcsname{3.8}
+\expandafter\def\csname n@137:counterfact:A0_alone:leak_rate_natural\endcsname{0.116}
+\expandafter\def\csname p@137:counterfact:A0_alone:leak_rate_natural\endcsname{11.6}
+\expandafter\def\csname n@137:counterfact:A0_alone:leak_rate_natural_near\endcsname{0.226}
+\expandafter\def\csname p@137:counterfact:A0_alone:leak_rate_natural_near\endcsname{22.6}
+\expandafter\def\csname n@137:counterfact:A0_alone:paraphrase_accuracy\endcsname{0.725}
+\expandafter\def\csname p@137:counterfact:A0_alone:paraphrase_accuracy\endcsname{72.5}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:edit_accuracy\endcsname{0.983}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:edit_accuracy\endcsname{98.3}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:leak_rate_e3\endcsname{0.048}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:leak_rate_e3\endcsname{4.8}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:leak_rate_natural\endcsname{0.154}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:leak_rate_natural\endcsname{15.4}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:leak_rate_natural_near\endcsname{0.296}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:leak_rate_natural_near\endcsname{29.6}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:leak_rate_natural_uniform\endcsname{0.010}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:leak_rate_natural_uniform\endcsname{1.0}
+\expandafter\def\csname n@137:counterfact:adapter_and_note:paraphrase_accuracy\endcsname{0.915}
+\expandafter\def\csname p@137:counterfact:adapter_and_note:paraphrase_accuracy\endcsname{91.5}
+\expandafter\def\csname n@137:counterfact:default:edit_accuracy\endcsname{0.995}
+\expandafter\def\csname p@137:counterfact:default:edit_accuracy\endcsname{99.5}
+\expandafter\def\csname n@137:counterfact:default:leak_rate_e3\endcsname{0.048}
+\expandafter\def\csname p@137:counterfact:default:leak_rate_e3\endcsname{4.8}
+\expandafter\def\csname n@137:counterfact:default:leak_rate_natural\endcsname{0.154}
+\expandafter\def\csname p@137:counterfact:default:leak_rate_natural\endcsname{15.4}
+\expandafter\def\csname n@137:counterfact:default:leak_rate_natural_near\endcsname{0.296}
+\expandafter\def\csname p@137:counterfact:default:leak_rate_natural_near\endcsname{29.6}
+\expandafter\def\csname n@137:counterfact:default:leak_rate_natural_uniform\endcsname{0.010}
+\expandafter\def\csname p@137:counterfact:default:leak_rate_natural_uniform\endcsname{1.0}
+\expandafter\def\csname n@137:counterfact:default:paraphrase_accuracy\endcsname{0.895}
+\expandafter\def\csname p@137:counterfact:default:paraphrase_accuracy\endcsname{89.5}
+\expandafter\def\csname n@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_e3\endcsname{0.000}
+\expandafter\def\csname p@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_e3\endcsname{0.0}
+\expandafter\def\csname c@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_e3\endcsname{[$-$0.008, 0.008]}
+\expandafter\def\csname n@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_natural\endcsname{0.000}
+\expandafter\def\csname p@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_natural\endcsname{0.0}
+\expandafter\def\csname c@137:counterfact:default_minus_adapter_and_note:diff_leak_rate_natural\endcsname{[$-$0.018, 0.018]}
+\expandafter\def\csname n@137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{$-$0.020}
+\expandafter\def\csname p@137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{$-$2.0}
+\expandafter\def\csname c@137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{[$-$0.050, 0.010]}
+\expandafter\def\csname n@137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy_lower_one_sided\endcsname{$-$0.045}
+\expandafter\def\csname p@137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy_lower_one_sided\endcsname{$-$4.5}
+\expandafter\def\csname n@137:pooled:default:edit_accuracy\endcsname{0.986}
+\expandafter\def\csname p@137:pooled:default:edit_accuracy\endcsname{98.6}
+\expandafter\def\csname n@137:pooled:default:facts_with_entry\endcsname{0.99875}
+\expandafter\def\csname p@137:pooled:default:facts_with_entry\endcsname{99.9}
+\expandafter\def\csname n@137:pooled:default:first_attempt_reject_share\endcsname{0.0475}
+\expandafter\def\csname p@137:pooled:default:first_attempt_reject_share\endcsname{4.8}
+\expandafter\def\csname n@137:pooled:default_minus_A0_alone:diff_paraphrase_accuracy\endcsname{+0.126}
+\expandafter\def\csname p@137:pooled:default_minus_A0_alone:diff_paraphrase_accuracy\endcsname{+12.6}
+\expandafter\def\csname n@137:pooled:default_minus_adapter_and_note:diff_edit_accuracy\endcsname{+0.021}
+\expandafter\def\csname p@137:pooled:default_minus_adapter_and_note:diff_edit_accuracy\endcsname{+2.1}
+\expandafter\def\csname c@137:pooled:default_minus_adapter_and_note:diff_edit_accuracy\endcsname{[0.006, 0.036]}
+\expandafter\def\csname n@137:pooled:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{$-$0.013}
+\expandafter\def\csname p@137:pooled:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{$-$1.3}
+\expandafter\def\csname c@137:pooled:default_minus_adapter_and_note:diff_paraphrase_accuracy\endcsname{[$-$0.031, 0.006]}
+\expandafter\def\csname n@137:pooled:gate_off:paraphrase_accuracy\endcsname{0.919}
+\expandafter\def\csname p@137:pooled:gate_off:paraphrase_accuracy\endcsname{91.9}
+\expandafter\def\csname n@137:zsre:A0_alone:paraphrase_accuracy\endcsname{0.860}
+\expandafter\def\csname p@137:zsre:A0_alone:paraphrase_accuracy\endcsname{86.0}
+\expandafter\def\csname n@137:zsre:adapter_and_note:paraphrase_accuracy\endcsname{0.948}
+\expandafter\def\csname p@137:zsre:adapter_and_note:paraphrase_accuracy\endcsname{94.8}
+\expandafter\def\csname n@137:zsre:default:paraphrase_accuracy\endcsname{0.943}
+\expandafter\def\csname p@137:zsre:default:paraphrase_accuracy\endcsname{94.3}
+\expandafter\def\csname n@139:counterfact:default:edit_accuracy_relation_tau\endcsname{0.995}
+\expandafter\def\csname p@139:counterfact:default:edit_accuracy_relation_tau\endcsname{99.5}
+\expandafter\def\csname n@139:counterfact:default:leak_rate_e3_relation_tau\endcsname{0.043}
+\expandafter\def\csname p@139:counterfact:default:leak_rate_e3_relation_tau\endcsname{4.3}
+\expandafter\def\csname n@139:counterfact:default:leak_rate_natural_near\endcsname{0.181}
+\expandafter\def\csname p@139:counterfact:default:leak_rate_natural_near\endcsname{18.1}
+\expandafter\def\csname n@139:counterfact:default:leak_rate_natural_near_rall\endcsname{0.080}
+\expandafter\def\csname p@139:counterfact:default:leak_rate_natural_near_rall\endcsname{8.0}
+\expandafter\def\csname n@139:counterfact:default:leak_rate_natural_relation_tau\endcsname{0.096}
+\expandafter\def\csname p@139:counterfact:default:leak_rate_natural_relation_tau\endcsname{9.6}
+\expandafter\def\csname n@139:counterfact:default:leak_rate_natural_uniform_relation_tau\endcsname{0.010}
+\expandafter\def\csname p@139:counterfact:default:leak_rate_natural_uniform_relation_tau\endcsname{1.0}
+\expandafter\def\csname n@139:counterfact:default:paraphrase_accuracy\endcsname{0.893}
+\expandafter\def\csname p@139:counterfact:default:paraphrase_accuracy\endcsname{89.3}
+\expandafter\def\csname n@139:counterfact:router_score:auroc_paraphrase_vs_near\endcsname{0.968}
+\expandafter\def\csname p@139:counterfact:router_score:auroc_paraphrase_vs_near\endcsname{96.8}
+\expandafter\def\csname n@139:zsre:default:paraphrase_accuracy_relation_tau\endcsname{0.943}
+\expandafter\def\csname p@139:zsre:default:paraphrase_accuracy_relation_tau\endcsname{94.3}
+\expandafter\def\csname n@140:counterfact:author_vs_model:cohen_kappa_two_class\endcsname{0.967}
+\expandafter\def\csname p@140:counterfact:author_vs_model:cohen_kappa_two_class\endcsname{96.7}
+\expandafter\def\csname c@140:counterfact:author_vs_model:cohen_kappa_two_class\endcsname{[0.915, 1.0]}
+\expandafter\def\csname n@140:counterfact:default_router:leak_rate_natural_near_corrected\endcsname{0.128}
+\expandafter\def\csname p@140:counterfact:default_router:leak_rate_natural_near_corrected\endcsname{12.8}
+\expandafter\def\csname n@142:counterfact:R107:leak_removed_share\endcsname{0.553}
+\expandafter\def\csname p@142:counterfact:R107:leak_removed_share\endcsname{55.3}
+\expandafter\def\csname n@142:counterfact:R107:legit_removed_share\endcsname{0.431}
+\expandafter\def\csname p@142:counterfact:R107:legit_removed_share\endcsname{43.1}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:edit_accuracy\endcsname{0.995}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:edit_accuracy\endcsname{99.5}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:leak_rate_e2\endcsname{0.017}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:leak_rate_e2\endcsname{1.7}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:leak_rate_e3\endcsname{0.044}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:leak_rate_e3\endcsname{4.4}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:paraphrase_accuracy\endcsname{0.885}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:paraphrase_accuracy\endcsname{88.5}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:removal_return\endcsname{1.00}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:removal_return\endcsname{100.0}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:retention\endcsname{0.999}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:retention\endcsname{99.9}
+\expandafter\def\csname n@146:counterfact:adapter_and_note_r2:wrong_route_retention\endcsname{0.369}
+\expandafter\def\csname p@146:counterfact:adapter_and_note_r2:wrong_route_retention\endcsname{36.9}
+\expandafter\def\csname n@146:counterfact:default:edit_accuracy\endcsname{0.995}
+\expandafter\def\csname p@146:counterfact:default:edit_accuracy\endcsname{99.5}
+\expandafter\def\csname n@146:counterfact:default:first_attempt_reject_share\endcsname{0.181}
+\expandafter\def\csname p@146:counterfact:default:first_attempt_reject_share\endcsname{18.1}
+\expandafter\def\csname n@146:counterfact:default:leak_rate_e2\endcsname{0.005}
+\expandafter\def\csname p@146:counterfact:default:leak_rate_e2\endcsname{0.5}
+\expandafter\def\csname n@146:counterfact:default:leak_rate_e3\endcsname{0.038}
+\expandafter\def\csname p@146:counterfact:default:leak_rate_e3\endcsname{3.8}
+\expandafter\def\csname n@146:counterfact:default:leak_rate_natural_near_relation_tau\endcsname{0.146}
+\expandafter\def\csname p@146:counterfact:default:leak_rate_natural_near_relation_tau\endcsname{14.6}
+\expandafter\def\csname n@146:counterfact:default:no_entry_share\endcsname{0.003}
+\expandafter\def\csname p@146:counterfact:default:no_entry_share\endcsname{0.3}
+\expandafter\def\csname n@146:counterfact:default:paraphrase_accuracy\endcsname{0.844}
+\expandafter\def\csname p@146:counterfact:default:paraphrase_accuracy\endcsname{84.4}
+\expandafter\def\csname n@146:counterfact:default:removal_return\endcsname{1.00}
+\expandafter\def\csname p@146:counterfact:default:removal_return\endcsname{100.0}
+\expandafter\def\csname n@146:counterfact:default:retention\endcsname{0.998}
+\expandafter\def\csname p@146:counterfact:default:retention\endcsname{99.8}
+\expandafter\def\csname n@146:counterfact:default:seconds_per_removal\endcsname{0.0017}
+\expandafter\def\csname p@146:counterfact:default:seconds_per_removal\endcsname{0.2}
+\expandafter\def\csname n@146:counterfact:default:seconds_per_write_median\endcsname{20.9}
+\expandafter\def\csname p@146:counterfact:default:seconds_per_write_median\endcsname{2090.0}
+\expandafter\def\csname n@146:counterfact:default:wrong_route_retention\endcsname{0.558}
+\expandafter\def\csname p@146:counterfact:default:wrong_route_retention\endcsname{55.8}
+\expandafter\def\csname n@146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy\endcsname{$-$0.041}
+\expandafter\def\csname p@146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy\endcsname{$-$4.1}
+\expandafter\def\csname c@146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy\endcsname{[$-$0.059, $-$0.023]}
+\expandafter\def\csname n@146:counterfact:default_minus_adapter_and_note_r2:diff_wrong_route_retention\endcsname{+0.189}
+\expandafter\def\csname p@146:counterfact:default_minus_adapter_and_note_r2:diff_wrong_route_retention\endcsname{+18.9}
+\expandafter\def\csname n@146:mmlu_arc:adapter_and_note_r2:capability_cost\endcsname{$-$0.022}
+\expandafter\def\csname p@146:mmlu_arc:adapter_and_note_r2:capability_cost\endcsname{$-$2.2}
+\expandafter\def\csname c@146:mmlu_arc:adapter_and_note_r2:capability_cost\endcsname{[$-$0.038, $-$0.006]}
+\expandafter\def\csname n@146:mmlu_arc:default:capability_cost\endcsname{$-$0.017}
+\expandafter\def\csname p@146:mmlu_arc:default:capability_cost\endcsname{$-$1.7}
+\expandafter\def\csname c@146:mmlu_arc:default:capability_cost\endcsname{[$-$0.033, $-$0.001]}
+\expandafter\def\csname n@148:counterfact:nli_entailment:auroc_legit_vs_leak\endcsname{0.756}
+\expandafter\def\csname p@148:counterfact:nli_entailment:auroc_legit_vs_leak\endcsname{75.6}
+\expandafter\def\csname c@148:counterfact:nli_entailment:auroc_legit_vs_leak\endcsname{[0.655, 0.850]}
+\expandafter\def\csname n@148:counterfact:router_score:auroc_legit_vs_leak\endcsname{0.685}
+\expandafter\def\csname p@148:counterfact:router_score:auroc_legit_vs_leak\endcsname{68.5}
+\expandafter\def\csname c@148:counterfact:router_score:auroc_legit_vs_leak\endcsname{[0.572, 0.787]}
+\expandafter\def\csname n@150:counterfact:hypernet_H1000:train_edit_accuracy\endcsname{0.95}
+\expandafter\def\csname p@150:counterfact:hypernet_H1000:train_edit_accuracy\endcsname{95.0}
+\expandafter\def\csname c@150:counterfact:hypernet_H1000:train_edit_accuracy\endcsname{[0.90, 0.99]}
+\expandafter\def\csname n@150:counterfact:hypernet_H1000:unseen_edit_accuracy\endcsname{0.10}
+\expandafter\def\csname p@150:counterfact:hypernet_H1000:unseen_edit_accuracy\endcsname{10.0}
+\expandafter\def\csname c@150:counterfact:hypernet_H1000:unseen_edit_accuracy\endcsname{[0.05, 0.16]}
+\expandafter\def\csname n@152:counterfact:hypernet_H0_Eb:unseen_edit_accuracy\endcsname{0.77}
+\expandafter\def\csname p@152:counterfact:hypernet_H0_Eb:unseen_edit_accuracy\endcsname{77.0}
+\expandafter\def\csname n@155:counterfact:nullspace_N90:paraphrase_accuracy\endcsname{0.32}
+\expandafter\def\csname p@155:counterfact:nullspace_N90:paraphrase_accuracy\endcsname{32.0}
+\expandafter\def\csname c@155:counterfact:nullspace_N90:paraphrase_accuracy\endcsname{[0.23, 0.41]}
+\expandafter\def\csname n@155:counterfact:nullspace_N90:wrong_route_retention\endcsname{0.91}
+\expandafter\def\csname p@155:counterfact:nullspace_N90:wrong_route_retention\endcsname{91.0}
+\expandafter\def\csname n@155:counterfact:trained_T:paraphrase_accuracy\endcsname{0.78}
+\expandafter\def\csname p@155:counterfact:trained_T:paraphrase_accuracy\endcsname{78.0}
+\expandafter\def\csname c@155:counterfact:trained_T:paraphrase_accuracy\endcsname{[0.70, 0.86]}
+\expandafter\def\csname n@155:counterfact:trained_T:wrong_route_retention\endcsname{0.68}
+\expandafter\def\csname p@155:counterfact:trained_T:wrong_route_retention\endcsname{68.0}
+\expandafter\def\csname n@156:bmike_en:mmpnet:router_auroc\endcsname{0.877}
+\expandafter\def\csname p@156:bmike_en:mmpnet:router_auroc\endcsname{87.7}
+\expandafter\def\csname n@156:bmike_en:mpnet:router_auroc\endcsname{0.891}
+\expandafter\def\csname p@156:bmike_en:mpnet:router_auroc\endcsname{89.1}
+\expandafter\def\csname n@156:bmike_en:relenc-m:router_auroc\endcsname{0.960}
+\expandafter\def\csname p@156:bmike_en:relenc-m:router_auroc\endcsname{96.0}
+\expandafter\def\csname c@156:bmike_en:relenc-m:router_auroc\endcsname{[0.951, 0.967]}
+\expandafter\def\csname n@156:bmike_en:relenc:rephrase_routed_right\endcsname{0.552}
+\expandafter\def\csname p@156:bmike_en:relenc:rephrase_routed_right\endcsname{55.2}
+\expandafter\def\csname n@156:bmike_en:relenc:router_auroc\endcsname{0.975}
+\expandafter\def\csname p@156:bmike_en:relenc:router_auroc\endcsname{97.5}
+\expandafter\def\csname c@156:bmike_en:relenc:router_auroc\endcsname{[0.969, 0.981]}
+\expandafter\def\csname n@156:bmike_tr:mmpnet:router_auroc\endcsname{0.887}
+\expandafter\def\csname p@156:bmike_tr:mmpnet:router_auroc\endcsname{88.7}
+\expandafter\def\csname n@156:bmike_tr:mpnet:router_auroc\endcsname{0.505}
+\expandafter\def\csname p@156:bmike_tr:mpnet:router_auroc\endcsname{50.5}
+\expandafter\def\csname n@156:bmike_tr:relenc-m:router_auroc\endcsname{0.939}
+\expandafter\def\csname p@156:bmike_tr:relenc-m:router_auroc\endcsname{93.9}
+\expandafter\def\csname c@156:bmike_tr:relenc-m:router_auroc\endcsname{[0.928, 0.949]}
+\expandafter\def\csname n@156:bmike_tr:relenc:router_auroc\endcsname{0.532}
+\expandafter\def\csname p@156:bmike_tr:relenc:router_auroc\endcsname{53.2}
+\expandafter\def\csname c@156:bmike_tr:relenc:router_auroc\endcsname{[0.518, 0.546]}
+\expandafter\def\csname n@156:bmike_tr:relenc:src_routed_right\endcsname{0.005}
+\expandafter\def\csname p@156:bmike_tr:relenc:src_routed_right\endcsname{0.5}
+\expandafter\def\csname n@159:bmike_en:relenc-b:router_auroc\endcsname{0.948}
+\expandafter\def\csname p@159:bmike_en:relenc-b:router_auroc\endcsname{94.8}
+\expandafter\def\csname c@159:bmike_en:relenc-b:router_auroc\endcsname{[0.939, 0.957]}
+\expandafter\def\csname n@159:bmike_tr:relenc-b:router_auroc\endcsname{0.930}
+\expandafter\def\csname p@159:bmike_tr:relenc-b:router_auroc\endcsname{93.0}
+\expandafter\def\csname c@159:bmike_tr:relenc-b:router_auroc\endcsname{[0.919, 0.940]}
+\expandafter\def\csname n@37:counterfact:adapter_and_note_r16:edit_accuracy\endcsname{0.999}
+\expandafter\def\csname p@37:counterfact:adapter_and_note_r16:edit_accuracy\endcsname{99.9}
+\expandafter\def\csname c@37:counterfact:adapter_and_note_r16:edit_accuracy\endcsname{[0.997, 1.0]}
+\expandafter\def\csname n@37:counterfact:rag_instruct:edit_accuracy\endcsname{0.837}
+\expandafter\def\csname p@37:counterfact:rag_instruct:edit_accuracy\endcsname{83.7}
+\expandafter\def\csname c@37:counterfact:rag_instruct:edit_accuracy\endcsname{[0.815, 0.86]}
+\expandafter\def\csname n@54:counterfact:grace_easyedit:edit_accuracy\endcsname{0.025}
+\expandafter\def\csname p@54:counterfact:grace_easyedit:edit_accuracy\endcsname{2.5}
+\expandafter\def\csname n@54:counterfact:wise_easyedit:edit_accuracy\endcsname{0.07}
+\expandafter\def\csname p@54:counterfact:wise_easyedit:edit_accuracy\endcsname{7.0}
+\expandafter\def\csname n@63:counterfact:wise_easyedit_merge200:edit_accuracy\endcsname{0.125}
+\expandafter\def\csname p@63:counterfact:wise_easyedit_merge200:edit_accuracy\endcsname{12.5}
+\expandafter\def\csname c@63:counterfact:wise_easyedit_merge200:edit_accuracy\endcsname{[0.08, 0.17]}
+\expandafter\def\csname n@69:pooled:benign_r16:d_heldout_mean\endcsname{0.364}
+\expandafter\def\csname p@69:pooled:benign_r16:d_heldout_mean\endcsname{36.4}
+\expandafter\def\csname n@69:pooled:benign_r16:d_train_mean\endcsname{0.022}
+\expandafter\def\csname p@69:pooled:benign_r16:d_train_mean\endcsname{2.2}
+\expandafter\def\csname n@69:pooled:benign_r16:kappa\endcsname{0.968}
+\expandafter\def\csname p@69:pooled:benign_r16:kappa\endcsname{96.8}
+\expandafter\def\csname n@69:pooled:harmful:d_heldout_min\endcsname{3.46}
+\expandafter\def\csname p@69:pooled:harmful:d_heldout_min\endcsname{346.0}
+\expandafter\def\csname n@76:counterfact:minilm:paraphrase_route_correct\endcsname{0.595}
+\expandafter\def\csname p@76:counterfact:minilm:paraphrase_route_correct\endcsname{59.5}
+\expandafter\def\csname n@76:counterfact:relenc:paraphrase_route_correct\endcsname{0.908}
+\expandafter\def\csname p@76:counterfact:relenc:paraphrase_route_correct\endcsname{90.8}
+\expandafter\def\csname n@76:counterfact:relenc:paraphrase_route_correct_heldout_relations\endcsname{0.747}
+\expandafter\def\csname p@76:counterfact:relenc:paraphrase_route_correct_heldout_relations\endcsname{74.7}
+\expandafter\def\csname n@76:counterfact:relenc:paraphrase_route_correct_seen_relations\endcsname{0.994}
+\expandafter\def\csname p@76:counterfact:relenc:paraphrase_route_correct_seen_relations\endcsname{99.4}
+\expandafter\def\csname n@89:pooled:rank2_int8:edit_accuracy\endcsname{0.989}
+\expandafter\def\csname p@89:pooled:rank2_int8:edit_accuracy\endcsname{98.9}
+\expandafter\def\csname n@89:pooled:rank2_int8:paraphrase_accuracy\endcsname{0.821}
+\expandafter\def\csname p@89:pooled:rank2_int8:paraphrase_accuracy\endcsname{82.1}
+\expandafter\def\csname n@93:pooled:direft_r4:above_kappa_share\endcsname{0.82}
+\expandafter\def\csname p@93:pooled:direft_r4:above_kappa_share\endcsname{82.0}

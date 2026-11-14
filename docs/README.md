@@ -6,7 +6,9 @@ interaction). Its docs:
 | Document | What it is |
 | :-- | :-- |
 | [`LIVING_MODEL_POSITIONING.md`](LIVING_MODEL_POSITIONING.md) | The claim, the originality audit (Appendix A) and the measured guarantees (Appendix B) |
-| [`LIVING_MODEL_CONFIRMATORY_SUMMARY.md`](LIVING_MODEL_CONFIRMATORY_SUMMARY.md) | One page of results, to entry 146 |
+| [`LIVING_MODEL_CONFIRMATORY_SUMMARY.md`](LIVING_MODEL_CONFIRMATORY_SUMMARY.md) | One page of results, to entry 159 |
+| [`../paper/findings/`](../paper/findings/README.md) | The current findings as CSV tables, each number with its entry and source file |
+| [`LIVING_MODEL_HYPERNETWORK_DESIGN.md`](LIVING_MODEL_HYPERNETWORK_DESIGN.md) | The hypernetwork design; the line closed at entry 152 |
 | [`LIVING_MODEL_SLICE_PREREG.md`](LIVING_MODEL_SLICE_PREREG.md) | The exploratory record: every pinned run, its result, and the results index |
 | [`LIVING_MODEL_CONFIRMATORY_PREREG.md`](LIVING_MODEL_CONFIRMATORY_PREREG.md) | The confirmatory study: nonce + CounterFact/zsRE, the arms, N=50/200/1000, the review round and the pinned next experiments |
 | [`LIVING_MODEL_REVIEW_2026-10-04.md`](LIVING_MODEL_REVIEW_2026-10-04.md) | The review round: findings, corrections, the gating order |

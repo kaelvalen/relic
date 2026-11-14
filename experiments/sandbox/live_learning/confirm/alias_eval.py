@@ -23,7 +23,7 @@ from routed_eval import MANIFEST_PATH  # noqa: E402
 from router_v4_calibrate import build_dev  # noqa: E402
 from wrong_route import load, paired, with_adapter  # noqa: E402
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit, word_hit  # noqa: E402
 from relic.router import (  # noqa: E402
     RouterV7,
@@ -279,6 +279,7 @@ def main(argv=None):
     if args.serve:
         manifest = json.loads(MANIFEST_PATH.read_bytes())
         model = DeltaStore(manifest["models"]["base"]["id"], steps=16, capacity=1)
+        use_prompts(model, LEGACY_PROMPTS)
         model.deltas = {}
         model.materialize()
     for dataset, facts in data.items():

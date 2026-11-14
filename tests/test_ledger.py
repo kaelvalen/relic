@@ -7,6 +7,7 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
+from relic.adapters import pack_delta  # noqa: E402
 from relic.ledger import DeltaStore, Ledger  # noqa: E402
 
 SAME_RELATION = {"X was born in", "The birthplace of X is"}
@@ -115,9 +116,9 @@ def ladder_ledger(monkeypatch, klds):
 
     def train(store, pairs, seed):
         calls.append((len(pairs), seed, store.kl_lambda))
-        return delta()
+        return pack_delta(delta())
 
-    monkeypatch.setattr(module, "train_adapter", train)
+    monkeypatch.setattr(module, "train_adapter_packed", train)
     monkeypatch.setattr(led, "_rewrites", lambda f: ["Where was Ann born?"])
     values = iter(klds)
     monkeypatch.setattr(led.store, "_expert_kld", lambda d, p: next(values))
@@ -136,9 +137,12 @@ def test_write_commits_nothing_when_every_rung_fails(monkeypatch):
     led, calls = ladder_ledger(monkeypatch, [2.0] * 7)
     before = led.state_hash()
     event = led.write(fact("a", "Ann", "Ann was born in", "Oslo"))
-    assert event["action"] == "rejected" and len(event["tried"]) == 7
+    assert event["action"] == "reject" and len(event["tried"]) == 7
     assert calls[-1] == (2, 126, 1.0)  # the last rung has no rewrites
     assert led.state_hash() == before and not led.entries
+    # the rejection is logged, and the state it records is the one before the write
+    assert led.log[-1] == event and event["state_hash"] == before
+    assert event["seconds"] >= 0
 
 
 def test_a_repeated_fact_trains_nothing(monkeypatch):

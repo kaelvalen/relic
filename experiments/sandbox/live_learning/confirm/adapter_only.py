@@ -34,7 +34,7 @@ from relic.adapters import (  # noqa: E402
     set_delta,
     train_one,
 )
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import word_hit  # noqa: E402
 from relic.model import chat, load_model  # noqa: E402
 from relic.serving import SYSTEM, trim  # noqa: E402
@@ -265,6 +265,7 @@ def main(argv=None):
     report["damage_answers"] = [d["answer"] for d in damage]
 
     store = DeltaStore(MODEL, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     if "rewrites" not in report:
         report["rewrites"] = {}

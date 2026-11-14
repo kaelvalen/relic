@@ -135,6 +135,10 @@ table therefore keeps the rank-16 stores as the main build.
 | Can rewrites make the note unnecessary? | 126, 129 | Not yet. CounterFact paraphrases alone rise from 0.73 to 0.95, level with the note, but the forced leak on the subject's other relation rises from 0.36 to 0.63 and answers kept under a wrong route fall from 0.66 to 0.55. No arm passes. |
 | And through the router and the gate? | 130, 131 | Not yet. The leak stays level with the current store (E3 0.020 against 0.020, natural 0.114 against 0.107), but CounterFact paraphrases reach 0.880 against 0.913, because the gate rejects 19 of 300 adapters. With the gate off they reach 0.920. |
 | With a retry for rejected adapters, on fresh facts? | 136, 137 | No. On 800 fresh facts the retry removes the gate's cost, and CounterFact paraphrases reach 0.895 against 0.915 for the current store, lower bound -0.045 against a margin of -0.03. Edit prompts reach 0.986 against 0.965, and the leak does not separate the stores. The rule fails, and the author makes this store the default (entry 143). `Ledger` reproduces it exactly on 16 facts (entry 144). |
+| Can an entailment model tell correct near-relation answers from leaks? | 147, 148 | Not enough. A frozen NLI model ranks them better than the router's score (AUROC 0.756 against 0.685 on 96 labelled items), but at a threshold that keeps 90% of correct answers it removes 17% of leaks and 5% of correct answers, short of the registered gap of 20 points. |
+| Can a hypernetwork write the adapter in one forward pass? | 149 to 152 | Not as a replacement. A generated adapter costs 8 ms against 8.7 s and fits its training facts (0.95), but answers 0.10 of unseen facts; given the answer's identity it reaches 0.77, and none of its adapters stays under the divergence limit. The line closed at the author's threshold of 1.00. |
+| Does projecting the adapter away from ordinary inputs (as in AlphaEdit) make a wrong route cheaper? | 153, 155 | It does, and costs the fact. Removing the directions that hold 90% of the input energy keeps 0.91 of base answers on a wrong route against 0.68, and paraphrases fall from 0.78 to 0.32. |
+| Does the router work in another language? | 154, 156, 158, 159 | Not today. On 1031 BMIKE-53 facts the router separates the right fact from another relation of the subject with AUROC 0.975 in English and 0.532 in Turkish, and routes 0.005 of Turkish questions to their fact. The same triplets on a multilingual base give 0.939 in Turkish and 0.960 in English, which misses the English margin of -0.02 by 0.0001; adding machine-translated Turkish triplets gives 0.930 and 0.948. |
 
 ### Other base models
 
@@ -186,10 +190,12 @@ See entries 53, 54 and 63 of the pre-registration and the paper.
   and the adapter alone 71% (entry 100, 1000 questions). The router's false-route rate is
   what keeps this cost small.
 - The corrected near-relation leak rests on 27 items labelled by the author, with unsure items set aside.
+- The router reads English only: it routes almost no Turkish question (entry 156). In English, rephrasings written as
+  questions reach their fact 0.552 of the time at the operating point, since the stored keys are cloze prompts.
 - Multi-fact questions are not tested. Qwen sizes up to 7B and one other family were tested on
   answer rates only; leakage, removal and the wrong-route cost were measured on 1.5B.
 - The divergence limit is calibrated on 1.5B. On another base model, measure it first and pass it as
-  `Ledger.write(fact, kappa=...)`.
+  `Ledger(..., kappa=...)`; the state hash covers it.
 - "Transactional" covers one process: commits from threads are serial and saving is atomic. Two
   processes writing one store are not coordinated.
 - Pronoun handling was tested by substitution on constructed conversations. The rewrite reads the
@@ -208,6 +214,7 @@ relic/
 │   └── STATE.md                    # current state and next steps
 ├── docs/                           # positioning, pre-registration records, review notes
 ├── paper/                          # LaTeX source, tables, figures, numbers generator
+│   └── findings/                   # current findings as CSV, each number with its entry
 └── tests/
 ```
 
@@ -220,7 +227,10 @@ phase) or
 (confirmatory phase) before it was run, with its predictions and decision rule. Failed
 predictions are reported as failed, and deviations are written down with their reason.
 Pinned entries are tagged in git (`prereg-ss*`). Result files are written to
-`results/`, which is not tracked.
+`results/`, which is not tracked. Entry 157 fixes the names and definitions of the metrics: answers are free
+generations scored at a word boundary, so the paper says edit accuracy and not efficacy, which in the editing
+literature is a teacher-forced probability. The current findings, with the entry behind each number, are tabulated
+in [`paper/findings/`](paper/findings/README.md).
 
 ## Using the store
 

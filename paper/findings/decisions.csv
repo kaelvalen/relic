@@ -1,0 +1,32 @@
+result_entry,pin,date,question,rule,decision,status,key_numbers
+37,,2026-10-06,Does a strong RAG prompt close the gap to the stored adapter?,held,the adapter claim stands at N=1000,evidence,rag_instruct 0.837 vs 0.999
+63,SS63,2026-10-09,Does WISE with its intended merge lifecycle close the gap?,reading,WISE stays far below,evidence,edit 0.125; no-leak 0.27
+76,SS76,2026-10-11,Does a relation encoder trained on triplets route paraphrases better?,held,relenc becomes the router,current,CF paraphrase route 0.595 -> 0.908; held-out relations 0.747
+77,SS77,2026-10-11,Does a broad Wikidata relation inventory improve held-out relations?,failed,relenc stays,closed,held-out route 0.750 vs 0.747
+89,SS87,2026-10-20,Can rank-2 LoRA+ in int8 replace the rank-16 adapter?,held,rank 2 int8 for new adapters,current,373 KB vs 8.7 MB; paraphrase -0.014 [-0.043; 0.014]
+93,SS92,2026-10-20,Can LoReFT or DiReFT replace the rank-2 adapter?,failed,no candidate,closed,every variant above kappa on most facts
+95,SS94,2026-10-27,Do the N=1000 stores hold with rank 2?,failed on (v) only,paper reports both builds,evidence,wrong route 0.675 vs limit 0.69 (200 questions)
+109,SS107,2026-11-01,Do per-relation thresholds cut near-relation routing?,held,RELATION_TAU (R107),current,near routed 0.305 -> 0.169
+114,SS100,2026-11-01,What does a wrong route cost?,rank 16 kept,served figure reported from now on,evidence,adapter r2 0.657; adapter and note r2 0.367
+116,SS101,2026-11-01,Does the store cost general capability?,held,router stays out of MMLU/ARC,evidence,0 of 1000 routed; forced -0.007 to -0.022
+119,SS105,2026-11-02,Aliases and pronoun resolution?,held,aliases and rewrite are default,current,A2 0.090 -> 0.865 (CF); C1 0.998
+120,SS98,2026-11-03,Does the need for an adapter fall as the base model grows?,outcome C,the need depends on the model,evidence,0.5B 0.034; 1.5B 0.212; 7B 0.088; SmolLM3 0.050
+122,SS104,2026-11-03,Asymmetric write-time slots?,held,asymmetric slots are the write path,current,zsRE removal return 0.84 -> 1.00
+123,SS110,2026-11-03,Do hard negatives from the confusion matrix help the encoder?,failed,relenc stays,closed,hardA E3 +0.007; hardB near +0.220
+124,SS112,2026-11-03,Can shard adapters store several facts with exact removal?,failed,per-fact store stays,closed,best arm 47 KB/fact but paraphrase -0.146
+127,SS125,2026-11-03,Does the adapter alone beat the note alone?,held,supports the adapter path,evidence,CF paraphrase +0.049 [0.017; 0.081]
+128,SS113,2026-11-03,Can a per-fact soft prompt replace the adapter?,failed,adapter stays,closed,edit 0.574 vs 0.989
+129,SS126,2026-11-03,Do base-model rewrites let the adapter drop the note?,failed,A0 kept; stop rule on recipe changes,closed,paraphrase +0.133 at E3 leak +0.267 (forced)
+131,SS130,2026-11-03,Does a store with no note match the current one when served?,failed on paraphrase,gate carries the cost,evidence,paraphrase -0.020 (lower -0.043)
+137,SS136,2026-11-04,Store with no note and a retry ladder on fresh facts?,failed on CF paraphrase,author made it the default anyway (entry 143),current,CF paraphrase -0.020 (lower -0.045 vs -0.03); edit +0.021 [0.006; 0.036]
+139,SS138,2026-11-04,Per-relation thresholds on fresh facts?,held for R107,R107 adopted in the write path,current,near leak 0.296 -> 0.171
+142,SS141,2026-11-04,Do thresholds remove leaks or correct answers?,reading,they remove both at similar rates,evidence,legit 0.431 vs leak 0.553 removed
+143,,2026-11-04,Author's decision,n/a,store with no note is the default,current,no stored text in the prompt
+146,SS145,2026-11-07,Main evaluation on the default store,CounterFact parts held,zsRE half open,open,see results.csv section default_seen
+148,SS147,2026-11-12,Does an NLI score separate correct near answers from leaks?,failed (ii),not added to the router,closed,AUROC 0.756; operating point gap 0.128 < 0.20
+150,SS149,2026-11-12,Can a hypernetwork write a working adapter (phase 0)?,held at its edge,phase 1 proposed,superseded,unseen 0.10
+152,SS151,2026-11-12,Does the hypernetwork reach 1.00 on unseen facts when it sees the answer?,failed,hypernetwork line closed,closed,unseen 0.77; no adapter under kappa
+155,SS153,2026-11-12,Does a null-space projection make a wrong route cheaper?,failed,default stays,closed,wrong route 0.68 -> 0.91; paraphrase 0.78 -> 0.32
+156,SS154,2026-11-12,Does a multilingual relation encoder keep English and repair Turkish?,failed (ii) by 0.0001,router stays,closed,TR 0.532 -> 0.939; EN diff lower -0.0201
+157,,2026-11-14,Metric contract,n/a,headline set and names fixed,current,efficacy renamed edit accuracy
+159,SS158,2026-11-14,Do Turkish triplets help the relation encoder?,failed,router stays,closed,relenc-b below relenc-m in both languages

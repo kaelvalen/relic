@@ -1,7 +1,7 @@
-# Living model - confirmatory summary (updated 2026-11-04)
+# Living model - confirmatory summary (updated 2026-11-14)
 
 One-page record of the confirmatory phase. Sources: `LIVING_MODEL_CONFIRMATORY_PREREG.md`
-SS33-78, then entries to 146 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
+SS33-78, then entries to 159 at the end; all numbers at N=1000 with Qwen2.5-1.5B-Instruct unless noted. Nothing here is
 new - it consolidates. The paper (`paper/main.tex`) reports the same numbers.
 
 ## The claim
@@ -121,4 +121,19 @@ Each line is a reading from the pre-registration record; the README's table of c
 - The main evaluation, CounterFact half (entry 146). On the 1000 main-store facts the store with no note answers 0.995 of edit
   prompts and 0.844 of paraphrases against 0.885 with adapter and note; removal returns 1.00 and retention is 0.998; a wrong route
   keeps 0.558 of correct answers against 0.369 at the same length. 18% of facts needed a retry, and a write took 21 s at the median.
-- Open. The zsRE half of the main evaluation (stopped at 550 of 1000), a signal that separates near-relation leaks from correct answers, that store beyond 1.5B, and the state hash, which names the model without its revision.
+
+## Since 2026-11-12 (entries 147 to 159)
+
+- An entailment signal (entry 148). A frozen NLI model ranks correct near-relation answers above leaks better than the router's
+  score, AUROC 0.756 against 0.685, but at its operating point removes 17% of leaks and 5% of correct answers, short of the rule.
+- The hypernetwork (entries 150, 152). Generated adapters fit their training facts and answer 0.10 of unseen facts, 0.77 with the
+  answer's identity as input, and none stays under the divergence limit. The line closed at the author's threshold of 1.00.
+- A null-space projection (entry 155). A wrong route keeps 0.91 of base answers against 0.68, and paraphrases fall from 0.78 to 0.32.
+- The metric contract (entry 157). The headline set is edit accuracy, paraphrase accuracy, leak rate, wrong-route retention,
+  removal, capability cost and cost. "Efficacy" is retired, as ours is free generation and not a teacher-forced probability.
+- Another language (entries 156, 159). On BMIKE-53 the router's AUROC is 0.975 in English and 0.532 in Turkish. A multilingual
+  encoder on the same triplets gives 0.939 in Turkish and misses the English margin by 0.0001; adding translated Turkish triplets
+  gives 0.930 and 0.948. The router stays. English rephrasings written as questions route right 0.552 of the time.
+- Open. The zsRE half of the main evaluation (stopped at 550 of 1000), a signal that separates near-relation leaks from correct
+  answers, that store beyond 1.5B, routing outside English, time to first token, and the state hash, which names the model
+  without its revision. The findings are tabulated in `paper/findings/`.

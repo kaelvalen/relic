@@ -3,13 +3,12 @@
 \centering
 \resizebox{\textwidth}{!}{\input{figures/architecture_body}}
 \caption{Overview of RELIC's default store. Top: a fact is written by training a rank-2 adapter on
-its edit prompt and on three rewrites by the base model, with a KL anchor on a copy of the frozen
+its edit prompt and on up to three rewrites by the base model, with a KL anchor on a copy of the frozen
 base. The adapter is committed only if its divergence $D$ on 40 held-out prompts is at most $\kappa$;
 otherwise the next rung of a ladder retrains it with another seed or a stronger anchor, and a fact
 that passes no rung is rejected and changes nothing. Middle: the ledger holds one entry per fact and
 logs every operation with a state hash; removal deletes the entry. Bottom: the router applies an
 entry only if the question names a stored subject and asks for its relation; otherwise the base model
-answers, and every answer carries the identifier of its entry. The main evaluation also served a note
-with each adapter (Section~\ref{sec:method}).}
+answers, and every answer carries the identifier of its entry.}
 \label{fig:arch}
 \end{figure*}

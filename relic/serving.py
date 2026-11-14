@@ -10,6 +10,11 @@ SYSTEM = "Answer briefly."
 _LIBC = ctypes.CDLL("libc.so.6")
 
 
+def _system(store) -> str:
+    """The store's serving prompt (DeltaStore.system); SYSTEM for stores without one."""
+    return getattr(store, "system", SYSTEM)
+
+
 def trim() -> None:
     """Return glibc arena memory to the OS (the training loop's RSS balloon)."""
     _LIBC.malloc_trim(0)
@@ -20,7 +25,8 @@ def base_answer(store, q, note=None, system=None):
     store.deltas = {}
     store.materialize()
     if system is None:
-        system = SYSTEM if note is None else f"{SYSTEM} Context: {note}"
+        system = _system(store)
+        system = system if note is None else f"{system} Context: {note}"
     resp = store.answer(q, system=system)
     store.deltas = full
     store.materialize()
@@ -31,7 +37,7 @@ def serve_expert(store, fid, q, system=None):
     full = store.deltas
     store.deltas = {fid: full[fid]}
     store.materialize()
-    resp = store.answer(q, system=system or SYSTEM)
+    resp = store.answer(q, system=system or _system(store))
     store.deltas = full
     store.materialize()
     return resp
@@ -108,7 +114,7 @@ class Server:
         full = store.deltas
         store.deltas = {fid: full[fid]}
         store.materialize()
-        resp = store.answer(q, system=system or SYSTEM)
+        resp = store.answer(q, system=system or _system(store))
         store.deltas = full
         store.materialize()
         return resp

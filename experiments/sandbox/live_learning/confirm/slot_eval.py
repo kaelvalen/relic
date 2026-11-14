@@ -26,7 +26,7 @@ from routed_eval import (  # noqa: E402
 )
 from router_v4_calibrate import _templates_by_relation, build_dev  # noqa: E402
 
-from relic.ledger import DeltaStore, Ledger  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, Ledger, use_prompts  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.router import (  # noqa: E402
     find_subject,
@@ -129,7 +129,12 @@ def evaluate(dataset, store, scorer, theta_slot, raw_cf, duplicate_theta=None):
 
     store.deltas, store.keys, store.notes = {}, {}, {}
     ledger = Ledger(
-        store, scorer, THETA_ROUTE, theta_slot, duplicate_theta or theta_slot
+        store,
+        scorer,
+        THETA_ROUTE,
+        theta_slot,
+        duplicate_theta or theta_slot,
+        keep_history=False,  # SS96/SS104 as run: an update drops the entry it replaces
     )
     holder, events = {}, []
     for f in facts:
@@ -303,6 +308,7 @@ def main(argv=None):
 
     manifest = json.loads(MANIFEST_PATH.read_bytes())
     store = DeltaStore(manifest["models"]["base"]["id"], steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     report = {
         "prereg": args.prereg,
         "duplicate_theta": args.duplicate_theta,

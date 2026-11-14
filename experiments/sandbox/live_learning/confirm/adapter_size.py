@@ -39,7 +39,7 @@ from relic.adapters import (  # noqa: E402
     set_delta,
     train_one,
 )
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import (
     hit,  # noqa: E402
     sym_kl,  # noqa: E402
@@ -109,6 +109,7 @@ def precision(args) -> None:
 
     torch.manual_seed(SEED)
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     slot = next(p for n, p in store.model.named_parameters() if "lora_A" in n)
     store.deltas = {}
     store.materialize()
@@ -247,6 +248,7 @@ def sweep(args) -> None:
     data = json.loads(Path(args.facts).read_text())
     facts = data["facts"] if isinstance(data, dict) else data
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     store.model.to("cpu")  # only the tokenizer and the loss helpers are used
     torch.cuda.empty_cache()

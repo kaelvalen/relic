@@ -10,6 +10,7 @@ configuration), so revoking the last addition restores the recorded pre-add hash
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import threading
 import time
@@ -18,12 +19,20 @@ from pathlib import Path
 import torch
 
 from relic.adapters import (
+    B_MULT,
     LADDER,
+    R2,
     REWRITE_SYSTEM,
     REWRITE_USER,
+    blob_to_record,
     fact_pairs,
+    pack_delta,
+    pad,
     parse_rewrites,
-    train_adapter,
+    record_to_blob,
+    train_adapter_packed,
+    trim_rank,
+    unpack_delta,
 )
 from relic.metrics import sym_kl
 from relic.model import chat, load_model, make_lora
@@ -34,7 +43,7 @@ from relic.router import (
     resolve_reference,
     usable_aliases,
 )
-from relic.serving import base_answer, serve_expert
+from relic.serving import SYSTEM, base_answer, serve_expert
 
 R = 16  # rank per fact
 CAP = 64  # capacity of the merged adapter, in facts; routed serving has no such limit
@@ -85,8 +94,40 @@ HELDOUT_CANARIES = [
 # p99 of held-out divergence over stored adapters on Qwen2.5-1.5B (SS69); calibrate per model (SS98)
 KAPPA = 0.968
 
+PROMPT_FIELDS = ("train_system", "anchor_system", "system")
+# The prompts of every record up to entry 159: training pairs without a system message
+# (Qwen's template then adds its default one), the KL anchor and the divergence check under
+# a Turkish instruction, serving under "Answer briefly.".
+LEGACY_PROMPTS = {
+    "train_system": None,
+    "anchor_system": "Kısa ve net cevap ver.",
+    "system": "Answer briefly.",
+}
+
+
+def use_prompts(store, prompts: dict):
+    """Set the store's system prompts, e.g. LEGACY_PROMPTS to reproduce an old entry."""
+    unknown = set(prompts) - set(PROMPT_FIELDS)
+    if unknown:
+        raise ValueError(f"unknown prompt fields: {sorted(unknown)}")
+    for k, v in prompts.items():
+        setattr(store, k, v)
+    return store
+
+
+def chat_messages(system: str | None, *turns: dict) -> list[dict]:
+    head = [] if system is None else [{"role": "system", "content": system}]
+    return head + list(turns)
+
 
 class DeltaStore:
+    # one system prompt for training, the anchor, the divergence check and serving; class
+    # attributes, so stores built with __new__ have them too (use_prompts overrides them)
+    train_system: str | None = SYSTEM
+    anchor_system: str | None = SYSTEM
+    system: str = SYSTEM
+    revision: str | None = None
+
     def __init__(
         self,
         model_name: str,
@@ -115,8 +156,13 @@ class DeltaStore:
         # encoder, threshold and any other router setting that decides routing; set by
         # the caller, hashed into the state
         self.router_config = ""
-        self.base_hash = hashlib.sha256(
+        self.revision = getattr(getattr(base, "config", None), "_commit_hash", None)
+        # the hash of stores saved before the model revision was hashed (format 1)
+        self.legacy_base_hash = hashlib.sha256(
             f"{model_name}|r{R}|cap{capacity}".encode()
+        ).hexdigest()
+        self.base_hash = hashlib.sha256(
+            f"{model_name}|r{R}|cap{capacity}|rev={self.revision}".encode()
         ).hexdigest()
         self._zero()
 
@@ -163,10 +209,7 @@ class DeltaStore:
     # -- transactions -----------------------------------------------------
     def _logits(self, model, q: str) -> torch.Tensor:
         ids = self.tok.apply_chat_template(
-            [
-                {"role": "system", "content": "Kısa ve net cevap ver."},
-                {"role": "user", "content": q},
-            ],
+            chat_messages(self.anchor_system, {"role": "user", "content": q}),
             add_generation_prompt=True,
             return_tensors="pt",
         )
@@ -174,14 +217,18 @@ class DeltaStore:
         return model(input_ids=ids).logits[0, -1].float()
 
     def _pair_step(self, model, opt, user: str, assistant: str) -> None:
-        pair = [
+        turns = (
             {"role": "user", "content": user},
             {"role": "assistant", "content": assistant},
-        ]
-        prompt = self.tok.apply_chat_template(
-            pair[:-1], add_generation_prompt=True, return_tensors="pt"
         )
-        full = self.tok.apply_chat_template(pair, return_tensors="pt")
+        prompt = self.tok.apply_chat_template(
+            chat_messages(self.train_system, *turns[:1]),
+            add_generation_prompt=True,
+            return_tensors="pt",
+        )
+        full = self.tok.apply_chat_template(
+            chat_messages(self.train_system, *turns), return_tensors="pt"
+        )
         pid = prompt["input_ids"] if hasattr(prompt, "keys") else prompt
         fid = full["input_ids"] if hasattr(full, "keys") else full
         fid = fid.to(model.device)
@@ -243,10 +290,7 @@ class DeltaStore:
         self.deltas = {}
         self.materialize()
         ids = self.tok.apply_chat_template(
-            [
-                {"role": "system", "content": "Kısa ve net cevap ver."},
-                {"role": "user", "content": text},
-            ],
+            chat_messages(self.anchor_system, {"role": "user", "content": text}),
             add_generation_prompt=True,
             return_tensors="pt",
         )
@@ -320,7 +364,7 @@ class DeltaStore:
         self.materialize()
         return {"committed": True, "kld": kld}
 
-    def answer_routed(self, user: str, system: str = "Kısa ve net cevap ver.") -> str:
+    def answer_routed(self, user: str, system: str | None = None) -> str:
         """Route to ONE expert (semantic keys, cosine), never the merged sum."""
         ids = sorted(self.deltas)
         if not ids:
@@ -345,14 +389,14 @@ class DeltaStore:
         return resp
 
     # -- behaviour --------------------------------------------------------
-    def answer(self, user: str, system: str = "Kısa ve net cevap ver.") -> str:
+    def answer(self, user: str, system: str | None = None) -> str:
         return chat(
             self.tok,
             self.model,
-            [
-                {"role": "system", "content": system},
+            chat_messages(
+                self.system if system is None else system,
                 {"role": "user", "content": user},
-            ],
+            ),
             max_new_tokens=64,
         )
 
@@ -363,11 +407,63 @@ def _hash_text(h, s: str) -> None:
 
 
 def _delta_digest(delta: dict) -> str:
+    """Digest of an fp32 delta, as format-1 state hashes computed it."""
     h = hashlib.sha256()
     for n in sorted(delta):
         _hash_text(h, n)
         for t in (delta[n]["A"], delta[n]["B"]):
             h.update(t.float().contiguous().numpy().tobytes())
+    return h.hexdigest()
+
+
+def packed_digest(packed: dict) -> str:
+    """Digest of a stored adapter record: the same record gives the same digest."""
+    h = hashlib.sha256()
+    _hash_text(h, packed["format"])
+    for n in sorted(packed["tensors"]):
+        _hash_text(h, n)
+        for k in sorted(packed["tensors"][n]):
+            t = packed["tensors"][n][k].contiguous()
+            _hash_text(h, f"{k}|{t.dtype}|{tuple(t.shape)}")
+            h.update(t.numpy().tobytes())
+    return h.hexdigest()
+
+
+def _blob(packed: dict | None) -> dict | None:
+    return None if packed is None else record_to_blob(packed)
+
+
+def _record(stored: dict | None) -> dict | None:
+    return None if stored is None else blob_to_record(stored)
+
+
+def _canon(obj) -> str:
+    return json.dumps(obj, sort_keys=True, ensure_ascii=False, default=str)
+
+
+def _digest_texts(texts) -> str:
+    h = hashlib.sha256()
+    for t in texts:
+        _hash_text(h, t)
+    return h.hexdigest()
+
+
+def _legacy_state_hash(
+    base_hash, router_config, limits, relation_tau, entries, phrasings, digests
+) -> str:
+    """The state hash of format-1 files, exactly as the ledger computed it before v2."""
+    h = hashlib.sha256()
+    limits = [*limits, *(f"{r}={t}" for r, t in sorted(relation_tau.items()))]
+    for s in (base_hash, router_config, *map(str, limits)):
+        _hash_text(h, s)
+    for fid in sorted(entries):
+        entry = entries[fid]
+        fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
+        fields.append(entry.get("relation", ""))
+        names = sorted(entry.get("aliases", ()))
+        for s in [*fields, entry["probe"], *sorted(phrasings[fid]), *names]:
+            _hash_text(h, s)
+        _hash_text(h, digests.get(fid, ""))
     return h.hexdigest()
 
 
@@ -377,8 +473,15 @@ class Ledger:
     A write whose subject is stored and whose relation the scorer cannot tell apart from
     a stored relation of that subject is not a new entry. With the same answer it adds its
     phrasing to the entry, with another answer it replaces the entry and keeps its
-    phrasings. Removing an entry therefore removes the fact, however many times it was
-    written (prereg SS96, SS104).
+    phrasings (prereg SS96, SS104).
+
+    Every write is kept: `writes[fid]` lists the writes an entry holds, its own first, and
+    `history[fid]` the entries it superseded, oldest first. `revoke(fid)` removes a fact
+    however many times it was written and brings back the entry it superseded, so removing
+    an update restores the store as it was before the update. `retract(write_id)` removes
+    one write and leaves the store as if that write had never happened.
+    `keep_history=False` restores the behavior of the records up to entry 159: an update
+    drops the entry it replaces, and a removal brings nothing back.
 
     Slot decision and store change happen under one lock, so commits from several threads
     have a serial order and each one decides against the state left by the one before.
@@ -394,14 +497,21 @@ class Ledger:
         slot_theta: float,
         duplicate_theta: float | None = None,
         relation_tau: dict | None = None,
+        kappa: float = KAPPA,
+        keep_history: bool = True,
     ):
         self.store, self.scorer = store, scorer
         self.tau, self.slot_theta = tau, slot_theta
         self.relation_tau = dict(relation_tau or {})
         # SS104: a same-answer write merges wherever a query would be routed to the entry
         self.duplicate_theta = tau if duplicate_theta is None else duplicate_theta
+        self.kappa = kappa
+        self.keep_history = keep_history
         self.entries: dict[str, dict] = {}
         self.phrasings: dict[str, list[str]] = {}
+        self.writes: dict[str, list[dict]] = {}
+        self.history: dict[str, list[dict]] = {}
+        self.packed: dict[str, dict] = {}
         self._delta_digest: dict[str, str] = {}
         self.log: list[dict] = []
         self.lock = threading.RLock()
@@ -438,13 +548,66 @@ class Ledger:
         stored = self.entries[fid]["answer"]
         return normalize(stored).strip() == normalize(fact["answer"]).strip()
 
-    # -- transactions -----------------------------------------------------
-    def _drop(self, fid: str) -> None:
+    # -- bookkeeping ------------------------------------------------------
+    def ids(self) -> set[str]:
+        """Every id in use: active entries, their writes, and superseded entries."""
+        out = set(self.entries)
+        for ws in self.writes.values():
+            out |= {w["fact"]["id"] for w in ws}
+        for stack in self.history.values():
+            for snap in stack:
+                out.add(snap["entry"]["id"])
+                out |= {w["fact"]["id"] for w in snap["writes"]}
+        return out
+
+    def _check_new_id(self, fid: str) -> None:
+        if fid in self.ids():
+            raise ValueError(f"{fid}: id is held by another fact or write")
+
+    def _set_delta(self, fid: str, delta: dict) -> None:
+        """Keep the stored record and the padded adapter that serving swaps in."""
+        if "format" in delta:
+            packed = delta
+            self.store.deltas[fid] = pad(unpack_delta(packed))
+        else:
+            packed = pack_delta(trim_rank(delta))
+            self.store.deltas[fid] = delta
+        self.packed[fid] = packed
+        self._delta_digest[fid] = packed_digest(packed)
+
+    def _snapshot(self, fid: str) -> dict:
+        return {
+            "entry": self.entries[fid],
+            "phrasings": list(self.phrasings[fid]),
+            "writes": list(self.writes.get(fid, [])),
+            "packed": self.packed.get(fid),
+            "digest": self._delta_digest.get(fid),
+        }
+
+    def _remove_active(self, fid: str) -> None:
         del self.entries[fid], self.phrasings[fid]
+        self.writes.pop(fid, None)
+        self.packed.pop(fid, None)
         self._delta_digest.pop(fid, None)
         self.store.deltas.pop(fid, None)
         self.store.keys.pop(fid, None)
         self._router = None
+
+    def _activate(self, snap: dict) -> str:
+        entry = snap["entry"]
+        fid = entry["id"]
+        self.entries[fid] = entry
+        self.phrasings[fid] = list(snap["phrasings"])
+        self.writes[fid] = list(snap["writes"])
+        self.store.keys[fid] = entry["probe"]
+        if snap["packed"] is not None:
+            self._set_delta(fid, snap["packed"])
+        self._router = None
+        return fid
+
+    def _rebuild_router(self) -> None:
+        self._router = None
+        _ = self.router
 
     def _record(self, action: str, fid: str, **extra) -> dict:
         event = {
@@ -457,39 +620,144 @@ class Ledger:
         self.log.append(event)
         return event
 
-    def commit(self, fact: dict, delta: dict | None = None) -> dict:
-        """Apply one write atomically: insert, duplicate (new phrasing) or update."""
+    # -- transactions -----------------------------------------------------
+    def commit(self, fact: dict, delta: dict | None = None, **extra) -> dict:
+        """Apply one write atomically: insert, duplicate (new phrasing) or update.
+
+        `delta` is an adapter ({module: {"A", "B"}}) or a stored record (pack_delta);
+        `extra` goes into the log record.
+        """
         with self.lock:
+            fid = fact["id"]
+            self._check_new_id(fid)
             old = self.slot(fact)
-            if fact["id"] in self.entries and fact["id"] != old:
-                # committing would serve the old entry's adapter with this fact's note
-                raise ValueError(f"{fact['id']}: id is held by another fact")
             if old is not None and self._same_answer(old, fact):
-                if fact["probe"] != self.entries[old]["probe"] and (
+                added = fact["probe"] != self.entries[old]["probe"] and (
                     fact["probe"] not in self.phrasings[old]
-                ):
+                )
+                if added:
                     self.phrasings[old].append(fact["probe"])
+                self.writes[old].append({"fact": fact, "added_phrasing": added})
                 self._router = None
-                return self._record("duplicate", old, written=fact["id"])
-            kept = []
+                return self._record("duplicate", old, written=fid, **extra)
+            kept, stack = [], []
             if old is not None:
                 kept = [self.entries[old]["probe"], *self.phrasings[old]]
-                self._drop(old)
-            self.entries[fact["id"]] = fact
-            self.phrasings[fact["id"]] = [p for p in kept if p != fact["probe"]]
-            self.store.keys[fact["id"]] = fact["probe"]
+                if self.keep_history:
+                    stack = self.history.pop(old, []) + [self._snapshot(old)]
+                self._remove_active(old)
+            self.entries[fid] = fact
+            self.phrasings[fid] = [p for p in kept if p != fact["probe"]]
+            self.writes[fid] = [{"fact": fact, "added_phrasing": False}]
+            if stack:
+                self.history[fid] = stack
+            self.store.keys[fid] = fact["probe"]
             if delta is not None:
-                self.store.deltas[fact["id"]] = delta
-                self._delta_digest[fact["id"]] = _delta_digest(delta)
+                self._set_delta(fid, delta)
             self._router = None
             if old is None:
-                return self._record("insert", fact["id"])
-            return self._record("update", fact["id"], superseded=old)
+                return self._record("insert", fid, **extra)
+            return self._record("update", fid, superseded=old, **extra)
+
+    def _revoke_active(self, fid: str) -> str | None:
+        """Remove an active entry; the entry it superseded, if any, becomes active again."""
+        stack = self.history.pop(fid, [])
+        self._remove_active(fid)
+        if not (stack and self.keep_history):
+            return None
+        restored = self._activate(stack.pop())
+        if stack:
+            self.history[restored] = stack
+        return restored
+
+    def _history_owner(self, fid: str) -> tuple[str, int] | None:
+        for owner in sorted(self.history):
+            for i, snap in enumerate(self.history[owner]):
+                if snap["entry"]["id"] == fid:
+                    return owner, i
+        return None
 
     def revoke(self, fid: str) -> dict:
+        """Remove a fact. An active entry goes with all its writes, and the entry it
+        superseded comes back; a superseded entry is erased from the history."""
         with self.lock:
-            self._drop(fid)
-            return self._record("revoke", fid)
+            t0 = time.perf_counter()
+            if fid in self.entries:
+                restored = self._revoke_active(fid)
+                self._rebuild_router()
+                seconds = round(time.perf_counter() - t0, 6)
+                return self._record("revoke", fid, restored=restored, seconds=seconds)
+            found = self._history_owner(fid)
+            if found is None:
+                raise KeyError(
+                    f"{fid}: no entry or superseded entry has this id"
+                    " (a duplicate write is removed with retract)"
+                )
+            owner, i = found
+            del self.history[owner][i]
+            if not self.history[owner]:
+                del self.history[owner]
+            self._rebuild_router()
+            seconds = round(time.perf_counter() - t0, 6)
+            return self._record(
+                "revoke", fid, purged_from=owner, restored=None, seconds=seconds
+            )
+
+    def _can_train(self) -> bool:
+        return getattr(self.store, "model", None) is not None
+
+    def retract(self, write_id: str) -> dict:
+        """Remove one write of an active entry, as if it had never been made.
+
+        A duplicate drops its phrasing unless another write of the entry has the same
+        prompt. The entry's own write is replaced by the next remaining write, which is
+        written again (trained, when the ledger has a model), so no adapter trained on the
+        retracted write survives. The last write of an entry is a revoke.
+        """
+        with self.lock:
+            t0 = time.perf_counter()
+            owner = next(
+                (
+                    fid
+                    for fid in sorted(self.writes)
+                    if any(w["fact"]["id"] == write_id for w in self.writes[fid])
+                ),
+                None,
+            )
+            if owner is None:
+                raise KeyError(f"{write_id}: no active entry holds this write")
+            ws = self.writes[owner]
+            i = next(k for k, w in enumerate(ws) if w["fact"]["id"] == write_id)
+            extra: dict = {"write": write_id}
+            if len(ws) == 1:
+                extra["restored"] = self._revoke_active(owner)
+                extra["mode"] = "last"
+            elif i > 0:
+                w = ws.pop(i)
+                probe = w["fact"]["probe"]
+                if w["added_phrasing"]:
+                    heir = next(
+                        (x for x in ws[1:] if x["fact"]["probe"] == probe), None
+                    )
+                    if heir is not None:
+                        heir["added_phrasing"] = True
+                    else:
+                        self.phrasings[owner].remove(probe)
+                extra["mode"] = "duplicate"
+            else:
+                rest = [w["fact"] for w in ws[1:]]
+                self._revoke_active(owner)
+                cause = f"retract:{write_id}"
+                for f in rest:
+                    if self._can_train():
+                        self.write(f, cause=cause)
+                    else:
+                        self.commit(f, cause=cause)
+                extra["mode"] = "rebuilt"
+                extra["rebuilt_from"] = rest[0]["id"]
+            self._rebuild_router()
+            extra["seconds"] = round(time.perf_counter() - t0, 6)
+            return self._record("retract", owner, **extra)
 
     def _rewrites(self, fact: dict) -> list[str]:
         """Phrasings by the base model, from the subject and the edit prompt alone."""
@@ -510,16 +778,20 @@ class Ledger:
         store.materialize()
         return parse_rewrites(text, fact["probe"], fact["subject"])
 
-    def write(self, fact: dict, kappa: float = KAPPA) -> dict:
-        """Train the fact's adapter: the first rung of the ladder under the divergence limit.
+    def write(self, fact: dict, **extra) -> dict:
+        """Train the fact's adapter: the first rung of the ladder under `self.kappa`.
 
         The store's one model is parked while a candidate trains, so a write holds the
-        lock throughout. If no rung passes, the write commits nothing.
+        lock throughout. If no rung passes, the write commits nothing and the log records
+        the rejection. `extra` goes into the log record.
         """
         with self.lock:
+            t0 = time.perf_counter()
+            self._check_new_id(fact["id"])
             old = self.slot(fact)
             if old is not None and self._same_answer(old, fact):
-                return self.commit(fact)
+                seconds = round(time.perf_counter() - t0, 3)
+                return self.commit(fact, seconds=seconds, **extra)
             short = fact_pairs(fact)
             full = short + [(r, fact["answer"]) for r in self._rewrites(fact)]
             store, weight = self.store, self.store.kl_lambda
@@ -527,14 +799,29 @@ class Ledger:
             try:
                 for name, seed, kl_lambda, rewrites in LADDER:
                     store.kl_lambda = kl_lambda
-                    delta = train_adapter(store, full if rewrites else short, seed)
-                    kld = store._expert_kld(delta, HELDOUT_CANARIES)
+                    packed = train_adapter_packed(
+                        store, full if rewrites else short, seed
+                    )
+                    kld = store._expert_kld(pad(unpack_delta(packed)), HELDOUT_CANARIES)
                     tried[name] = kld
-                    if kld <= kappa:  # a NaN divergence is rejected, not committed
-                        return {**self.commit(fact, delta), "kld": kld, "rung": name}
+                    if kld <= self.kappa:  # a NaN divergence is rejected, not committed
+                        seconds = round(time.perf_counter() - t0, 3)
+                        return self.commit(
+                            fact,
+                            packed,
+                            rung=name,
+                            kld=kld,
+                            seed=seed,
+                            tried=dict(tried),
+                            seconds=seconds,
+                            **extra,
+                        )
             finally:
                 store.kl_lambda = weight
-            return {"action": "rejected", "entry": fact["id"], "tried": tried}
+            seconds = round(time.perf_counter() - t0, 3)
+            return self._record(
+                "reject", fact["id"], tried=tried, seconds=seconds, **extra
+            )
 
     # -- reads ------------------------------------------------------------
     @property
@@ -568,38 +855,90 @@ class Ledger:
             answer = serve_expert(self.store, fid, query)
             return {"answer": answer, "entry": fid, "score": score}
 
+    def _config(self) -> list[str]:
+        """Everything outside the entries that decides how the store behaves."""
+        st = self.store
+        parts = ["state-hash-v2", st.base_hash, str(getattr(st, "revision", None))]
+        parts.append(st.router_config)
+        parts += [repr(self.tau), repr(self.slot_theta), repr(self.duplicate_theta)]
+        parts += [f"{r}={t!r}" for r, t in sorted(self.relation_tau.items())]
+        parts += [f"kappa={self.kappa!r}", f"keep_history={self.keep_history}"]
+        parts += [_canon(LADDER), _canon(R2), f"b_mult={B_MULT}"]
+        parts += [f"steps={getattr(st, 'steps', None)!r}"]
+        parts += [f"lr={getattr(st, 'lr', None)!r}"]
+        parts += [f"{k}={getattr(st, k, None)!r}" for k in PROMPT_FIELDS]
+        parts.append(_digest_texts(HELDOUT_CANARIES))
+        parts.append(_digest_texts(getattr(st, "kl_prompts", CANARIES)))
+        return parts
+
+    @staticmethod
+    def _hash_record(h, fid, entry, phrasings, writes, digest) -> None:
+        _hash_text(h, fid)
+        _hash_text(h, _canon(entry))
+        phrasings = sorted(phrasings)
+        _hash_text(h, str(len(phrasings)))
+        for p in phrasings:
+            _hash_text(h, p)
+        ws = sorted(writes, key=lambda w: w["fact"]["id"])
+        _hash_text(h, str(len(ws)))
+        for w in ws:
+            _hash_text(h, _canon(w["fact"]))
+            _hash_text(h, str(w["added_phrasing"]))
+        _hash_text(h, digest or "")
+
     def state_hash(self) -> str:
-        """A function of the active set: the model, the router settings and each entry.
+        """A function of the state: the configuration, and each entry with its writes,
+        phrasings, adapter record and the entries it superseded.
 
         A delta is hashed once when it is committed; hashing every tensor of a large
         store on each commit would make a commit linear in the size of the store.
         """
         h = hashlib.sha256()
-        limits = [self.tau, self.slot_theta, self.duplicate_theta]
-        limits += [f"{r}={t}" for r, t in sorted(self.relation_tau.items())]
-        for s in (self.store.base_hash, self.store.router_config, *map(str, limits)):
+        for s in self._config():
             _hash_text(h, s)
         for fid in sorted(self.entries):
-            entry = self.entries[fid]
-            fields = [fid, entry["subject"], entry["answer"], entry["teach"]]
-            fields.append(entry.get("relation", ""))
-            names = sorted(entry.get("aliases", ()))
-            for s in [*fields, entry["probe"], *sorted(self.phrasings[fid]), *names]:
-                _hash_text(h, s)
-            _hash_text(h, self._delta_digest.get(fid, ""))
+            self._hash_record(
+                h,
+                fid,
+                self.entries[fid],
+                self.phrasings[fid],
+                self.writes.get(fid, []),
+                self._delta_digest.get(fid),
+            )
+            stack = self.history.get(fid, [])
+            _hash_text(h, f"history:{len(stack)}")
+            for snap in stack:
+                self._hash_record(
+                    h,
+                    snap["entry"]["id"],
+                    snap["entry"],
+                    snap["phrasings"],
+                    snap["writes"],
+                    snap["digest"],
+                )
         return h.hexdigest()
 
     # -- durability -------------------------------------------------------
     def save(self, path) -> None:
-        """Write the state to a new file and rename it: a crash leaves the old file whole."""
+        """Write the state to a new file and rename it: a crash leaves the old file whole.
+
+        Adapters are written as their stored records (int8 rows, 373 KB for the adopted
+        rank-2 adapter), not as the padded tensors that serving swaps in.
+        """
         path = Path(path)
         tmp = path.with_name(f"{path.name}.tmp")
         with self.lock:
             state = {
+                "format": 2,
                 "entries": self.entries,
                 "phrasings": self.phrasings,
+                "writes": self.writes,
+                "history": {
+                    fid: [{**snap, "packed": _blob(snap["packed"])} for snap in stack]
+                    for fid, stack in self.history.items()
+                },
+                "packed": {fid: _blob(p) for fid, p in self.packed.items()},
                 "log": self.log,
-                "deltas": self.store.deltas,
                 "router_config": self.store.router_config,
                 "state_hash": self.state_hash(),
             }
@@ -612,14 +951,61 @@ class Ledger:
     def load(self, path) -> None:
         state = torch.load(path, map_location="cpu", weights_only=False)
         with self.lock:
+            if "format" not in state:
+                self._load_v1(path, state)
+                return
+            if state["format"] != 2:
+                raise ValueError(f"{path}: unknown state format {state['format']!r}")
             self.entries, self.phrasings = state["entries"], state["phrasings"]
+            self.writes = state["writes"]
+            self.history = {
+                fid: [{**snap, "packed": _record(snap["packed"])} for snap in stack]
+                for fid, stack in state["history"].items()
+            }
             self.log = state["log"]
-            self.store.deltas = state["deltas"]
             self.store.router_config = state["router_config"]
             self.store.keys = {f: e["probe"] for f, e in self.entries.items()}
-            self._delta_digest = {
-                f: _delta_digest(d) for f, d in state["deltas"].items()
-            }
+            self.store.deltas, self.packed, self._delta_digest = {}, {}, {}
+            for fid, stored in state["packed"].items():
+                self._set_delta(fid, _record(stored))
+            for stack in self.history.values():
+                for snap in stack:
+                    snap["digest"] = (
+                        None
+                        if snap["packed"] is None
+                        else packed_digest(snap["packed"])
+                    )
             self._router = None
             if self.state_hash() != state["state_hash"]:
                 raise ValueError(f"{path}: state hash does not match its contents")
+
+    def _load_v1(self, path, state) -> None:
+        """A file written before format 2: verify its own hash, then convert it.
+
+        Format 1 kept no superseded entries and no duplicate writes, so the converted
+        ledger has an empty history and one write per entry.
+        """
+        digests = {f: _delta_digest(d) for f, d in state["deltas"].items()}
+        legacy = _legacy_state_hash(
+            getattr(self.store, "legacy_base_hash", self.store.base_hash),
+            state["router_config"],
+            [self.tau, self.slot_theta, self.duplicate_theta],
+            self.relation_tau,
+            state["entries"],
+            state["phrasings"],
+            digests,
+        )
+        if legacy != state["state_hash"]:
+            raise ValueError(f"{path}: state hash does not match its contents")
+        self.entries, self.phrasings = state["entries"], state["phrasings"]
+        self.writes = {
+            f: [{"fact": e, "added_phrasing": False}] for f, e in self.entries.items()
+        }
+        self.history = {}
+        self.log = state["log"]
+        self.store.router_config = state["router_config"]
+        self.store.keys = {f: e["probe"] for f, e in self.entries.items()}
+        self.store.deltas, self.packed, self._delta_digest = {}, {}, {}
+        for fid, delta in state["deltas"].items():
+            self._set_delta(fid, pack_delta(trim_rank(delta)))
+        self._router = None

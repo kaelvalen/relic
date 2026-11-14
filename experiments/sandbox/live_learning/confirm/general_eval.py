@@ -21,7 +21,7 @@ import torch  # noqa: E402
 from routed_eval import MANIFEST_PATH  # noqa: E402
 from wrong_route import load, paired, with_adapter  # noqa: E402
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.router import RouterV7, make_scorer  # noqa: E402
 from relic.serving import SYSTEM, base_answer, rag_system, trim  # noqa: E402
 
@@ -105,6 +105,7 @@ def main(argv=None):
     stores = {"counterfact": (cf, cf16), "zsre": (zs, zs16)}
 
     store = DeltaStore(model_id, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     store.deltas = {}
     store.materialize()
     scorer = make_scorer("relenc")

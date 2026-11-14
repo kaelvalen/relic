@@ -25,7 +25,7 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
-from relic.ledger import DeltaStore  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit, word_hit  # noqa: E402
 from relic.serving import SYSTEM, base_answer, rag_system, trim  # noqa: E402
 
@@ -90,6 +90,7 @@ def main(argv=None):
     index = {f["id"]: i for i, f in enumerate(facts)}
 
     store = DeltaStore(model_id, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     store.deltas = {}
     store.materialize()
 

@@ -5,7 +5,7 @@
 \documentclass[journal,10pt]{IEEEtran}
 
 \usepackage{booktabs}
-\usepackage{amsmath}
+\usepackage{amsmath,amssymb}
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext,newtxmath}
 \usepackage{tikz}
@@ -32,12 +32,17 @@
 \newcommand{\revoke}{\textsc{Remove}}
 \newcommand{\serve}{\textsc{Serve}}
 \newcommand{\entry}[1]{E#1}
+\newcommand{\yes}{\checkmark}
+\newcommand{\no}{$\times$}
+\newcommand{\maybe}{$\circ$}
 
 \title{RELIC: A Transactional Knowledge Store for\\ Frozen Language Models}
 \author{Mehmet~Arda~Hakbilen and Rukiye~Savran~K{\i}z{\i}ltepe%
 \thanks{M.~A.~Hakbilen and R.~Savran~K{\i}z{\i}ltepe are with the Department of
 Software Engineering, Ankara University, Ankara, Turkey (e-mail:
-mehmetardahakbilen2005@gmail.com).}}
+mehmetardahakbilen2005@gmail.com).}%
+\thanks{Code, the pre-registration record and the result tables are available at
+https://github.com/kaelvalen/relic.}}
 
 \raggedbottom
 \begin{document}
@@ -45,23 +50,23 @@ mehmetardahakbilen2005@gmail.com).}}
 \maketitle
 
 \begin{abstract}
-A deployed language model receives facts that should persist, and its operator must be able to
-remove any one of them, name the fact behind an answer, and leave unrelated behavior unchanged.
-RELIC keeps the base model frozen and stores each fact as its own entry, a rank-2 adapter of
-373\,KB trained on the fact and on rewrites by the base model. An adapter is committed only if its
-divergence on held-out prompts stays under a calibrated limit, with gentler retrainings when it does
-not. A router whose parameters do not depend on the
-stored facts applies at most one entry per query, so exact removal and attribution follow from the
-data structure. The remaining properties were measured in a pre-registered study on
-Qwen2.5-1.5B-Instruct. On 800 CounterFact and zsRE facts that no design decision had seen, the store
+A deployed language model receives facts that should persist, and its operator needs to remove any one
+of them on request, to know which stored fact produced an answer, and to keep the model's other answers
+unchanged. RELIC keeps the base model frozen and stores each fact as a separate entry, a rank-2 adapter
+of 373\,KB trained on the fact and on rewrites of its prompt by the base model. An adapter is committed
+only if its divergence from the base model on held-out prompts stays under a calibrated limit, and
+rejected adapters are retrained with another seed or a stronger anchor. A router whose parameters do not
+depend on the stored facts applies at most one entry per query, so exact removal and attribution follow
+from the data structure. We measured the remaining properties in a pre-registered study on
+Qwen2.5-1.5B-Instruct. On 800 CounterFact and zsRE facts that no design decision had used, the store
 answers \Pct{137:pooled:default:edit_accuracy}\% of edit prompts and
-\Pct{137:counterfact:default:paraphrase_accuracy}\% and \Pct{137:zsre:default:paraphrase_accuracy}\%
-of paraphrases. It missed its registered margin against an adapter served with a note on CounterFact
-paraphrases. Natural questions about a neighboring relation of a stored subject receive the stored
-answer in \Pct{139:counterfact:default:leak_rate_natural_near}\% of cases with per-relation
-thresholds, the largest remaining defect. Removed facts return to the base answer, a wrong route keeps
-\Pct{146:counterfact:default:wrong_route_retention}\% of the base model's correct answers, and no MMLU
-or ARC question is routed. The router does not read Turkish. Adapters written by a hypernetwork or
+\Pct{137:counterfact:default:paraphrase_accuracy}\% and \Pct{137:zsre:default:paraphrase_accuracy}\% of
+paraphrases, but it missed its registered margin against an adapter served with a note on CounterFact
+paraphrases. With per-relation thresholds, \Pct{139:counterfact:default:leak_rate_natural_near}\% of
+natural questions about a neighboring relation of a stored subject receive the stored answer. On
+CounterFact, removed facts return to the base answer, a wrong route keeps
+\Pct{146:counterfact:default:wrong_route_retention}\% of the base model's correct answers, and no MMLU or
+ARC question is routed. The router fails on Turkish questions, and adapters written by a hypernetwork or
 confined to a null space failed their registered rules.
 \end{abstract}
 
@@ -73,117 +78,172 @@ Knowledge editing, machine unlearning, low-rank adaptation, routing, pre-registr
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEPARstart{U}{sers} of a deployed language model often supply information that the model should
-keep: a correction of an outdated answer, a fact about an entity absent from the training data, a
-detail that should persist across sessions. Three requirements come with such updates. An operator
-must be able to remove a specific fact on request, which data protection law can make
-mandatory~\cite{gdpr2016}. It should be possible to say which stored fact produced an answer. And an
-update should not change the model's answers to unrelated inputs.
+\IEEEPARstart{U}{sers} of a deployed language model often give it information that should persist,
+such as a correction of an outdated answer, a fact about an entity missing from the training data, or a
+personal detail that should carry over between sessions. Accepting such information creates three
+obligations for the operator. A specific fact may have to be removed on request, which data protection
+law can require~\cite{gdpr2016}. It should be possible to tell which stored fact an answer came from.
+Finally, storing a fact should leave the model's answers to unrelated questions as they were.
 
-Knowledge editing writes facts into the weights, by solving for an update of selected
-layers~\cite{meng2022rome,meng2023memit,fang2025alphaedit}, by training an editor
-network~\cite{decao2021editing,mitchell2022mend}, or by adding adapters and side memories for
-sequential edits~\cite{huang2023tpatcher,hartvigsen2023grace,wang2024wise}. Long edit sequences degrade
-earlier edits~\cite{gupta2024forgetting} and general abilities~\cite{gu2024harms}, and teacher-forced
-evaluation overstates what free generation delivers~\cite{yang2025mirage}. Removing one edit from
-weights that hold many is an unlearning problem, for which current methods are approximate and hard to
-verify~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse}. Retrieval keeps facts outside the
-model~\cite{lewis2020rag}, so removal is an index deletion, but whether a model follows retrieved text
-that contradicts its parametric knowledge depends on the model and the
-evidence~\cite{longpre2021conflicts,xie2024chameleon}.
+Knowledge editing changes the weights to insert a fact, either by computing an update for selected
+layers~\cite{meng2022rome,meng2023memit,fang2025alphaedit}, by training a network that produces the
+update~\cite{decao2021editing,mitchell2022mend}, or by adding parameters that hold a sequence of
+edits~\cite{huang2023tpatcher,hartvigsen2023grace,wang2024wise}; Wang et al.\ survey the
+field~\cite{wang2025kesurvey}. Long sequences of edits erode earlier edits and general
+abilities~\cite{gupta2024forgetting,gu2024harms}, and success measured under teacher forcing overstates
+what the edited model produces when it generates freely~\cite{yang2025mirage}. Once many edits share the
+same weights, removing one of them becomes an unlearning problem, and unlearning in large language models
+is approximate and hard to verify~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse}. Retrieval keeps
+facts outside the model~\cite{lewis2020rag}, which turns removal into deleting a document, but a model
+does not always follow retrieved text that contradicts what it learned in
+training~\cite{longpre2021conflicts,xie2024chameleon}.
 
-RELIC treats additions and removals as transactions in the database
-sense~\cite{haerder1983transactions}: an addition is accepted only after a check, a removal returns the
-store to its earlier state, and each operation is logged. The base model is never updated. Each fact is
-an entry holding a rank-2 adapter, and a router applies at most one entry to a query and otherwise
-leaves the base model to answer. Exact removal and attribution are then properties of the data structure
-(Section~\ref{sec:problem}). Whether stored facts are answered, whether unrelated queries are
-unaffected, and what an error of the router costs have to be measured, and measuring them is the
-purpose of this paper.
+RELIC takes a third route and treats additions and removals as transactions in the database
+sense~\cite{haerder1983transactions}. The base model is never updated. Each fact becomes an entry that
+holds a rank-2 adapter, and an addition is accepted only after the adapter passes a divergence check on
+prompts it was not trained on. A router whose parameters do not depend on the stored facts applies at
+most one entry to a query and otherwise lets the base model answer. Exact removal and attribution then
+follow from the data structure (Section~\ref{sec:problem}), whereas answer quality, the effect on
+unrelated queries and the cost of routing errors have to be measured. This paper reports those
+measurements.
 
-The architecture is not new. SoLA stores each edit as a frozen LoRA behind semantic routing and revokes
-it by deleting its key~\cite{luo2026sola}, and RRDA combines a router, an edit memory and
-adapters~\cite{zhang2026rrda}; both appeared before this work was public. What we add are measurements
-that we did not find elsewhere, each registered with its predictions and decision rule before it ran:
+Storing each edit as a frozen LoRA module behind a semantic router has been proposed before. SoLA
+revokes an edit by deleting its routing key~\cite{luo2026sola}, and RRDA combines a router, an explicit
+edit memory and adapters~\cite{zhang2026rrda}. Both preprints predate this paper, and we do not claim the
+architecture. Our contribution is a set of measurements that we did not find in prior work, each of which
+was registered with its predictions and decision rule before it was run:
 \begin{enumerate}
-\item the store answered on facts no design decision had seen, compared with an adapter served together
-with a note in the context, including the registered comparison that it failed
-(Sections~\ref{sec:fresh} and~\ref{sec:seen});
-\item the cost of a wrong route to one fact, read on 1000 questions the base model answers correctly,
-for each form an entry can take (Section~\ref{sec:wrong});
-\item a divergence check on held-out prompts, a retry ladder for the adapters it rejects, and what both
-cost per write (Sections~\ref{sec:check} and~\ref{sec:write});
-\item the leakage that remains into neighboring relations of a stored subject, with labels from the
-author and an entailment model as an attempt to separate correct answers from leaks
-(Section~\ref{sec:leak});
-\item the router's behavior in a second language (Section~\ref{sec:lang}) and the share of facts that
-need an adapter across five base models (Section~\ref{sec:scale});
-\item the alternatives to a trained per-fact adapter that failed their rules, among them a hypernetwork
-that writes the adapter and a null-space projection (Section~\ref{sec:alt}).
+\item answer and leak rates of the store on facts that no design decision had used, compared with the
+earlier form of the store that served a note with each adapter, including the registered comparison
+that the current store failed (Sections~\ref{sec:fresh} and~\ref{sec:seen});
+\item the cost of a wrong route, measured on 1000 questions for each form an entry can take
+(Section~\ref{sec:wrong});
+\item the divergence check on held-out prompts and the retry ladder for rejected adapters, with their cost
+per write (Sections~\ref{sec:check} and~\ref{sec:write});
+\item the leakage into neighboring relations of a stored subject that remains after routing, with labels
+from the first author and from an entailment model (Section~\ref{sec:leak});
+\item the behavior of the router on Turkish questions (Section~\ref{sec:lang}) and the share of facts
+that need an adapter on five base models (Section~\ref{sec:scale});
+\item six alternatives to a trained per-fact adapter that failed their registered rules, among them a
+hypernetwork that writes the adapter and a null-space projection (Section~\ref{sec:alt}).
 \end{enumerate}
-The pre-registration record holds 159 entries, failures included. Each number in this paper is generated
-from a table that names the entry it comes from.
+The pre-registration record has 159 entries, failed ones included, and every number in this paper is
+generated from a table that names the entry it comes from.
 
 % ===========================================================================
 \section{Related Work}
 \label{sec:related}
 
-\subsection{Knowledge Editing}
-ROME and MEMIT locate MLP layers associated with factual recall and compute a weight update for
-them~\cite{meng2022rome,meng2023memit}. AlphaEdit projects the update onto the null space of the keys
-of preserved knowledge~\cite{fang2025alphaedit}; Section~\ref{sec:alt} tests the same idea on a
-per-fact adapter. KE and MEND train a network that maps a fine-tuning gradient to an
-edit~\cite{decao2021editing,mitchell2022mend}, a form of the hypernetwork~\cite{ha2017hypernetworks}
-that we also test. T-Patcher adds neurons per mistake~\cite{huang2023tpatcher}, GRACE stores discrete
-key-value pairs with a deferral radius~\cite{hartvigsen2023grace}, WISE routes between the original
-weights and a side memory that is merged periodically~\cite{wang2024wise}, and MELO, LEMoE and ELDER
-attach LoRA blocks chosen by an index or a router~\cite{yu2024melo,wang2024lemoe,li2025elder}.
-Benchmarks and toolkits measure efficacy, generalization and locality~\cite{yao2023editing,
-wang2024easyedit}, later work multi-hop consistency and ripple
-effects~\cite{zhong2023mquake,cohen2024ripple}, and BMIKE-53 editing across
-languages~\cite{nie2025bmike}. Mirage showed that edit success measured under teacher forcing falls
-sharply in free generation~\cite{yang2025mirage}. Our scores are free generations, so we report edit
-accuracy and not efficacy, which in CounterFact is a comparison of probabilities under teacher forcing.
-SoLA and RRDA~\cite{luo2026sola,zhang2026rrda} are the closest designs, as said above.
+\subsection{Editing the Weights}
+ROME and MEMIT locate MLP layers involved in factual recall and solve for a weight update to
+them~\cite{meng2022rome,meng2023memit}. AlphaEdit projects that update onto the null space of the keys of
+knowledge that should be preserved~\cite{fang2025alphaedit}; Section~\ref{sec:alt} applies the same
+projection to a per-fact adapter. KE and MEND train a network that maps the fine-tuning gradient of an
+edit to a weight update~\cite{decao2021editing,mitchell2022mend}. Gupta et al.\ show that sequential edits
+with these methods first erode earlier edits gradually and then collapse~\cite{gupta2024forgetting}, and
+Gu et al.\ show that general abilities degrade as well~\cite{gu2024harms}.
 
-\subsection{Retrieval and In-Context Knowledge}
+\subsection{Lifelong Editing with Added Parameters}
+Several methods add parameters for edits instead of rewriting existing ones. T-Patcher adds neurons for
+each mistake~\cite{huang2023tpatcher}, GRACE stores discrete key-value pairs in one layer with a deferral
+radius~\cite{hartvigsen2023grace}, and WISE routes between the original weights and a side memory that is
+merged periodically~\cite{wang2024wise}. MELO, LEMoE and ELDER attach LoRA blocks that an index or a
+learned router selects~\cite{yu2024melo,wang2024lemoe,li2025elder}, and MEMOIR assigns each edit a sparse
+subset of a residual memory, which it activates only when a query's activation pattern matches a stored
+one~\cite{wang2025memoir}. SoLA and RRDA are the designs closest to ours~\cite{luo2026sola,zhang2026rrda}.
+RELIC differs from them in where its guarantees come from. Its router holds no parameters trained on the
+stored facts, so adding or removing a fact cannot move the routing of queries about other subjects
+(Proposition~\ref{prop:locality}), and every adapter must pass a divergence check on held-out prompts
+before it is stored. Table~\ref{tab:positioning} compares the operations that each family supports.
+
+\begin{table}[t]
+\centering
+\caption{Operations supported by each approach. \yes: supported and evaluated by the authors; \maybe:
+possible with the architecture but not provided or not evaluated; \no: not supported; n/a: not
+applicable. Removal: deleting one fact restores the earlier state. Check: a bound on collateral change at
+write time. Fallback: out-of-scope queries are answered by the unmodified base model. For RELIC the
+fallback holds for queries about unknown subjects, and not for every other question about a stored
+subject (Section~\ref{sec:leak}). SoLA and RRDA are read from their preprints.}
+\label{tab:positioning}
+\footnotesize
+\setlength{\tabcolsep}{2.8pt}
+\begin{tabular}{lccccc}
+\toprule
+Approach & Weights & Removal & Check & Attrib. & Fallback \\
+\midrule
+RAG, IKE~\cite{lewis2020rag,zheng2023ike} & \no & \yes & n/a & \maybe & \maybe \\
+ROME, MEMIT, AlphaEdit & \yes & \no & \no & \no & \no \\
+MEND~\cite{mitchell2022mend} & \yes & \no & \no & \no & \no \\
+SERAC~\cite{mitchell2022serac} & \no & \maybe & \no & \maybe & \yes \\
+T-Patcher~\cite{huang2023tpatcher} & \yes & \maybe & \no & \maybe & \maybe \\
+GRACE~\cite{hartvigsen2023grace} & \yes & \maybe & \no & \maybe & \yes \\
+WISE~\cite{wang2024wise} & \yes & \no & \no & \no & \maybe \\
+MELO, LEMoE, ELDER & \yes & \maybe & \no & \maybe & \maybe \\
+SoLA~\cite{luo2026sola} & \yes & \yes & \no & \maybe & \maybe \\
+RRDA~\cite{zhang2026rrda} & \yes & \maybe & \no & \maybe & \yes \\
+Approx.\ unlearning~\cite{eldan2023harrypotter} & \yes & \no & n/a & \no & \no \\
+Separable proxies~\cite{schneider2026separable} & \yes & \yes & \no & \no & n/a \\
+\midrule
+RELIC & \yes & \yes & \yes & \yes & \yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evaluating Edits}
+Editing benchmarks and toolkits report efficacy, generalization and locality~\cite{yao2023editing,
+wang2024easyedit}. Later benchmarks test whether an edit propagates to multi-hop questions and related
+facts~\cite{zhong2023mquake,cohen2024ripple} and to other
+languages~\cite{wang2024crosslingual,nie2025bmike}, and the reversal curse shows that a model trained on a
+statement in one direction may not answer it in the other~\cite{berglund2024reversal}. Yang et al.\ found
+that single-edit success rates measured under teacher forcing fall sharply when the edited model generates
+freely~\cite{yang2025mirage}. Our answers are free generations scored by a match, so we report edit
+accuracy rather than efficacy, which in CounterFact compares the probabilities of the new and the old
+object under teacher forcing~\cite{meng2022rome}.
+
+\subsection{Retrieval and Memory}
 Retrieval-augmented generation~\cite{lewis2020rag}, nearest-neighbor language
-models~\cite{khandelwal2020knnlm} and in-context editing~\cite{zheng2023ike} keep new knowledge out of
-the weights, as do SERAC, which pairs a scope classifier with a counterfactual
-model~\cite{mitchell2022serac}, and RECIPE, which retrieves continuous prompts~\cite{chen2024recipe}.
-A note in the context is our retrieval arm. RELIC served one with every adapter until the decision
-described in Section~\ref{sec:fresh}.
+models~\cite{khandelwal2020knnlm} and in-context editing~\cite{zheng2023ike} keep new knowledge out of the
+weights. SERAC combines a scope classifier with a counterfactual model~\cite{mitchell2022serac}, RECIPE
+retrieves continuous prompts~\cite{chen2024recipe}, and Larimar writes facts into an episodic memory that
+also supports selective forgetting~\cite{das2024larimar}. Until the decision reported in
+Section~\ref{sec:fresh}, RELIC placed a statement of the routed fact in the system prompt in addition to
+applying its adapter, and this note serves as our retrieval arm.
 
-\subsection{Adapters and Routing}
-LoRA~\cite{hu2022lora} and LoRA+~\cite{hayou2024loraplus} keep a per-fact parameter set small, and
-S-LoRA serves thousands of adapters at once~\cite{sheng2024slora}. Adapters can be added, merged or
-composed per input~\cite{ilharco2023taskarithmetic,yadav2023ties,huang2024lorahub,zhao2024loraretriever},
+\subsection{Generated and Composed Adapters}
+A hypernetwork produces the weights of another network~\cite{ha2017hypernetworks}. Text-to-LoRA generates
+a LoRA adapter from a task description in one forward pass~\cite{charakorn2025t2l}, and Generative Adapter
+maps a context to an adapter for a frozen model~\cite{chen2025generative}; Section~\ref{sec:alt} reports
+our attempt to generate a per-fact adapter in this way. LoRA~\cite{hu2022lora} and
+LoRA+~\cite{hayou2024loraplus} keep a per-fact parameter set small, and S-LoRA serves thousands of
+adapters on one GPU~\cite{sheng2024slora}. Adapters can be added, merged, retrieved or mixed per
+input~\cite{ilharco2023taskarithmetic,yadav2023ties,huang2024lorahub,zhao2024loraretriever,wu2024mole},
 and representation finetuning edits hidden states instead of weights~\cite{wu2024reft}. OPPU trains one
 adapter per user~\cite{tan2024oppu}, and Schneider et al.\ keep per-user components apart from shared
 weights so that they can be deleted~\cite{schneider2026separable}.
 
 \subsection{Machine Unlearning}
-Exact unlearning removes the influence of deleted data completely, for instance by retraining only the
-shard that held it, as SISA does~\cite{bourtoule2021sisa}. For large language models unlearning is
-approximate in general and is evaluated with forget and retain
-sets~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse,liu2025rethinking}. In mixture-of-experts
-models an update to the router can steer queries away from the expert that holds knowledge without
-removing it~\cite{zhuang2025seuf,zhu2026grip}. RELIC is SISA with one shard per fact, and its router
-holds no state trained on the stored facts, so removing a fact cannot change the routing of queries
-unrelated to it (Proposition~\ref{prop:locality}).
+Exact unlearning removes the influence of deleted data completely, for instance by expressing the learner
+as summations that can be updated~\cite{cao2015forget}, through deletion-efficient
+algorithms~\cite{ginart2019forget}, or by retraining only the shard that held the deleted data, as SISA
+does~\cite{bourtoule2021sisa}. Unlearning in large language models is approximate in general and is
+evaluated with forget and retain sets~\cite{eldan2023harrypotter,maini2024tofu,shi2025muse,
+liu2025rethinking}. In mixture-of-experts models an update to the router can divert queries from the
+expert that holds the knowledge without removing it~\cite{zhuang2025seuf,zhu2026grip}. RELIC resembles
+SISA with one shard per fact, with the difference that its router does not have to be updated when a shard
+is deleted.
 
 % ===========================================================================
 \section{Problem Formulation}
 \label{sec:problem}
 
 \subsection{Store and Operations}
-Let $f_{\theta_0}$ be a language model whose parameters $\theta_0$ are never updated. A fact $e$ has a
-subject $s_e$, an edit prompt $x_e$, a target answer $a_e$, optionally a relation identifier $r_e$ and
-aliases of the subject. The store is
+Let $f_{\theta_0}$ be a language model whose parameters $\theta_0$ are never updated. A fact $e$ consists of
+a subject $s_e$, an edit prompt $x_e$, a target answer $a_e$ and, optionally, a relation identifier $r_e$
+and aliases of the subject. The store is
 \begin{equation}
 S=\{(i,\ \delta_i,\ k_i,\ s_i,\ r_i)\}_{i\in\mathcal{I}},
 \end{equation}
-where $\mathcal{I}$ is the set of active identifiers, $\delta_i$ a low-rank update and $k_i$ a routing
+where $\mathcal{I}$ is the set of active identifiers, $\delta_i$ is a low-rank update and $k_i$ is a routing
 key computed from $x_e$ by a frozen encoder. A router $\rho_S$ maps a query $q$ to an identifier or to
 $\bot$, and the system answers
 \begin{equation}
@@ -191,30 +251,30 @@ $\bot$, and the system answers
 \theta_0\oplus\delta_\bot=\theta_0 .
 \end{equation}
 At most one entry acts on a query, and the second component names it. \commit$(e)$ trains a candidate
-update, measures its divergence from the base model and inserts it or rejects it; \revoke$(i)$ deletes
-entry $i$. Each operation is logged with the state hash
+update, measures its divergence from the base model and either inserts or rejects it, and \revoke$(i)$
+deletes entry $i$. Each operation is logged together with the state hash
 \begin{equation}
 h(S)=H\big(h_0\ \|\ (i,\delta_i,s_i,r_i)_{i\in\mathcal{I},\ \text{sorted by } i}\big),
 \end{equation}
-where $H$ is SHA-256 and $h_0$ a digest of the configuration, thresholds included.
+where $H$ is SHA-256 and $h_0$ is a digest of the configuration, including the thresholds.
 
 \subsection{Requirements}
 \begin{itemize}
-\item[R1] After \commit$(e)$ the answer to $x_e$, and to a paraphrase of it, contains $a_e$.
+\item[R1] After \commit$(e)$, the answer to $x_e$ and to a paraphrase of $x_e$ contains $a_e$.
 \item[R2] A query that does not concern a stored fact receives the base model's answer.
-\item[R3] An adapter is accepted only if its divergence from the base model is under a limit, and a
+\item[R3] An adapter is accepted only if its divergence from the base model is below a limit, and a
 rejected or failed addition leaves the store unchanged.
-\item[R4] After \revoke$(i)$ the store equals the store before \commit$(e_i)$, and the answer to
+\item[R4] After \revoke$(i)$, the store equals the store before \commit$(e_i)$, and the answer to
 $x_{e_i}$ returns to the base model's answer.
 \item[R5] Each answer names the entry that produced it.
 \end{itemize}
-R1, R2 and the behavioral part of R4 must be measured. The rest follows from the design.
+R1, R2 and the behavioral part of R4 have to be measured; the other parts follow from the design.
 
 \subsection{Properties of the Design}
 \label{sec:props}
-The router (Section~\ref{sec:router}) computes a candidate set $C_S(q)\subseteq\mathcal{I}$ of the
-entries whose subject is the longest stored subject that matches $q$, and returns the candidate whose key
-is most similar to the query if that similarity reaches a threshold, and $\bot$ otherwise. Keys are
+The router (Section~\ref{sec:router}) first computes a candidate set $C_S(q)\subseteq\mathcal{I}$ of the
+entries whose subject is the longest stored subject that matches $q$. It then returns the candidate whose
+key is most similar to the query if the similarity reaches a threshold, and $\bot$ otherwise. Keys are
 computed once per fact and are not trained.
 
 \begin{proposition}\label{prop:identity}
@@ -222,7 +282,7 @@ The state hash and $\serve_S$ depend only on the set of active entries. For a fa
 $i\notin\mathcal{I}$, $h(\revoke_i(\commit_i(S)))=h(S)$ and $\serve_{\revoke_i(\commit_i(S))}=\serve_S$.
 \end{proposition}
 \begin{IEEEproof}
-$h$ hashes the active entries in identifier order and $\serve_S$ reads only active entries; \revoke$_i$
+$h$ hashes the active entries in identifier order, and $\serve_S$ reads only active entries. \revoke$_i$
 deletes the entry that \commit$_i$ inserted.
 \end{IEEEproof}
 
@@ -231,9 +291,9 @@ Let $S'=S\cup\{(i,\delta_i,k_i,s_i,r_i)\}$. For every query $q$ with $i\notin C_
 $\serve_{S'}(q)=\serve_S(q)$.
 \end{proposition}
 \begin{IEEEproof}
-If $i\notin C_{S'}(q)$, then $s_i$ is not the longest stored subject matching $q$, so removing $i$ leaves
-that subject and its entries unchanged and $C_S(q)=C_{S'}(q)$. With equal candidates and fixed keys
-the router returns the same entry.
+If $i\notin C_{S'}(q)$, then $s_i$ is not the longest stored subject that matches $q$. Removing $i$
+therefore leaves that subject and its entries unchanged, so $C_S(q)=C_{S'}(q)$, and with equal candidates
+and fixed keys the router returns the same entry.
 \end{IEEEproof}
 
 \begin{proposition}\label{prop:atomic}
@@ -242,11 +302,13 @@ modifies the store. A rejection, or an exception raised before the check, leaves
 unchanged.
 \end{proposition}
 
-These statements assume deterministic inference; on the GPU we observed identical greedy outputs and did
-not verify identical logits. Proposition~\ref{prop:atomic} does not cover a failure during the insertion
-itself. Removal applies to the serving state only: it does not erase backups and does not change what the
-base model already knows, which is why R4 asks for the base model's answer and not for the absence of the
-target.
+These statements rest on three assumptions. Equal outputs require deterministic inference; on the GPU we
+observed identical greedy outputs but did not verify identical logits. Proposition~\ref{prop:atomic} does
+not cover a failure during the insertion itself. Proposition~\ref{prop:locality} covers queries whose
+subject is matched in the query; when a pronoun is resolved from earlier turns, the resolution reads the
+store, so removing a fact can change the subject that a later pronoun resolves to. Removal also applies to
+the serving state only. It does not erase backups and does not change what the base model already knows,
+which is why R4 asks for the base model's answer and not for the absence of the target.
 
 % ===========================================================================
 \section{Method}
@@ -254,87 +316,93 @@ target.
 
 \input{figures/architecture}
 
-Fig.~\ref{fig:arch} shows the system and Algorithm~\ref{alg:txn} its operations. Table~\ref{tab:config}
-in the appendix lists the configuration.
+Fig.~\ref{fig:arch} gives an overview, Algorithm~\ref{alg:txn} lists the operations, and
+Table~\ref{tab:config} in the appendix gives the full configuration.
 
 \subsection{Adapters}
-An adapter is a LoRA update~\cite{hu2022lora} of rank 2 ($\alpha=4$) on the query and value projections
-of all 28 layers, trained with LoRA+~\cite{hayou2024loraplus}: AdamW at a learning rate of
-$3\cdot10^{-4}$ for $A$ and eight times that for $B$, 16 passes over the training pairs. The pairs are
-the fact's statement mapped to an acknowledgment, the edit prompt mapped to the answer, and up to three
-rewrites of the edit prompt mapped to the answer. The base model writes the rewrites from the subject
-and the edit prompt alone, so no benchmark paraphrase enters training. The loss is
+An adapter is a LoRA update~\cite{hu2022lora} of rank 2 with $\alpha=4$ on the query and value projections
+of all 28 layers. It is trained with LoRA+~\cite{hayou2024loraplus}, using AdamW with a learning rate of
+$3\cdot10^{-4}$ for $A$ and eight times that for $B$, for 16 passes over the training pairs. There are up to
+five pairs. The fact's statement is mapped to a short acknowledgment, the edit prompt to the answer, and up
+to three rewrites of the edit prompt to the answer. The base model writes the rewrites from the subject and
+the edit prompt alone, so no benchmark paraphrase is used in training. The loss is
 \begin{multline}
 \mathcal{L}(\delta)=\sum_{(u,v)\in P(e)}\mathrm{CE}\big(v\mid u;\theta_0\oplus\delta\big)\\
 +\frac{\lambda}{|Q|}\sum_{c\in Q}\mathrm{KL}\big(p_{\theta_0}(\cdot\mid c)\,\big\|\,
 p_{\theta_0\oplus\delta}(\cdot\mid c)\big),
 \label{eq:loss}
 \end{multline}
-with two generic anchor prompts $Q$ and $\lambda=1$ at the first attempt. The adapter is stored in int8
-with one fp16 scale per row of $B$, 373\,KB per fact.
+where $Q$ holds two generic anchor prompts and $\lambda=1$ at the first attempt. The KL term plays the role
+of the distillation term in Learning without Forgetting~\cite{li2018lwf}. The trained adapter is stored in
+int8 with one fp16 scale per row of $B$, which takes 373\,KB per fact.
 
 \subsection{Divergence Check}
 \label{sec:checkmethod}
-With $p_c=p_{\theta_0}(\cdot\mid c)$ and $\tilde p_c=p_{\theta_0\oplus\delta}(\cdot\mid c)$, a
-candidate is scored by
+With $p_c=p_{\theta_0}(\cdot\mid c)$ and $\tilde p_c=p_{\theta_0\oplus\delta}(\cdot\mid c)$, a candidate
+adapter, in its stored int8 form, is scored by
 \begin{equation}
 D(\delta)=\frac{1}{|C|}\sum_{c\in C}\big[\mathrm{KL}(p_c\,\|\,\tilde p_c)
 +\mathrm{KL}(\tilde p_c\,\|\,p_c)\big]
 \end{equation}
-on 40 canary prompts disjoint from $Q$ (factual questions, arithmetic, instructions and four other
-languages), in its stored int8 form, and committed only if $D(\delta)\le\kappa$. The limit
-$\kappa=\N{69:pooled:benign_r16:kappa}$ is the 99th percentile of $D$ over 100 adapters known to be
-benign. The canaries must be held out from training: an adapter is trained to leave $Q$ unchanged, so
-$D$ measured on $Q$ understates its footprint (Section~\ref{sec:check}).
+on a set $C$ of 40 canary prompts that are disjoint from $Q$ and cover factual questions, arithmetic,
+instructions and four languages other than English. It is committed only if $D(\delta)\le\kappa$. The canaries
+have to be held out, because an adapter is trained to leave $Q$ unchanged and $D$ on $Q$ therefore
+understates its effect (Section~\ref{sec:check}). We set
+$\kappa=\N{69:pooled:benign_r16:kappa}$, the 99th percentile of $D$ over 100 benign adapters of an earlier
+rank-16 recipe, and kept it when the adapter changed to rank 2.
 
 \subsection{Retry Ladder}
 \label{sec:ladder}
-A candidate above $\kappa$ is not discarded at once. The write tries a ladder of retrainings and stores
-the first one under $\kappa$: the same recipe with another seed, then anchor weights
-$\lambda\in\{2,4,8,16\}$, then the recipe without rewrites. If no rung passes, the write commits
-nothing. The choice of rung reads only $D$, never a paraphrase.
+A candidate above $\kappa$ is retrained rather than discarded. The write tries a fixed sequence of
+retrainings, which we call the ladder, and stores the first adapter that passes. The sequence is the same
+recipe with another seed, then the anchor weights $\lambda=2,4,8,16$, and finally the recipe without
+rewrites. If no rung passes, the write commits nothing. The choice of rung depends on $D$ alone, so the
+held-out paraphrases play no part in it.
 
 \subsection{Router}
 \label{sec:router}
-The router has no parameters trained on the stored facts and works in three steps.
+The router has no parameters trained on the stored facts. It processes a query in three steps.
 \begin{enumerate}
-\item Entity match. Query and stored subjects are normalized, and a subject or one of its aliases
-matches if it occurs on word boundaries, or if each of its tokens matches a consecutive query token,
-exactly for tokens under four characters and within an edit distance of 1 (2 from six characters)
-otherwise. The entries whose subject is the longest match are the candidates; with none, the router
-returns $\bot$. A pronoun is resolved from the conversation when an earlier turn spells out a stored
-subject.
-\item Clause. Only the sentence of the query that contains the subject is kept.
-\item Relation. The subject is masked in this clause and in each candidate's edit prompt, a relation
-encoder embeds both, and the most similar candidate is selected if the cosine similarity reaches a
-threshold.
+\item The query and the stored subjects are normalized, and a subject or one of its aliases matches if it
+occurs within word boundaries, or if each of its tokens matches a consecutive query token. Tokens shorter
+than four characters must match exactly; longer tokens may differ by an edit distance of 1, and tokens of
+six or more characters by 2. The entries whose subject is the longest match become candidates, and if there
+is none the router returns $\bot$. A pronoun is resolved from the conversation when an earlier turn names a
+stored subject.
+\item Only the sentence of the query that contains the subject is kept.
+\item The subject is masked in this sentence and in each candidate's edit prompt, a relation encoder embeds
+both texts, and the most similar candidate is selected if the cosine similarity reaches the threshold.
 \end{enumerate}
-The relation encoder is all-mpnet-base-v2~\cite{song2020mpnet,reimers2019sbert} trained once, offline,
-on 7500 triplets of relation templates (anchor and positive from one relation, negative from another)
-from 3000 CounterFact and 1500 zsRE facts that share no subject with any evaluation set; 11 of the 34
-CounterFact relations are held out from it. The global threshold $\tau=0.7501$ is the lowest that routes
-at most 5\% of other-relation queries on a disjoint development split. Where an entry carries a relation
-identifier, a stricter per-relation threshold $\tau_r$ applies to nine relations whose neighboring
-questions were frequently routed in a calibration set disjoint from the test facts.
+The relation encoder is all-mpnet-base-v2~\cite{song2020mpnet,reimers2019sbert}, trained once offline with
+a multiple-negatives ranking loss~\cite{henderson2017efficient} on 7500 triplets of relation templates. The
+anchor and the positive come from one relation and the negative from another. The triplets were built from
+3000 CounterFact and 1500 zsRE facts that share no subject with the development split or the main stores,
+and 11 of the 34 CounterFact relations were held out from them. The global threshold $\tau=0.7501$ is the
+lowest that routes at most 5\% of other-relation queries on the development split. For entries that carry
+a relation identifier, the threshold of each relation with at least 20 calibration questions is raised to
+the 95th percentile of the scores that natural questions about other relations reach on entries of that
+relation, if that percentile is higher than $\tau$. This rule, $\tau_r$, raises the threshold of four
+relations; the calibration questions are disjoint from the test facts.
 
 \subsection{Writes, Removal and Logging}
-A write first looks for an entry with the same subject whose relation text scores above $\tau$. If it
-holds the same answer, the write joins it as another phrasing, since a query would reach that entry
-anyway. If it holds another answer, the write replaces it only above a stricter threshold of $0.8985$,
-since a replacement drops a fact. \revoke$(i)$ deletes entry $i$ and its phrasings. For serving, the
-selected adapter is written into a LoRA slot and all other slots are zero. The log records the
-identifier, the rung, $D$, the training time and the state hash. Commits from threads of one process are
-serial under a lock and the store file is replaced atomically; processes are not isolated from each
-other, so a transaction here is the single-writer operation of Proposition~\ref{prop:atomic}.
+Before training, a write looks for an entry with the same subject whose relation text scores above $\tau$.
+If that entry holds the same answer, the write adds its prompt as another phrasing of the entry, since a
+query would reach the entry anyway. If it holds a different answer, the write replaces it only above a
+stricter threshold of $0.8985$, because a replacement drops a stored fact. \revoke$(i)$ deletes entry $i$
+together with its phrasings. For serving, the selected adapter is copied into a LoRA slot of the model and
+all other slots are set to zero. The log records the identifier, the rung, $D$, the training time and the
+state hash. Commits from threads of one process are serialized by a lock, and the store file is replaced
+atomically. Separate processes are not coordinated, so a transaction here means the single-writer operation
+of Proposition~\ref{prop:atomic}.
 
 \begin{algorithm}[t]
 \caption{Operations on the store}
 \label{alg:txn}
 \begin{algorithmic}[1]
 \Function{Add}{$e$, $i$}
-  \If{an entry of the same subject and relation holds $a_e$} \State add $x_e$ as a phrasing; log and \Return \EndIf
+  \If{an entry with the same subject and relation holds $a_e$} \State add $x_e$ as a phrasing; log and \Return \EndIf
   \State $W\gets$ rewrites of $x_e$ by $f_{\theta_0}$
-  \For{each rung (seed, $\lambda$, rewrites or none) of the ladder}
+  \For{each rung (seed, $\lambda$, rewrites used or not)}
     \State $\delta\gets\arg\min\mathcal{L}$ on a copy of $\theta_0$ \Comment{Eq.~\eqref{eq:loss}}
     \If{$D(\delta)\le\kappa$}
       \State $S\gets S\cup\{(i,\delta,k_e,s_e,r_e)\}$; log$(\textsc{add},i,h(S))$; \Return
@@ -356,44 +424,44 @@ other, so a transaction here is the single-writer operation of Proposition~\ref{
 \label{sec:setup}
 
 \subsection{Model and Facts}
-The base model is Qwen2.5-1.5B-Instruct~\cite{qwen2024qwen25} in bf16 on one shared 8\,GB GPU, served
-with its chat template, the system prompt ``Answer briefly.'', greedy decoding and at most 64 new
-tokens. Facts come from the ROME versions of CounterFact~\cite{meng2022rome} and
-zsRE~\cite{levy2017zeroshot,decao2021editing}. CounterFact targets are counterfactual, so the base model
-does not produce them; zsRE uses the reference answer, which the base model often knows. Two sets are
-used. The main stores hold 1000 facts per dataset and were read by many decisions over the course of the
-work. The fresh set holds 400 facts per dataset drawn with a new seed, disjoint by subject from the main
-stores, the development split and every earlier draw, and was read once, for the comparison of
-Section~\ref{sec:fresh}.
+The base model is Qwen2.5-1.5B-Instruct~\cite{qwen2024qwen25} in bf16 on a single 8\,GB GPU that was shared
+with other work. It is served with its chat template, the system prompt ``Answer briefly.'', greedy decoding
+and at most 64 new tokens. Facts are taken from the ROME versions of CounterFact~\cite{meng2022rome} and
+zsRE~\cite{levy2017zeroshot,decao2021editing}. CounterFact targets are counterfactual, so the base model does
+not produce them, while zsRE uses the reference answer, which the base model often knows. We use two sets of
+facts. The main stores contain 1000 facts per dataset, and many design decisions were made on them. The fresh
+set contains 400 facts per dataset drawn with a new seed and disjoint by subject from the main stores, the
+development split and all earlier draws. It was read once, for the comparison in Section~\ref{sec:fresh}.
 
 \subsection{Queries}
-Each fact has an edit prompt and a held-out paraphrase. Queries that should not use a stored fact are of
-four kinds. E3 prompts ask about a stored subject with the template of another CounterFact relation. E2
-prompts ask the stored relation about another subject. Natural questions about another relation of a
-stored subject are written by SmolLM3-3B, half about a neighboring relation (the language a person
-speaks, when the stored fact is the native language) and half about a uniformly drawn one. Synthetic
-distractors and zsRE locality questions name no stored subject. A wrong route is read on 1000 zsRE
-development questions whose base answer is correct, each answered with an unrelated entry forced.
-General capability is read on 500 MMLU~\cite{hendrycks2021mmlu} and 500
-ARC-Challenge~\cite{clark2018arc} questions.
+Each fact has an edit prompt and a held-out paraphrase. Four kinds of queries should not use a stored fact.
+E3 prompts ask about a stored subject with the template of another CounterFact relation, and E2 prompts ask
+the stored relation about another subject. Natural questions about another relation of a stored subject were
+written by SmolLM3-3B; half concern a neighboring relation, for example the language a person speaks when the
+stored fact is the person's native language, and half a uniformly drawn relation. Synthetic distractors and
+zsRE locality questions do not name a stored subject. To measure the cost of a wrong route, each of 1000
+zsRE development questions is answered with an unrelated entry forced. General capability is measured on 500
+MMLU~\cite{hendrycks2021mmlu} and 500 ARC-Challenge~\cite{clark2018arc} questions.
 
 \subsection{Metrics}
-The metrics are fixed in entry 157 of the record. A response is correct if it contains the target at a
-word boundary. Edit accuracy is the share of correct responses to edit prompts and paraphrase accuracy
-the share for held-out paraphrases, both routed. A response leaks if it contains a stored target that
-the base model's response to the same query does not; the leak rate is reported separately for E3, E2 and
-natural questions. Wrong-route retention is the share of base-correct answers kept with an entry forced.
-Removal is read on 100 removed facts as return (correct exactly when the base model is correct) and on
-the others as retention of edit accuracy. Capability cost is MMLU and ARC accuracy with a random entry
-forced, minus the base model's. Intervals are 95\% bootstrap intervals over facts or questions;
-comparisons are paired, and a non-inferiority margin is read against the lower end of the one-sided
-95\% interval.
+The metrics and their names were fixed in entry 157 of the record. A response is correct if it contains the
+target within word boundaries. Edit accuracy is the share of correct responses to edit prompts, and
+paraphrase accuracy the share for held-out paraphrases, both with routing. A response leaks if it contains a
+stored target that the base model's response to the same query does not contain, and the leak rate is
+reported separately for E3, E2 and natural questions. Wrong-route retention is the share of the base model's
+correct answers that remain correct with an entry forced. Removal is measured on 100 removed facts as the
+share that return to the base model's behavior (correct exactly when the base model is correct), and on the
+other facts as the retention of edit accuracy. Capability cost is the change in MMLU and ARC accuracy when a
+random entry is forced. Intervals are 95\% bootstrap intervals over facts or
+questions~\cite{efron1994bootstrap}. Comparisons between arms are paired, and a non-inferiority margin is
+tested against the lower end of the one-sided 95\% interval.
 
 \subsection{Pre-Registration}
-Each run was entered in the record with its arms, metrics, predictions and decision rule before it
-started, and tagged in git. Failed predictions and failed rules are reported as such, deviations are
-written down with their reason, and a result read after a decision is labelled as read after it. We refer
-to an entry by E and its number, for example E137.
+Following the practice of pre-registration~\cite{nosek2018preregistration}, each run was entered in the
+record with its arms, metrics, predictions and decision rule before it started, and the entry was tagged in
+git. Failed predictions and failed rules are reported as failed, deviations are recorded with their reason,
+and readings made after a decision are marked as such. We refer to an entry by E and its number, for example
+E137.
 
 % ===========================================================================
 \section{Results}
@@ -404,10 +472,10 @@ to an entry by E and its number, for example E137.
 
 \begin{table}[t]
 \centering
-\caption{The store on 800 fresh facts (400 per dataset), served through the router (\entry{137},
-\entry{139}). Default: adapter alone, global threshold; $+\tau_r$: with per-relation thresholds; with
-note: the earlier store, which served each adapter with the fact's statement in the system prompt;
-first recipe: the adapter without rewrites, served alone.}
+\caption{The store on 800 fresh facts, 400 per dataset, served through the router (\entry{137},
+\entry{139}). Default: adapter alone with the global threshold. $+\tau_r$: with per-relation thresholds.
+With note: the earlier store, which placed the fact's statement in the system prompt in addition to the
+adapter. First recipe: an adapter trained without rewrites, served alone.}
 \label{tab:fresh}
 \scriptsize
 \setlength{\tabcolsep}{3.5pt}
@@ -426,39 +494,40 @@ Leak rate, natural, uniform & \N{137:counterfact:default:leak_rate_natural_unifo
 \end{tabular}
 \end{table}
 
-Until \entry{143}, RELIC stored a note with each fact, its statement placed in the system prompt, and
-served it together with the adapter. A store with no note is simpler, puts no stored text into the
-prompt and, as Section~\ref{sec:wrong} shows, damages less when it is routed wrongly. The registered
-question was whether it loses answers. On the fresh set, against the store with note, its paraphrase
-accuracy differs by \N{137:pooled:default_minus_adapter_and_note:diff_paraphrase_accuracy} pooled and by
-\N{137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy}
+Until E143, RELIC stored a note with each fact, a statement of the fact that was placed in the system prompt
+whenever the fact's adapter was applied. Removing the note makes the system simpler, keeps stored text out of
+the prompt and, as Section~\ref{sec:wrong} shows, reduces the damage of a wrong route. The registered question
+was whether the store without the note loses answers. On the fresh set, its paraphrase accuracy differs from
+that of the store with note by \N{137:pooled:default_minus_adapter_and_note:diff_paraphrase_accuracy} pooled
+over both datasets and by \N{137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy}
 \CI{137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy} on CounterFact
-(Table~\ref{tab:fresh}). The rule required the lower end of the one-sided interval to stay above
-$-0.03$; on CounterFact it was
-\N{137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy_lower_one_sided}, so the rule
-failed and a loss of that size is not excluded. Edit accuracy is higher without the note,
+(Table~\ref{tab:fresh}). The rule required the lower end of the one-sided interval to be above $-0.03$. On
+CounterFact it was \N{137:counterfact:default_minus_adapter_and_note:diff_paraphrase_accuracy_lower_one_sided},
+so the rule failed, and a loss of that size cannot be excluded. Edit accuracy is higher without the note by
 \N{137:pooled:default_minus_adapter_and_note:diff_edit_accuracy}
-\CI{137:pooled:default_minus_adapter_and_note:diff_edit_accuracy} pooled, and the leak rates do not
-separate the two stores (E3 \N{137:counterfact:default_minus_adapter_and_note:diff_leak_rate_e3},
-natural \N{137:counterfact:default_minus_adapter_and_note:diff_leak_rate_natural}). The author then made
-the store with no note the default (\entry{143}); it is reported here as having failed its rule.
+\CI{137:pooled:default_minus_adapter_and_note:diff_edit_accuracy}, and the leak rates of the two stores are
+equal within their intervals (E3 \N{137:counterfact:default_minus_adapter_and_note:diff_leak_rate_e3},
+natural \N{137:counterfact:default_minus_adapter_and_note:diff_leak_rate_natural}). After this result, the
+first author made the store without the note the default (E143). We report that store as the one that failed
+its rule.
 
-The rewrites carry the gain over the first recipe: paraphrase accuracy rises by
-\N{137:pooled:default_minus_A0_alone:diff_paraphrase_accuracy} pooled. The remaining gap to the store
-with note lies on facts that pass the check at the first attempt, not on those the check rejects: the
-store matches the paraphrase accuracy of a store that keeps every first attempt regardless of the check
-(\N{137:pooled:gate_off:paraphrase_accuracy} against \N{137:pooled:default:paraphrase_accuracy}). No edit
-or paraphrase query was routed to another fact's entry, and the store holds
-\Pct{137:pooled:default:facts_with_entry}\% of the facts.
+The rewrites account for the improvement over the first recipe, whose paraphrase accuracy is lower by
+\N{137:pooled:default_minus_A0_alone:diff_paraphrase_accuracy} pooled. The remaining gap to the store with
+note is on facts whose adapter passes the check at the first attempt and not on those the check rejects,
+because the default store reaches the paraphrase accuracy of a store that keeps every first attempt
+regardless of the check (\N{137:pooled:gate_off:paraphrase_accuracy} for both). No edit prompt or paraphrase
+was routed to the entry of another fact, and \Pct{137:pooled:default:facts_with_entry}\% of the facts were
+stored.
 
-\subsection{The Store on the Main CounterFact Store}
+\subsection{The Main CounterFact Store}
 \label{sec:seen}
 
 \begin{table}[t]
 \centering
-\caption{The 1000 facts of the main CounterFact store, written through the library's own write path
-(\entry{146}). Paired readings cut responses to 24 tokens, the length of the saved readings of the store
-with note.}
+\caption{The 1000 facts of the main CounterFact store, written through the library's write path
+(\entry{146}). Responses are cut to 24 tokens, the length of the saved readings of the store with note. The
+store with note was read before per-relation thresholds existed, so its leak rates use the global threshold;
+retention under a wrong route is scored by substring.}
 \label{tab:seen}
 \scriptsize
 \begin{tabular}{lcc}
@@ -467,139 +536,133 @@ with note.}
 \midrule
 Edit accuracy & \N{146:counterfact:default:edit_accuracy} & \N{146:counterfact:adapter_and_note_r2:edit_accuracy} \\
 Paraphrase accuracy & \N{146:counterfact:default:paraphrase_accuracy} & \N{146:counterfact:adapter_and_note_r2:paraphrase_accuracy} \\
-Leak rate, E3, with $\tau_r$ & \N{146:counterfact:default:leak_rate_e3} & \N{146:counterfact:adapter_and_note_r2:leak_rate_e3} \\
+Leak rate, E3 & \N{146:counterfact:default:leak_rate_e3} & \N{146:counterfact:adapter_and_note_r2:leak_rate_e3} \\
 Leak rate, E2 & \N{146:counterfact:default:leak_rate_e2} & \N{146:counterfact:adapter_and_note_r2:leak_rate_e2} \\
-Leak rate, natural, neighboring, with $\tau_r$ & \N{146:counterfact:default:leak_rate_natural_near_relation_tau} & -- \\
-Removal: return to base (100 removed) & \N{146:counterfact:default:removal_return} & \N{146:counterfact:adapter_and_note_r2:removal_return} \\
-Removal: retention of the others & \N{146:counterfact:default:retention} & \N{146:counterfact:adapter_and_note_r2:retention} \\
+Leak rate, natural, neighboring & \N{146:counterfact:default:leak_rate_natural_near_relation_tau} & -- \\
+Removal, return to base (100 removed) & \N{146:counterfact:default:removal_return} & \N{146:counterfact:adapter_and_note_r2:removal_return} \\
+Removal, retention of the others & \N{146:counterfact:default:retention} & \N{146:counterfact:adapter_and_note_r2:retention} \\
 Wrong-route retention (998 questions) & \N{146:counterfact:default:wrong_route_retention} & \N{146:counterfact:adapter_and_note_r2:wrong_route_retention} \\
 Capability cost, entry forced & \N{146:mmlu_arc:default:capability_cost} & \N{146:mmlu_arc:adapter_and_note_r2:capability_cost} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The main CounterFact store was rebuilt with the default write path, one fact after another, so that
-same-answer writes join existing entries as they would in use (Table~\ref{tab:seen}). These facts had
-been read before, so this is a comparison with the earlier tables and not a confirmation. Here the note
-is worth more: paraphrase accuracy differs by
+We rebuilt the main CounterFact store with the default write path, writing one fact after another so that
+writes of the same fact join an existing entry as they would in use (Table~\ref{tab:seen}). Because these facts
+had been read before, the comparison relates the default store to the earlier tables and does not confirm a
+prediction. On these facts the note matters more than on the fresh set: paraphrase accuracy differs by
 \N{146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy}
-\CI{146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy}, twice the gap on fresh
-facts. Every removed fact returns to the base answer in both stores, the other facts keep their answers,
-and none of 1000 MMLU and ARC questions is routed in either. The zsRE half of this evaluation stopped
-after 550 of 1000 writes and has not been read.
+\CI{146:counterfact:default_minus_adapter_and_note_r2:diff_paraphrase_accuracy}, about twice the gap found on
+fresh facts. All 100 removed facts returned to the base answer in both stores, the remaining facts kept their
+answers, and none of the 1000 MMLU and ARC questions was routed in either store. The zsRE half of this evaluation
+stopped after 550 of 1000 writes and has not been read.
 
 \subsection{Divergence Check}
 \label{sec:check}
-An adapter trained with the KL anchor of Eq.~\eqref{eq:loss} keeps the anchor prompts almost unchanged,
-so $D$ on them is small for every adapter: a mean of \N{69:pooled:benign_r16:d_train_mean} over 100
-benign adapters, against \N{69:pooled:benign_r16:d_heldout_mean} on the 40 held-out canaries
-(\entry{69}). Ten adapters trained without the anchor and at a high learning rate, meant to be harmful,
-exceed both the old in-sample limit and $\kappa$, but the in-sample margin is nil, while on held-out
-canaries the closest harmful adapter scores \N{69:pooled:harmful:d_heldout_min}, more than three times
-$\kappa$. The check on held-out prompts is therefore the one the system uses.
+Because the KL anchor in Eq.~\eqref{eq:loss} trains an adapter to leave the anchor prompts unchanged, $D$
+measured on those prompts is small for every adapter. Over 100 benign adapters its mean was
+\N{69:pooled:benign_r16:d_train_mean} on the two anchor prompts and \N{69:pooled:benign_r16:d_heldout_mean} on
+the 40 held-out canaries (E69). Ten adapters trained without the anchor and with a high learning rate, as
+examples of harmful adapters, exceeded both limits, but the smallest of them exceeded the earlier in-sample limit
+by only 0.03, whereas on the held-out canaries the smallest scored \N{69:pooled:harmful:d_heldout_min}, more than
+three times $\kappa$. The system therefore checks on held-out canaries.
 
 \subsection{The Write Path and Its Cost}
 \label{sec:write}
-On the fresh set \Pct{137:pooled:default:first_attempt_reject_share}\% of first attempts exceed $\kappa$,
-and on the main CounterFact store \Pct{146:counterfact:default:first_attempt_reject_share}\% do. The ladder
-recovers almost all of them: \Pct{146:counterfact:default:no_entry_share}\% of the main-store facts end
-with no entry. Part of what the check rejects is the training draw and not the fact: on a development set
-of 19 rejected facts, \N{135:pooled:new_seed:rejected_under_kappa} came under $\kappa$ with one of two
-new seeds (\entry{135}). A write took \N{146:counterfact:default:seconds_per_write_median}\,s at the median
-on a GPU shared with other work, a removal \N{146:counterfact:default:seconds_per_removal}\,s, and each
-fact stores 373\,KB. In the earlier store with notes, only the facts whose note failed received an
-adapter; in the default store every fact does.
+On the fresh set \Pct{137:pooled:default:first_attempt_reject_share}\% of first attempts exceeded $\kappa$, and
+on the main CounterFact store \Pct{146:counterfact:default:first_attempt_reject_share}\% did. The ladder stored
+almost all of these facts, and \Pct{146:counterfact:default:no_entry_share}\% of the main-store facts ended
+without an entry. Part of what the check rejects is the training run rather than the fact: on a development set
+of 19 rejected facts, \N{135:pooled:new_seed:rejected_under_kappa} came under $\kappa$ with one of two new seeds
+(E135). A write took \N{146:counterfact:default:seconds_per_write_median}\,s at the median, including the
+rewrites and any retries, on the shared GPU, and a removal took \N{146:counterfact:default:seconds_per_removal}\,s.
+In the earlier store with notes, only the facts whose note failed received an adapter; in the default store
+every fact does.
 
 \subsection{The Cost of a Wrong Route}
 \label{sec:wrong}
 
 \begin{table}[t]
 \centering
-\caption{Wrong-route retention: share of base-correct zsRE questions still answered correctly with an
-unrelated entry forced (1000 questions, \entry{114}; 998 for the default store, \entry{146}), and
-capability cost on 500 MMLU and 500 ARC questions with a random entry forced (\entry{116},
-\entry{146}).}
+\caption{Wrong-route retention: share of the base model's correct answers to zsRE development questions that
+remain correct when an unrelated entry is forced, scored by substring (1000 questions, \entry{114}; 998 for the
+default store, \entry{146}). Capability cost: change in accuracy on 500 MMLU and 500 ARC questions when a random
+entry is forced (\entry{116}, \entry{146}).}
 \label{tab:wrong}
 \scriptsize
 \begin{tabular}{lcc}
 \toprule
 Entry served & Retention & Capability cost \\
 \midrule
-Adapter, rank 16 & \N{114:zsre_dev:adapter_r16:wrong_route_retention} & \N{116:mmlu_arc:adapter_r16:capability_cost} \\
-Adapter, rank 2 & \N{114:zsre_dev:adapter_r2:wrong_route_retention} & \N{116:mmlu_arc:adapter_r2:capability_cost} \\
-Note alone & \N{114:zsre_dev:note:wrong_route_retention} & \N{116:mmlu_arc:note:capability_cost} \\
-Adapter and note, rank 2 & \N{114:zsre_dev:adapter_and_note_r2:wrong_route_retention} & \N{146:mmlu_arc:adapter_and_note_r2:capability_cost} \\
-Default store (adapter with rewrites) & \N{146:counterfact:default:wrong_route_retention} & \N{146:mmlu_arc:default:capability_cost} \\
+Adapter, rank 16, first recipe & \N{114:zsre_dev:adapter_r16:wrong_route_retention_substring} & \N{116:mmlu_arc:adapter_r16:capability_cost} \\
+Adapter, rank 2, first recipe & \N{114:zsre_dev:adapter_r2:wrong_route_retention_substring} & \N{116:mmlu_arc:adapter_r2:capability_cost} \\
+Note alone & \N{114:zsre_dev:note:wrong_route_retention_substring} & \N{116:mmlu_arc:note:capability_cost} \\
+Adapter and note, rank 2 & \N{114:zsre_dev:adapter_and_note_r2:wrong_route_retention_substring} & \N{146:mmlu_arc:adapter_and_note_r2:capability_cost} \\
+Default store, adapter with rewrites & \N{146:counterfact:default:wrong_route_retention} & \N{146:mmlu_arc:default:capability_cost} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A wrong route is the failure that costs most per query (Table~\ref{tab:wrong}). An entry forced onto an
-unrelated question keeps between a third and two thirds of the base model's correct answers, and the
-note does more damage than the adapter: the combination with note keeps
-\N{114:zsre_dev:adapter_and_note_r2:wrong_route_retention}, and the default store keeps
-\N{146:counterfact:default_minus_adapter_and_note_r2:diff_wrong_route_retention} more on the same
-questions. The adapter trained on rewrites keeps less than the first recipe's adapter, which saw only the
-edit prompt. The router's false-route rate is what keeps this cost small: none of the 1000 MMLU and ARC
-questions is routed, so served accuracy equals the base model's \N{116:mmlu_arc:base:accuracy}, and the
-cost in Table~\ref{tab:wrong} applies only to the routed share. Forcing an entry onto a multiple-choice
-question costs about 2 points at most, far less than on short factual answers, the form the adapters are
-trained on.
+Per query, a wrong route is the most damaging failure we measured (Table~\ref{tab:wrong}). With an unrelated
+entry forced, between about a third and two thirds of the base model's correct answers remain correct,
+depending on the form of the entry. The note causes more of the damage than the adapter: adapter and note
+together keep \N{114:zsre_dev:adapter_and_note_r2:wrong_route_retention_substring}, and the default store keeps
+\N{146:counterfact:default_minus_adapter_and_note_r2:diff_wrong_route_retention} more on the same questions. The
+adapter trained on rewrites keeps fewer answers than the adapter of the first recipe, which was trained on the
+edit prompt alone. In use, this cost is paid only on the share of questions that the router sends to a wrong
+entry. None of the 1000 MMLU and ARC questions is routed, so the served accuracy equals the base model's
+\N{116:mmlu_arc:base:accuracy}, and forcing an entry on these multiple-choice questions costs at most about two
+points, much less than on short factual answers, the form on which the adapters are trained.
 
 \subsection{Removal and Repeated Writes}
-Removal is exact by Proposition~\ref{prop:identity}, and on the CounterFact stores every removed fact
-returns to the base answer. On zsRE an earlier per-entry store returned only
-\N{122:zsre:per_entry:removal_return}, because one fact was often written several times and a removal
-deleted one copy. Since same-answer writes join one entry, return is
-\N{122:zsre:asymmetric_slots:removal_return} on the main zsRE store (\entry{122}), and on 1000 fresh zsRE
-records with repeated subjects the share of removed facts still routed somewhere falls from
-\N{115:zsre:per_entry:residual_route_share} to \N{115:zsre:asymmetric_slots:residual_route_share}
-(\entry{115}). No write merged two different answers.
+Removal is exact by Proposition~\ref{prop:identity}, and on the CounterFact stores every removed fact returns to
+the base answer. On zsRE, an earlier store that kept one entry per write returned only
+\N{122:zsre:per_entry:removal_return}, because the same fact was often written several times and removing one
+entry left the others. Since writes of the same answer now join a single entry, return on the main zsRE store is
+\N{122:zsre:asymmetric_slots:removal_return} (E122). On 1000 fresh zsRE records with repeated subjects, the share
+of removed facts whose queries are still routed to a remaining entry falls from \N{115:zsre:per_entry:residual_route_share} to
+\N{115:zsre:asymmetric_slots:residual_route_share} (E115), and no write merged two different answers.
 
 \subsection{Routing and Leakage}
 \label{sec:leak}
-The trained relation encoder replaced a general-purpose one because it routes paraphrases far better:
-\N{76:counterfact:relenc:paraphrase_route_correct} of CounterFact paraphrases reach their entry, against
-\N{76:counterfact:minilm:paraphrase_route_correct} (\entry{76}). The gain is uneven. On relations seen in
-its training it routes \N{76:counterfact:relenc:paraphrase_route_correct_seen_relations} of paraphrases,
-on the 11 held-out relations \N{76:counterfact:relenc:paraphrase_route_correct_heldout_relations}, and on
-held-out relations its leakage does not fall. Its success is therefore a statement about a deployment whose
-relation inventory is known in advance.
+The trained relation encoder replaced a general-purpose sentence encoder because it routes far more paraphrases
+to their entry, \N{76:counterfact:relenc:paraphrase_route_correct} of CounterFact paraphrases against
+\N{76:counterfact:minilm:paraphrase_route_correct} (E76). The gain depends on the relation. On relations seen in
+training it routes \N{76:counterfact:relenc:paraphrase_route_correct_seen_relations} of paraphrases, on the 11
+held-out relations \N{76:counterfact:relenc:paraphrase_route_correct_heldout_relations}, and on held-out relations
+it does not reduce leakage. The result therefore applies to a deployment whose relations are known in advance.
 
-The leak that remains comes from neighboring relations. Template prompts about another relation leak in
-\Pct{137:counterfact:default:leak_rate_e3}\% of cases, because CounterFact pairs relations uniformly.
-Natural questions about a neighboring relation of a stored subject leak far more:
-\Pct{137:counterfact:default:leak_rate_natural_near}\% on fresh facts with the global threshold.
-Per-relation thresholds lower this to \Pct{139:counterfact:default:leak_rate_natural_near}\% at a quarter
-of a point of paraphrase accuracy (\entry{139}); a stricter recipe reached
-\Pct{139:counterfact:default:leak_rate_natural_near_rall}\% and failed its paraphrase margin. The router's
-score separates paraphrases from these questions well (AUROC
-\N{139:counterfact:router_score:auroc_paraphrase_vs_near}), so the leak lies where the threshold is placed
-rather than in a score that cannot tell the two apart.
+The remaining leakage comes mostly from neighboring relations. E3 template prompts leak in
+\Pct{137:counterfact:default:leak_rate_e3}\% of cases, and since CounterFact draws the other relation uniformly,
+most E3 prompts ask about a clearly different relation. Natural questions about a neighboring relation leak much
+more often, in \Pct{137:counterfact:default:leak_rate_natural_near}\% of cases on fresh facts with the global
+threshold. Per-relation thresholds reduce this to \Pct{139:counterfact:default:leak_rate_natural_near}\% at a cost
+of a quarter of a point of paraphrase accuracy (E139). A stricter variant reached
+\Pct{139:counterfact:default:leak_rate_natural_near_rall}\% but failed its paraphrase margin. The router's score
+separates these questions from paraphrases well (AUROC \N{139:counterfact:router_score:auroc_paraphrase_vs_near}),
+which suggests that the leak depends mainly on where the threshold is placed.
 
-Not every such leak is wrong. When the stored fact is that a film's original language is French, the
-stored answer is also correct for the question of which language the film is in. The author labelled 200
-sampled items as correct, leak or unsure. On items where neither the author nor a model labeler was
-unsure, the two agree with Cohen's~\cite{cohen1960kappa}
-$\kappa=\N{140:counterfact:author_vs_model:cohen_kappa_two_class}$
-\CI{140:counterfact:author_vs_model:cohen_kappa_two_class}, and the corrected neighboring-relation leak of
-the router is \N{140:counterfact:default_router:leak_rate_natural_near_corrected}, on 27 items
-(\entry{140}). The per-relation thresholds remove labelled correct answers and labelled leaks at similar
-rates, \N{142:counterfact:R107:legit_removed_share} and \N{142:counterfact:R107:leak_removed_share}
-(\entry{142}), so the fall in the automatic count is not all gain. A frozen entailment model,
-DeBERTa-v3-large trained on NLI~\cite{he2023debertav3}, that reads the stored fact and the question ranks
+Some of these leaks are correct answers. If the stored fact is that a film was originally made in French, the
+stored answer also answers the question of which language the film is in. The first author labelled 200 sampled
+items as correct, leak or unsure. On the 132 items that neither the author nor a model labeler marked as unsure,
+the two agree with Cohen's~\cite{cohen1960kappa} $\kappa=\N{140:counterfact:author_vs_model:cohen_kappa_two_class}$
+\CI{140:counterfact:author_vs_model:cohen_kappa_two_class}, and the corrected neighboring-relation leak of the
+router is \N{140:counterfact:default_router:leak_rate_natural_near_corrected}, estimated on 27 items (E140). The
+per-relation thresholds remove labelled correct answers and labelled leaks at similar rates,
+\N{142:counterfact:R107:legit_removed_share} and \N{142:counterfact:R107:leak_removed_share} (E142), so part of the
+reduction in the automatic count is lost correct answers. We also tested a frozen entailment model,
+DeBERTa-v3-large fine-tuned on NLI~\cite{he2023debertav3}, that reads the stored fact and the question. It ranks
 correct answers above leaks better than the router's score (AUROC
-\N{148:counterfact:nli_entailment:auroc_legit_vs_leak} against
-\N{148:counterfact:router_score:auroc_legit_vs_leak}), but at a threshold that keeps 90\% of correct
-answers it removes too few leaks, and it failed its rule (\entry{148}).
+\N{148:counterfact:nli_entailment:auroc_legit_vs_leak} against \N{148:counterfact:router_score:auroc_legit_vs_leak}),
+but at a threshold that keeps 90\% of correct answers it removes too few leaks, and it failed its rule (E148).
 
 \subsection{Another Language}
 \label{sec:lang}
 
 \begin{table}[t]
 \centering
-\caption{Router AUROC on 1031 BMIKE-53 CounterFact facts: a query about the stored fact against a query
-about another relation of the same subject (\entry{156}, \entry{159}). The store holds English entries.}
+\caption{Router AUROC on 1031 BMIKE-53 CounterFact facts for a query about the stored fact against a query about
+another relation of the same subject (\entry{156}, \entry{159}). The store holds English entries.}
 \label{tab:lang}
 \scriptsize
 \begin{tabular}{lcc}
@@ -615,26 +678,26 @@ Multilingual mpnet, trained & \N{156:bmike_en:relenc-m:router_auroc} & \N{156:bm
 \end{tabular}
 \end{table}
 
-BMIKE-53 provides CounterFact facts with questions in other languages~\cite{nie2025bmike}. With English
-entries and Turkish questions, the default router is at chance (Table~\ref{tab:lang}) and sends
-\Pct{156:bmike_tr:relenc:src_routed_right}\% of Turkish questions to their entry, so in Turkish the common
-failure is the lost fact rather than the leak. Training the same triplets on a multilingual base,
-paraphrase-multilingual-mpnet-base-v2~\cite{reimers2020multilingual}, repairs Turkish and costs some
-English AUROC; the registered margin of $-0.02$ on English was missed by 0.0001. Adding triplets
-translated by OPUS-MT~\cite{tiedemann2020opusmt} lowered both languages (\entry{159}). The English gap is
-already present in the untrained multilingual base. A second finding concerns English: BMIKE-53
-rephrasings are questions, and at the operating point the router sends only
-\Pct{156:bmike_en:relenc:rephrase_routed_right}\% of them to their entry, since the stored keys are cloze
-prompts.
+BMIKE-53 pairs CounterFact facts with questions in 53 languages~\cite{nie2025bmike}. With English entries and
+Turkish questions, the default router performs at chance (Table~\ref{tab:lang}) and routes
+\Pct{156:bmike_tr:relenc:src_routed_right}\% of Turkish questions to their entry, so in Turkish a stored fact is
+mostly not found at all. Training the same triplets on a multilingual base,
+paraphrase-multilingual-mpnet-base-v2~\cite{reimers2020multilingual}, recovers Turkish but lowers the English AUROC,
+and it missed the registered English margin of $-0.02$ by 0.0001. Adding the triplets translated into Turkish with
+OPUS-MT~\cite{tiedemann2020opusmt} lowered the AUROC in both languages (E159). The untrained multilingual base
+already scores lower in English than all-mpnet-base-v2, so the English loss seems to come from the base rather
+than from the Turkish data. The same benchmark exposes a weakness in English as well. BMIKE-53 phrases its
+rephrasings as questions, and at the operating point the router sends only
+\Pct{156:bmike_en:relenc:rephrase_routed_right}\% of them to their entry; the stored keys are cloze prompts.
 
 \subsection{Other Base Models}
 \label{sec:scale}
 
 \begin{table}[t]
 \centering
-\caption{The earlier store with notes on five base models, 2000 facts (\entry{120}). Need: share of facts
-whose note does not answer the edit prompt, so that they receive an adapter. Paraphrase: accuracy of that
-store. Above $\kappa$: share of CounterFact adapters over the limit calibrated on Qwen2.5-1.5B.}
+\caption{The earlier store with notes on five base models, 2000 facts (\entry{120}). Need: percentage of facts
+whose note does not answer the edit prompt, which therefore receive an adapter. Paraphrase: paraphrase accuracy
+of that store. Above $\kappa$: share of CounterFact adapters above the limit calibrated on Qwen2.5-1.5B.}
 \label{tab:scale}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -653,23 +716,23 @@ SmolLM3-3B, 4-bit & \Pct{120:pooled:smollm3-3b-4bit:need_adapter_share} & \N{120
 \end{tabular}
 \end{table}
 
-The store with no note has been run on Qwen2.5-1.5B only. What other base models can tell comes from the
-earlier store with notes, where a fact received an adapter only if its note failed
-(Table~\ref{tab:scale}). The share of such facts does not follow model size: it is lowest at 0.5B,
-\Pct{120:pooled:qwen2.5-0.5b:need_adapter_share}\%, highest at 1.5B,
-\Pct{120:pooled:qwen2.5-1.5b:need_adapter_share}\%, and SmolLM3-3B needs half of what the Qwen model of that size needs. The two 1.5B arms show that
-4-bit quantization does not explain the differences. The divergence limit does not transfer: calibrated on
-1.5B, it rejects most adapters of the 3B and 7B models. Whether those adapters are harmful is not measured,
-and the default store, in which every fact receives an adapter, cannot be used on those models until
-$\kappa$ is calibrated for each.
+The store without the note has been run on Qwen2.5-1.5B only. For other base models we have results for the
+earlier store with notes, in which a fact received an adapter only if its note failed (Table~\ref{tab:scale}).
+The share of such facts does not follow model size. It is lowest at 0.5B,
+\Pct{120:pooled:qwen2.5-0.5b:need_adapter_share}\%, and highest at 1.5B,
+\Pct{120:pooled:qwen2.5-1.5b:need_adapter_share}\%, and SmolLM3-3B needs about half as many adapters as the Qwen
+model of the same size. The two 1.5B rows show that 4-bit quantization does not explain the differences. The
+divergence limit calibrated on 1.5B does not carry over, since it rejects most adapters of the 3B and 7B models.
+We did not measure whether those adapters are harmful. Because every fact receives an adapter in the default
+store, that store cannot be used on these models until $\kappa$ is calibrated for each of them.
 
 \subsection{Alternatives That Failed Their Rules}
 \label{sec:alt}
 
 \begin{table}[t]
 \centering
-\caption{Alternatives to the trained per-fact adapter, each with its registered decision rule; none was
-adopted. Readings are forced, with the right entry applied.}
+\caption{Alternatives to the trained per-fact adapter. Each was tested against a registered decision rule, and
+none was adopted. Readings are forced, with the fact's own entry applied.}
 \label{tab:alt}
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
@@ -677,34 +740,37 @@ adopted. Readings are forced, with the right entry applied.}
 \toprule
 Alternative & Reading \\
 \midrule
-Soft prompt (\entry{128}) & edit accuracy \N{128:pooled:soft_prompt:edit_accuracy} and paraphrase \N{128:pooled:soft_prompt:paraphrase_accuracy}, against \N{89:pooled:rank2_int8:edit_accuracy} and \N{89:pooled:rank2_int8:paraphrase_accuracy} for the adapter \\
-LoReFT, DiReFT (\entry{93}) & most interventions above $\kappa$; \N{93:pooled:direft_r4:above_kappa_share} for the best variant \\
-Shared by 8 to 32 facts (\entry{124}) & paraphrase with note \N{124:counterfact:shard_8x2:paraphrase_accuracy} at best, against \N{124:counterfact:per_fact_r2:paraphrase_accuracy} per fact \\
-Hypernetwork (\entry{150}) & edit accuracy \N{150:counterfact:hypernet_H1000:unseen_edit_accuracy} on unseen facts, \N{150:counterfact:hypernet_H1000:train_edit_accuracy} on training facts \\
+Soft prompt (\entry{128}) & edit accuracy \N{128:pooled:soft_prompt:edit_accuracy} and paraphrase accuracy \N{128:pooled:soft_prompt:paraphrase_accuracy}, against \N{89:pooled:rank2_int8:edit_accuracy} and \N{89:pooled:rank2_int8:paraphrase_accuracy} for the adapter on the same facts \\
+LoReFT, DiReFT (\entry{93}) & most interventions above $\kappa$, including \N{93:pooled:direft_r4:above_kappa_share} of the best variant \\
+One adapter for 8 facts (\entry{124}) & \N{124:counterfact:shard_8x2:bytes_per_fact_kb}\,KB per fact; paraphrase accuracy with note \N{124:counterfact:shard_8x2:paraphrase_accuracy} against \N{124:counterfact:per_fact_r2:paraphrase_accuracy} for one adapter per fact \\
+Hypernetwork (\entry{150}) & edit accuracy \N{150:counterfact:hypernet_H1000:unseen_edit_accuracy} on unseen facts and \N{150:counterfact:hypernet_H1000:train_edit_accuracy} on training facts \\
 Hypernetwork given the answer (\entry{152}) & \N{152:counterfact:hypernet_H0_Eb:unseen_edit_accuracy} on unseen facts; no adapter under $\kappa$ \\
-Null space, 90\% (\entry{155}) & wrong-route retention \N{155:counterfact:nullspace_N90:wrong_route_retention} against \N{155:counterfact:trained_T:wrong_route_retention}; paraphrase \N{155:counterfact:nullspace_N90:paraphrase_accuracy} against \N{155:counterfact:trained_T:paraphrase_accuracy} \\
-Hard negatives (\entry{123}) & neighboring questions routed \N{123:counterfact:hardB:natural_near_routed} against \N{123:counterfact:baseline:natural_near_routed} \\
+Null-space projection, 90\% (\entry{155}) & wrong-route retention \N{155:counterfact:nullspace_N90:wrong_route_retention} against \N{155:counterfact:trained_T:wrong_route_retention}; paraphrase accuracy \N{155:counterfact:nullspace_N90:paraphrase_accuracy} against \N{155:counterfact:trained_T:paraphrase_accuracy} \\
+Hard negatives (\entry{123}) & neighboring questions routed \N{123:counterfact:hardA:natural_near_routed} and \N{123:counterfact:hardB:natural_near_routed} for two variants against \N{123:counterfact:baseline:natural_near_routed}; E3 routing rose in both \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:alt} lists the alternatives. Two were aimed at storage and write time. A hypernetwork that
-reads a fact and writes its rank-2 adapter in one forward pass costs milliseconds per adapter instead of
-seconds and fits its 1000 training facts, but answered one unseen edit prompt in ten. Given the answer's
-identity as input it answered \N{152:counterfact:hypernet_H0_Eb:unseen_edit_accuracy}, short of the
-threshold of 1.00 that the author set for continuing, and none of its adapters stayed under $\kappa$, so
-the line closed (\entry{152}). Projecting each adapter's input away from the directions that carry 90\% of
-the energy of ordinary prompts, the idea of AlphaEdit~\cite{fang2025alphaedit}, kept more correct answers
-under a wrong route and cut the median divergence tenfold, but lost most paraphrases. At this granularity
-locality and generalization draw on the same directions (\entry{155}).
+Table~\ref{tab:alt} summarizes the alternatives. Two of them aimed to reduce the storage and the write time per
+fact. A hypernetwork that reads a fact and writes its rank-2 adapter in one forward pass takes milliseconds per
+adapter instead of seconds. Trained on 1000 facts, it answered \N{150:counterfact:hypernet_H1000:train_edit_accuracy}
+of the edit prompts of its training facts but only \N{150:counterfact:hypernet_H1000:unseen_edit_accuracy} of
+those of unseen facts. When the hypernetwork was also given a representation of the answer, it answered
+\N{152:counterfact:hypernet_H0_Eb:unseen_edit_accuracy} of the unseen edit prompts, below the threshold of 1.00
+that the first author had set for continuing, and none of its adapters passed the divergence check, so the line
+was closed (E152). The second, following AlphaEdit~\cite{fang2025alphaedit}, projected the input of each adapter
+away from the directions that carry 90\% of the energy of ordinary prompts. It kept more correct answers under a
+wrong route and reduced the median divergence by an order of magnitude, but most paraphrases were lost. We read
+this as a sign that the directions through which a paraphrase reaches the adapter overlap with those of ordinary
+prompts, which we did not test directly (E155).
 
 \subsection{Comparison with Editing Methods}
 
 \begin{table}[t]
 \centering
-\caption{Edit accuracy on CounterFact under the chat template, substring score. Descriptive only, as the
-sets differ in size and RELIC is shown in its earlier form with note (\entry{37}, \entry{54},
-\entry{63}).}
+\caption{Edit accuracy on CounterFact under the chat template, scored by substring. The comparison is
+descriptive, since the sets differ in size and RELIC is shown in its earlier rank-16 form with note
+(\entry{37}, \entry{54}, \entry{63}).}
 \label{tab:baselines}
 \scriptsize
 \begin{tabular}{lcc}
@@ -714,60 +780,60 @@ Method & Facts & Edit accuracy \\
 Instructed retrieval of the statement & 1000 & \N{37:counterfact:rag_instruct:edit_accuracy} \\
 GRACE, official implementation & 200 & \N{54:counterfact:grace_easyedit:edit_accuracy} \\
 WISE, official implementation & 200 & \N{54:counterfact:wise_easyedit:edit_accuracy} \\
-WISE with its merge after 200 edits & 200 & \N{63:counterfact:wise_easyedit_merge200:edit_accuracy} \\
+WISE, merge after 200 edits & 200 & \N{63:counterfact:wise_easyedit_merge200:edit_accuracy} \\
 RELIC, rank 16 with note & 1000 & \N{37:counterfact:adapter_and_note_r16:edit_accuracy} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:baselines} compares RELIC with retrieval and with GRACE and WISE, run through
-EasyEdit~\cite{wang2024easyedit} as 200 sequential edits. The comparison is descriptive and depends on
-the prompt format. GRACE answers every edit on the plain edit prompt and few under the chat template,
-because its keys are activations of the plain prompt's last token. WISE answers each edit right after it
-is made, but after 200 sequential edits the final model answers few of them. Neither offers an operation
-that removes one edit.
+Table~\ref{tab:baselines} compares an earlier form of RELIC with instructed retrieval and with GRACE and WISE, run
+through EasyEdit~\cite{wang2024easyedit} as 200 sequential edits. The comparison depends on the prompt format.
+GRACE answers all 200 edits on the plain edit prompt but few under the chat template, because its keys are
+activations of the last token of the plain prompt. WISE answers each edit immediately after it is made, but after
+200 sequential edits the final model answers few of them. Neither method provides an operation that removes a
+single edit.
 
 % ===========================================================================
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{What the Measurements Show}
-A per-fact adapter behind a router does what the data structure promises: removal returns the base answer,
-the state hash returns to its earlier value, and the router leaves benchmark questions alone. The weak
-points lie elsewhere. The first is the boundary between neighboring relations, where about one neighboring
-question in six still receives the stored answer and about half of those answers are correct. None of the
-text signals we tried, thresholds, mined negatives or an entailment model, tells the two kinds apart,
-since whether the stored answer is right depends on what the asked relation means for that subject. The
-second is the cost of an error: a wrong route damages almost half of the answers it touches, so routing
-precision is a safety property and not only an accuracy one. The third is coverage. The router reads cloze
-prompts better than questions and English better than Turkish. A multilingual encoder recovers Turkish at a
-small cost in English, which a router that chooses its encoder by the language of the query would avoid by
-construction; that design has not been registered or run.
+\subsection{Interpretation}
+The properties that follow from the data structure held in every reading. Removed facts returned to the base
+answer, the state hash returned to its earlier value, and the router did not touch benchmark questions. The
+measured weaknesses concern the router. The largest is the boundary between neighboring relations, where about a
+sixth of the natural questions still receive the stored answer and, in the labelled sample, about half of these
+answers are correct. The thresholds and the entailment model, the two signals we evaluated against the labels, do
+not separate correct answers from leaks well enough, presumably because whether a stored answer is correct
+depends on what the asked relation means for the particular subject. A wrong route is also expensive when it
+happens, since it changes almost half of the answers it reaches, and in our design the router's false-route rate
+is the only safeguard against that cost. Finally, the router is limited to English and to cloze-style prompts.
+A multilingual encoder recovers Turkish at a small loss in English. A router that selects its encoder by the
+language of the query would keep English unchanged, but that design has not been registered or run.
 
-Dropping the note made the system simpler and a wrong route cheaper, at a cost on CounterFact paraphrases
-that the registered margin could not exclude. We report the decision as the author's and the rule as
-failed. Every fact now receives an adapter of 373\,KB and, on our shared GPU, about 20 seconds of training.
-The two alternatives that would have lowered that cost, a hypernetwork and adapters shared by several
-facts, failed their rules.
+Removing the note simplified the system and made wrong routes cheaper, at a cost on CounterFact paraphrases that
+the registered margin could not exclude. We report the decision as the first author's and the rule as failed. Each
+fact now receives an adapter of 373\,KB and, on our shared GPU, about 20 seconds of training. The two alternatives
+that would have reduced this cost, a hypernetwork and adapters shared by several facts, failed their rules.
 
 \subsection{Limitations}
-All default-store readings are on Qwen2.5-1.5B-Instruct, and the divergence limit must be calibrated on each
-base model before the store is used there. Facts have single-token targets from two benchmarks, and no
-multi-hop or reverse question was tested. The zsRE half of the main default-store evaluation is unfinished.
-The natural questions were written by one model, the corrected leak rests on 27 labelled items, and pronoun
-handling was tested on constructed conversations. Time to first token is part of the registered cost
-metrics and has not been measured. The state hash names the model without its revision. A transaction is
-atomic for one writer; two processes writing one store are not coordinated.
+All readings of the default store were made on Qwen2.5-1.5B-Instruct. The divergence limit was calibrated on
+rank-16 adapters of an earlier recipe and on this model only, and it has to be calibrated for each base model before
+the store is used there. The facts have single-token targets from two benchmarks, and neither multi-hop questions
+nor questions in the reverse direction~\cite{berglund2024reversal} were tested. The zsRE half of the main
+evaluation of the default store is unfinished. The natural questions were written by a single model, the
+corrected leak rate rests on 27 labelled items, and pronoun resolution was tested only on constructed
+conversations. Time to first token belongs to the registered cost metrics but has not been measured. The state
+hash names the model without its revision, and two processes writing to one store are not coordinated.
 
 % ===========================================================================
 \section{Conclusion}
-RELIC stores each fact as its own rank-2 adapter behind a router whose parameters do not depend on the
-stored facts, so that removal and attribution are exact by construction. In a pre-registered study the store
-answers almost all edit prompts and most paraphrases on facts no decision had seen, leaves benchmark
-questions untouched and returns removed facts to the base answer. It leaks into neighboring relations, does
-not read a second language, and loses about half of the answers a wrong route touches. Several ways to make
-it cheaper or more local failed their rules, and they are reported with the same weight as the results that
-held. The record, the code and the tables behind every number are public.
+RELIC stores each fact as a separate rank-2 adapter behind a router whose parameters do not depend on the stored
+facts, so that removal and attribution are exact by construction. In a pre-registered study the store answered
+almost all edit prompts and most paraphrases of facts that no design decision had used, left benchmark questions
+untouched, and returned removed facts to the base model's answers. It still leaks into neighboring relations,
+does not handle Turkish questions, and changes about half of the answers that a wrong route reaches. Attempts to
+make it cheaper or more local, including a hypernetwork and a null-space projection, failed their registered
+rules. The record of all runs, failed ones included, is published with the code.
 
 % ===========================================================================
 \appendix
@@ -784,15 +850,15 @@ Base model & Qwen2.5-1.5B-Instruct, bf16, frozen \\
 Adapter & LoRA $r{=}2$, $\alpha{=}4$, query and value projections, 28 layers \\
 Optimizer & AdamW, lr $3{\cdot}10^{-4}$ ($A$), $2.4{\cdot}10^{-3}$ ($B$, LoRA+), 16 passes \\
 Training pairs & statement, edit prompt and up to 3 rewrites by the base model \\
-Anchor & forward KL to the base on 2 generic prompts, $\lambda{=}1$ \\
+Anchor & forward KL to the base model on 2 generic prompts, $\lambda{=}1$ \\
 Storage & int8 with an fp16 scale per row of $B$, 373\,KB \\
 Divergence check & Jeffreys divergence on 40 held-out canaries, $\kappa{=}\N{69:pooled:benign_r16:kappa}$ \\
-Retry ladder & another seed; $\lambda\in\{2,4,8,16\}$; no rewrites; else reject \\
+Retry ladder & another seed; $\lambda=2,4,8,16$; no rewrites; otherwise reject \\
 Relation encoder & all-mpnet-base-v2, 7500 triplets, MNRL, lr $2{\cdot}10^{-5}$, one epoch \\
-Thresholds & $\tau{=}0.7501$; per-relation for 9 relations; replacement at 0.8985 \\
+Thresholds & $\tau{=}0.7501$; $\tau_r$ raised for 4 relations; replacement at 0.8985 \\
 Entity match & word boundary, or edit distance $\le 1$ (4+ characters), $\le 2$ (6+) \\
 Serving & chat template, ``Answer briefly.'', greedy, 64 new tokens \\
-Scoring & target at a word boundary \\
+Scoring & target within word boundaries \\
 \bottomrule
 \end{tabular}}
 \end{table}

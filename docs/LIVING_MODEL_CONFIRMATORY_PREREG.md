@@ -3796,3 +3796,27 @@ Rule, the rule of entry 154 for relenc-b. relenc-b goes on to calibration and th
 Predictions. P1: at least 90 percent of the texts keep the placeholder. P2: relenc-b passes (i), with a Turkish AUROC above relenc-m's. P3: relenc-b passes (ii). P4: on the held-out relations, relenc-b's Turkish AUROC is at least .92.
 
 Limits. As entry 154. The training Turkish is machine translation of cloze prompts, the evaluation Turkish is BMIKE's machine translation of questions; the two may share a translator's style. One seed, one language pair. `sentencepiece` is added as the optional extra `translate`, needed only for the translation step.
+
+## 159. SS158 results: Turkish triplets do not help; relenc-b is below relenc-m in both languages (2026-11-14)
+
+Source: results/live_learning/confirm/relenc_tr_map.json, relenc_b.log, relenc_b_train.log, xling_route_b.json; encoder relation_encoder_bil (212.7 s, 938 steps, last loss 1.11).
+
+Deviation. The first training run stopped on CUDA out of memory at the optimiser step, with 2.9 GB reserved and unallocated; it was rerun with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` and nothing else changed. The translations of the first run were kept.
+
+Translations: 2340 distinct texts, 2337 kept (.9987). Triplets: 7500 of SS76 plus 22491 translated, 29991 in all.
+
+| Encoder | English | Turkish | English, held out | Turkish, held out |
+|---|---|---|---|---|
+| relenc | .975 | .532 | .957 | .496 |
+| relenc-m (entry 156) | .960 | .939 | .934 | .919 |
+| relenc-b | .948 (.939 to .957) | .930 (.919 to .940) | .929 | .925 |
+
+relenc-b minus relenc, paired: Turkish +.398 (+.380 to +.415), English -.027 (-.034 to -.019). relenc-b minus relenc-m: Turkish -.009 (-.018 to -.001), English -.011 (-.018 to -.005); on held-out relations +.006 and -.005, both intervals across zero.
+
+Rule. (i) holds; (ii) fails, lower end -.034 against -.02. The router stays.
+
+Predictions. P1 held: .9987. P2 failed in its second part: relenc-b passes (i), but its Turkish AUROC is below relenc-m's. P3 failed. P4 held: .925.
+
+Reading. Machine-translated cloze prompts did not teach the encoder anything the multilingual base and the English triplets had not; with four times the steps at the same learning rate, the encoder lost a little in both languages. The English gap is not the cost of Turkish data: the multilingual base starts lower in English than all-mpnet-base-v2 (.877 against .891 untrained, entry 156), and relenc-m and relenc-b both keep that gap. A router that scores English queries with relenc and other languages with relenc-m would keep the English reading by construction and take relenc-m's Turkish; that is a different design and needs its own entry.
+
+Limits. As entry 158. One seed; the step count grew with the data, so data and steps are confounded.

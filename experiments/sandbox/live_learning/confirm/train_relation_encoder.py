@@ -102,21 +102,8 @@ def build_triplets(
     return triplets, heldout, train_rel, n_cf, n_zs
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(OUT_DIR))
-    ap.add_argument("--batch", type=int, default=32)
-    ap.add_argument("--lr", type=float, default=2e-5)
-    ap.add_argument("--hard", help="SS110: relation_confusions.json")
-    ap.add_argument("--no-holdout", action="store_true", help="SS110 arm B")
-    ap.add_argument("--base", default=BASE, help="SS154: another base encoder")
-    args = ap.parse_args(argv)
-    if Path(args.out).exists():
-        ap.error(f"refusing to overwrite {args.out}")
-
-    import torch
-    from sentence_transformers import SentenceTransformer
-
+def ss76_triplets(hard=None, hold_out=True):
+    """The SS76 triplets, rebuilt exactly: seed 76, test and dev subjects excluded."""
     raw_cf = json.loads((CONFIRM / "raw/counterfact.json").read_text())
     raw_zs = json.loads((CONFIRM / "raw/zsre.json").read_text())
     tests = [
@@ -127,12 +114,42 @@ def main(argv=None):
     dev = build_dev(raw_cf, raw_zs, test_subjects)
     excluded = test_subjects | {f["subject"] for f in dev}
     rng = random.Random(SEED)
-    partners = (
-        json.loads(Path(args.hard).read_text())["partners"] if args.hard else None
+    partners = json.loads(Path(hard).read_text())["partners"] if hard else None
+    out = build_triplets(raw_cf, raw_zs, excluded, rng, partners, hold_out=hold_out)
+    return (*out, rng)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(OUT_DIR))
+    ap.add_argument("--batch", type=int, default=32)
+    ap.add_argument("--lr", type=float, default=2e-5)
+    ap.add_argument("--hard", help="SS110: relation_confusions.json")
+    ap.add_argument("--no-holdout", action="store_true", help="SS110 arm B")
+    ap.add_argument("--base", default=BASE, help="SS154: another base encoder")
+    ap.add_argument("--tr", help="SS158: translations of the triplet texts")
+    args = ap.parse_args(argv)
+    if Path(args.out).exists():
+        ap.error(f"refusing to overwrite {args.out}")
+
+    import torch
+    from sentence_transformers import SentenceTransformer
+
+    triplets, heldout, train_rel, n_cf, n_zs, rng = ss76_triplets(
+        args.hard, not args.no_holdout
     )
-    triplets, heldout, train_rel, n_cf, n_zs = build_triplets(
-        raw_cf, raw_zs, excluded, rng, partners, hold_out=not args.no_holdout
-    )
+    n_tr = 0
+    if args.tr:  # SS158: the same triplets with translated texts, three ways
+        tr = json.loads(Path(args.tr).read_text())["map"]
+        extra = [
+            t
+            for a, p, n in triplets
+            if a in tr and p in tr and n in tr
+            for t in ((a, tr[p], tr[n]), (tr[a], tr[p], tr[n]), (tr[a], p, n))
+        ]
+        n_tr = len(extra)
+        triplets = triplets + extra
+        rng.shuffle(triplets)
     print(
         f"triplets {len(triplets)} (cf facts {n_cf}, zsre facts {n_zs}); held out {heldout}",
         flush=True,
@@ -176,7 +193,12 @@ def main(argv=None):
     model.eval()
     model.save(args.out)
     meta = {
-        "prereg": "SS110" if args.hard else ("SS154" if args.base != BASE else "SS76"),
+        "prereg": "SS110"
+        if args.hard
+        else "SS158"
+        if args.tr
+        else ("SS154" if args.base != BASE else "SS76"),
+        "n_translated_triplets": n_tr,
         "hard": args.hard,
         "base": args.base,
         "seed": SEED,

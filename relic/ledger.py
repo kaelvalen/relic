@@ -34,7 +34,7 @@ from relic.router import (
     resolve_reference,
     usable_aliases,
 )
-from relic.serving import base_answer, serve_expert
+from relic.serving import SYSTEM, base_answer, serve_expert
 
 R = 16  # rank per fact
 CAP = 64  # capacity of the merged adapter, in facts; routed serving has no such limit
@@ -85,8 +85,39 @@ HELDOUT_CANARIES = [
 # p99 of held-out divergence over stored adapters on Qwen2.5-1.5B (SS69); calibrate per model (SS98)
 KAPPA = 0.968
 
+PROMPT_FIELDS = ("train_system", "anchor_system", "system")
+# The prompts of every record up to entry 159: training pairs without a system message
+# (Qwen's template then adds its default one), the KL anchor and the divergence check under
+# a Turkish instruction, serving under "Answer briefly.".
+LEGACY_PROMPTS = {
+    "train_system": None,
+    "anchor_system": "Kısa ve net cevap ver.",
+    "system": "Answer briefly.",
+}
+
+
+def use_prompts(store, prompts: dict):
+    """Set the store's system prompts, e.g. LEGACY_PROMPTS to reproduce an old entry."""
+    unknown = set(prompts) - set(PROMPT_FIELDS)
+    if unknown:
+        raise ValueError(f"unknown prompt fields: {sorted(unknown)}")
+    for k, v in prompts.items():
+        setattr(store, k, v)
+    return store
+
+
+def chat_messages(system: str | None, *turns: dict) -> list[dict]:
+    head = [] if system is None else [{"role": "system", "content": system}]
+    return head + list(turns)
+
 
 class DeltaStore:
+    # one system prompt for training, the anchor, the divergence check and serving; class
+    # attributes, so stores built with __new__ have them too (use_prompts overrides them)
+    train_system: str | None = SYSTEM
+    anchor_system: str | None = SYSTEM
+    system: str = SYSTEM
+
     def __init__(
         self,
         model_name: str,
@@ -163,10 +194,7 @@ class DeltaStore:
     # -- transactions -----------------------------------------------------
     def _logits(self, model, q: str) -> torch.Tensor:
         ids = self.tok.apply_chat_template(
-            [
-                {"role": "system", "content": "Kısa ve net cevap ver."},
-                {"role": "user", "content": q},
-            ],
+            chat_messages(self.anchor_system, {"role": "user", "content": q}),
             add_generation_prompt=True,
             return_tensors="pt",
         )
@@ -174,14 +202,18 @@ class DeltaStore:
         return model(input_ids=ids).logits[0, -1].float()
 
     def _pair_step(self, model, opt, user: str, assistant: str) -> None:
-        pair = [
+        turns = (
             {"role": "user", "content": user},
             {"role": "assistant", "content": assistant},
-        ]
-        prompt = self.tok.apply_chat_template(
-            pair[:-1], add_generation_prompt=True, return_tensors="pt"
         )
-        full = self.tok.apply_chat_template(pair, return_tensors="pt")
+        prompt = self.tok.apply_chat_template(
+            chat_messages(self.train_system, *turns[:1]),
+            add_generation_prompt=True,
+            return_tensors="pt",
+        )
+        full = self.tok.apply_chat_template(
+            chat_messages(self.train_system, *turns), return_tensors="pt"
+        )
         pid = prompt["input_ids"] if hasattr(prompt, "keys") else prompt
         fid = full["input_ids"] if hasattr(full, "keys") else full
         fid = fid.to(model.device)
@@ -243,10 +275,7 @@ class DeltaStore:
         self.deltas = {}
         self.materialize()
         ids = self.tok.apply_chat_template(
-            [
-                {"role": "system", "content": "Kısa ve net cevap ver."},
-                {"role": "user", "content": text},
-            ],
+            chat_messages(self.anchor_system, {"role": "user", "content": text}),
             add_generation_prompt=True,
             return_tensors="pt",
         )
@@ -320,7 +349,7 @@ class DeltaStore:
         self.materialize()
         return {"committed": True, "kld": kld}
 
-    def answer_routed(self, user: str, system: str = "Kısa ve net cevap ver.") -> str:
+    def answer_routed(self, user: str, system: str | None = None) -> str:
         """Route to ONE expert (semantic keys, cosine), never the merged sum."""
         ids = sorted(self.deltas)
         if not ids:
@@ -345,14 +374,14 @@ class DeltaStore:
         return resp
 
     # -- behaviour --------------------------------------------------------
-    def answer(self, user: str, system: str = "Kısa ve net cevap ver.") -> str:
+    def answer(self, user: str, system: str | None = None) -> str:
         return chat(
             self.tok,
             self.model,
-            [
-                {"role": "system", "content": system},
+            chat_messages(
+                self.system if system is None else system,
                 {"role": "user", "content": user},
-            ],
+            ),
             max_new_tokens=64,
         )
 

@@ -33,7 +33,9 @@ def tex(v: str) -> str:
 
 def main() -> None:
     rows = {key(r): r for r in csv.DictReader(ROWS.open())}
-    used = set(re.findall(r"\\(?:N|Pct|CI)\{([^}]+)\}", (PAPER / "main.tex").read_text()))
+    used = set(
+        re.findall(r"\\(?:N|Pct|CI)\{([^}]+)\}", (PAPER / "main.tex").read_text())
+    )
     missing = sorted(used - rows.keys())
     if missing:
         sys.exit("results.csv has no row for: " + ", ".join(missing))
@@ -46,7 +48,9 @@ def main() -> None:
     for k in sorted(used):
         r = rows[k]
         out.append(rf"\expandafter\def\csname n@{k}\endcsname{{{tex(r['value'])}}}")
-        out.append(rf"\expandafter\def\csname p@{k}\endcsname{{{tex(pct(r['value']))}}}")
+        out.append(
+            rf"\expandafter\def\csname p@{k}\endcsname{{{tex(pct(r['value']))}}}"
+        )
         if r["ci_low"]:
             lo, hi = tex(r["ci_low"]), tex(r["ci_high"])
             out.append(rf"\expandafter\def\csname c@{k}\endcsname{{[{lo}, {hi}]}}")

@@ -98,7 +98,7 @@ def main(argv=None):
     from routed_eval import MANIFEST_PATH
     from sentence_transformers import SentenceTransformer
 
-    from relic.ledger import DeltaStore
+    from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts
     from relic.metrics import ci, hit
     from relic.serving import base_answer, trim
 
@@ -123,6 +123,7 @@ def main(argv=None):
 
     model_id = json.loads(MANIFEST_PATH.read_bytes())["models"]["base"]["id"]
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.deltas = {}
     store.materialize()
     judge = Judge(store)

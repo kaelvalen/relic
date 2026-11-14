@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from adapter_only import CONFIRM, MODEL, draw_facts  # noqa: E402
 
-from relic.ledger import DeltaStore, Ledger  # noqa: E402
+from relic.ledger import LEGACY_PROMPTS, DeltaStore, Ledger, use_prompts  # noqa: E402
 from relic.router import make_scorer  # noqa: E402
 
 SEED = 136
@@ -48,7 +48,11 @@ def main() -> None:
             responses[(r["id"], r["reading"])] = r["response"]["ladder"]
 
     ledger = Ledger(
-        DeltaStore(MODEL, steps=16, capacity=1), make_scorer("relenc"), 0.7501, 0.8985
+        use_prompts(DeltaStore(MODEL, steps=16, capacity=1), LEGACY_PROMPTS),
+        make_scorer("relenc"),
+        0.7501,
+        0.8985,
+        keep_history=False,
     )
     rows = []
     for key in chosen:

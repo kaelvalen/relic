@@ -36,7 +36,7 @@ from routed_eval import (  # noqa: E402
     verify_manifest_inputs,
 )
 
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import hit  # noqa: E402
 from relic.router import RouterV4  # noqa: E402
 from relic.serving import (  # noqa: E402
@@ -156,6 +156,7 @@ def main(argv=None):
     torch.manual_seed(0)
     enc = SentenceTransformer(manifest["models"]["router_encoder"]["id"])
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     checkpoint, ckpt_sha = load_verified_checkpoint(
         verified["checkpoint_path"],

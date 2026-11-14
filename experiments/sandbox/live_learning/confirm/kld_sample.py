@@ -19,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 
 
 def main() -> None:
@@ -33,6 +33,7 @@ def main() -> None:
     import torch
 
     store = DeltaStore(args.model, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     st = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     store.deltas = st["deltas"]

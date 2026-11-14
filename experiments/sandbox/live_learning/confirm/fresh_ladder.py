@@ -32,7 +32,7 @@ from served_adapter import (  # noqa: E402
 )
 
 from relic.adapters import R2  # noqa: E402
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import word_hit  # noqa: E402
 
 SEED = 136
@@ -106,6 +106,7 @@ def main(argv=None):
     queries = build_queries(sets, facts, cf_records, raw_cf, natural)
 
     store = DeltaStore(MODEL, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     if "rewrites" not in report:
         report["rewrites"] = {}

@@ -148,12 +148,13 @@ def main(argv=None):
     if need_base:
         from routed_eval import MANIFEST_PATH
 
-        from relic.ledger import DeltaStore
+        from relic.ledger import LEGACY_PROMPTS, DeltaStore, use_prompts
         from relic.metrics import hit
         from relic.serving import base_answer, trim
 
         model_id = json.loads(MANIFEST_PATH.read_bytes())["models"]["base"]["id"]
         store = DeltaStore(model_id, steps=16)
+        use_prompts(store, LEGACY_PROMPTS)
         for name, (_, dec, rows, _) in decisions.items():
             facts = tests[name]
             for i, f in enumerate(facts):

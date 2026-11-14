@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from facts import NUMBERS  # noqa: E402
 from pilot import TAU, Router  # noqa: E402
 
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import ci, hit  # noqa: E402
 from relic.serving import base_answer, routed_answer, trim  # noqa: E402
 
@@ -613,6 +613,7 @@ def main(argv=None):
     torch.manual_seed(0)
     enc = SentenceTransformer(router_model["id"])
     store = DeltaStore(base_model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     try:
         checkpoint, loaded_checkpoint_sha256 = load_verified_checkpoint(

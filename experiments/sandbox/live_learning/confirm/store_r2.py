@@ -44,7 +44,7 @@ from relic.adapters import (  # noqa: E402
     set_delta,
     train_one,
 )
-from relic.ledger import CANARIES, DeltaStore  # noqa: E402
+from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import (
     hit,  # noqa: E402
     sym_kl,  # noqa: E402
@@ -170,6 +170,7 @@ def build(args):
     )
 
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
 
     # Phase A: train (the store model waits on the CPU; train_one loads its own base).

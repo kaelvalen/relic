@@ -215,7 +215,7 @@ def serve(args):
     from serving_locality import POLICIES
     from serving_locality import serve as serve_policies
 
-    from relic.ledger import CANARIES, DeltaStore
+    from relic.ledger import CANARIES, LEGACY_PROMPTS, DeltaStore, use_prompts
     from relic.metrics import hit
     from relic.router import RouterV7, make_scorer
     from relic.serving import Server, trim
@@ -231,6 +231,7 @@ def serve(args):
     }
     torch.manual_seed(0)
     store = DeltaStore(model_id, steps=16)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_prompts = list(CANARIES)
     checkpoint, _ = load_verified_checkpoint(
         verified["checkpoint_path"],

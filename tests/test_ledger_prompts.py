@@ -1,6 +1,7 @@
 """One system prompt for training, anchor, divergence and serving (CHANGES.md, item 1)."""
 
 import types
+from pathlib import Path
 
 import pytest
 
@@ -89,3 +90,12 @@ def test_default_prompts_use_the_serving_prompt_everywhere(monkeypatch):
 def test_use_prompts_refuses_an_unknown_field():
     with pytest.raises(ValueError, match="unknown prompt"):
         use_prompts(recording_store(), {"sytem": "x"})
+
+
+def test_every_old_runner_reproduces_its_prompts():
+    confirm = Path(__file__).parents[1] / "experiments/sandbox/live_learning/confirm"
+    new = {"kappa_calib.py", "ttft_eval.py"}  # written for the entries after 159
+    for p in sorted(confirm.glob("*.py")):
+        text = p.read_text()
+        if "DeltaStore(" in text and p.name not in new:
+            assert "use_prompts(" in text and "LEGACY_PROMPTS" in text, p.name

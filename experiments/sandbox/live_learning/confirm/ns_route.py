@@ -22,7 +22,7 @@ from hyper_spike import N_UNSEEN, SEED, chat_ids, read, summary  # noqa: E402
 from wrong_route import paired, with_adapter  # noqa: E402
 
 from relic.adapters import fact_pairs, train_adapter  # noqa: E402
-from relic.ledger import KAPPA, DeltaStore  # noqa: E402
+from relic.ledger import KAPPA, LEGACY_PROMPTS, DeltaStore, use_prompts  # noqa: E402
 from relic.metrics import word_hit  # noqa: E402
 from relic.serving import SYSTEM, trim  # noqa: E402
 
@@ -108,6 +108,7 @@ def main() -> None:
     args = ap.parse_args()
 
     store = DeltaStore(MODEL, steps=16, capacity=1)
+    use_prompts(store, LEGACY_PROMPTS)
     store.kl_lambda = 1.0
 
     seen = {f["subject"] for fs in draw_facts(150)[0].values() for f in fs}

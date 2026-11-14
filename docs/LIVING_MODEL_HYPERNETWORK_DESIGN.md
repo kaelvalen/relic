@@ -1,7 +1,8 @@
 # A hypernetwork that writes the adapter: design
 
-Status: draft for the author, 2026-11-12. Nothing here is pinned; every run is pinned as a
-prereg entry before it starts, with the margins this document leaves open.
+Status: closed, 2026-11-12. Phase 0 ran as entries 149 and 150, and the follow-up as entries 151 and 152: a
+generated adapter answered 0.77 of unseen facts against the author's threshold of 1.00, and none stayed under the
+divergence limit, so the line that replaces trained adapters closed. The design below is kept as written.
 
 ## Intent
 
